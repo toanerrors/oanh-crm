@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, App, Button, Input, Select, Table, Tabs, Tag } from 'antd';
+import { Alert, App, Button, Grid, Input, Select, Table, Tabs, Tag } from 'antd';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { accountBalance, filterDocuments, periodDocuments, totals } from '../../shared/accounting/ledger';
@@ -35,6 +35,8 @@ export function Component() {
 function DocumentsPage({ config }: { config: typeof configs[string] }) {
   const { data, period, newDraft, openDocument, refresh } = useWorkspace();
   const navigate = useNavigate();
+  const screens = Grid.useBreakpoint();
+  const compact = screens.md === false;
   const [params, setParams] = useSearchParams();
   const [type, setType] = useState<string>('all');
   const [page, setPage] = useState(1);
@@ -51,6 +53,14 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
   const filtered = isDemo ? filterDocuments(scope, search, data.partners).filter(item => (status === 'all' || item.status === status) && (type === 'all' || item.type === type)) : serverQuery.data?.documents ?? [];
   const filteredTotal = isDemo ? filtered.reduce((sum, item) => sum + totals(item.lines).debit, 0n) : BigInt(serverQuery.data?.amount ?? '0');
   const count = isDemo ? filtered.length : serverQuery.data?.total ?? 0;
+  const rows = isDemo ? [...filtered].sort((a, b) => {
+    let comparison = a.date.localeCompare(b.date);
+    if (sort === 'amount') {
+      const difference = totals(a.lines).debit - totals(b.lines).debit;
+      comparison = difference < 0n ? -1 : difference > 0n ? 1 : 0;
+    }
+    return direction === 'asc' ? comparison : -comparison;
+  }) : filtered;
   const counts = serverQuery.data?.counts;
   const canWrite = isDemo || apiScope().permissions !== 'viewer';
   const exportRows = () => { if (!isDemo) { void downloadApi(`/documents/export?${serverParams}`, `chung-tu-${period}.csv`).catch(error => void message.error((error as Error).message)); return; } downloadCsv(`chung-tu-mau-${period}.csv`, [
@@ -70,13 +80,18 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
         { key: 'posted', label: <>Đã ghi sổ <span className={styles.countBadge}>{isDemo ? scope.filter(item => item.status === 'posted').length : counts?.posted ?? '—'}</span></> },
         { key: 'draft', label: <>Bản nháp <span className={styles.countBadge}>{isDemo ? scope.filter(item => item.status === 'draft').length : counts?.draft ?? '—'}</span></> },
       ]} /></div>
-      <div className={styles.tableToolbar}><Input prefix={<Icon name="search" size={17} />} placeholder="Tìm số chứng từ, diễn giải, đối tượng…" aria-label="Tìm trong danh sách chứng từ" value={search} onChange={event => updateFilter('q', event.target.value)} allowClear className={styles.filterSearch} /><div>{!config.type && <Select aria-label="Lọc loại chứng từ" value={type} onChange={value => { setType(value); setPage(1); }} style={{ minWidth: 170 }} options={[{ value: 'all', label: 'Tất cả loại chứng từ' }, ...Object.entries(documentTypes).map(([value, label]) => ({ value, label }))]} />}<Tag className={styles.demoPill}>{isDemo ? 'Dữ liệu mẫu' : 'Dữ liệu doanh nghiệp'}</Tag></div></div>
-      <Table<AccountingDocument> loading={!isDemo && serverQuery.isPending} onChange={(_, __, sorter, extra) => { if (isDemo || extra.action !== 'sort') return; const current = Array.isArray(sorter) ? sorter[0] : sorter; setPage(1); setSort(current.columnKey === 'amount' ? 'amount' : 'date'); setDirection(current.order === 'ascend' ? 'asc' : 'desc'); }} rowKey="id" dataSource={filtered} scroll={{ x: 950 }} pagination={{ current: page, total: count, onChange: setPage, pageSize: 8, showSizeChanger: false, hideOnSinglePage: true, showTotal: total => `${total} chứng từ` }} locale={{ emptyText: <EmptyData action={<Button onClick={() => { setType('all'); setParams({}); }}>Xóa bộ lọc</Button>} /> }} columns={[
+      <div className={styles.tableToolbar}><Input prefix={<Icon name="search" size={17} />} placeholder="Tìm số chứng từ, diễn giải, đối tượng…" aria-label="Tìm trong danh sách chứng từ" value={search} onChange={event => updateFilter('q', event.target.value)} allowClear className={styles.filterSearch} /><div>{!config.type && <Select aria-label="Lọc loại chứng từ" value={type} onChange={value => { setType(value); setPage(1); }} style={{ minWidth: 170 }} options={[{ value: 'all', label: 'Tất cả loại chứng từ' }, ...Object.entries(documentTypes).map(([value, label]) => ({ value, label }))]} />}{compact && <Select aria-label="Sắp xếp chứng từ" value={`${sort}:${direction}`} style={{ minWidth: 160 }} onChange={value => { const [field, order] = value.split(':'); setSort(field); setDirection(order === 'asc' ? 'asc' : 'desc'); setPage(1); }} options={[{ value: 'date:desc', label: 'Mới nhất' }, { value: 'date:asc', label: 'Cũ nhất' }, { value: 'amount:desc', label: 'Số tiền giảm dần' }, { value: 'amount:asc', label: 'Số tiền tăng dần' }]} />}<Tag className={styles.demoPill}>{isDemo ? 'Dữ liệu mẫu' : 'Dữ liệu doanh nghiệp'}</Tag></div></div>
+      <Table<AccountingDocument> className={compact ? styles.compactDocuments : undefined} showHeader={!compact} loading={!isDemo && serverQuery.isPending} onChange={(_, __, sorter, extra) => { if (extra.action !== 'sort') return; const current = Array.isArray(sorter) ? sorter[0] : sorter; setPage(1); setSort(current.order && current.columnKey === 'amount' ? 'amount' : 'date'); setDirection(current.order === 'ascend' ? 'asc' : 'desc'); }} rowKey="id" dataSource={rows} scroll={compact ? undefined : { x: 950 }} pagination={{ current: page, total: count, onChange: setPage, pageSize: 8, showSizeChanger: false, hideOnSinglePage: true, showTotal: total => `${total} chứng từ` }} locale={{ emptyText: <EmptyData action={<Button onClick={() => { setType('all'); setParams({}); }}>Xóa bộ lọc</Button>} /> }} columns={compact ? [{ key: 'document', render: (_, item) => <article className={styles.documentCard}>
+        <div><button className={styles.tableLink} onClick={() => openDocument(item.id)}>{item.reference}</button><StatusTag status={item.status} /></div>
+        <p>{item.description}</p>
+        <span className={styles.cellSub}>{data.partners.find(partner => partner.id === item.partnerId)?.name ?? 'Không có đối tượng chung'}</span>
+        <div className={styles.documentCardMeta}><span>{formatDate(item.date)} · {documentTypes[item.type]}</span><span>Tổng Nợ (VND)<strong>{formatMoney(totals(item.lines).debit)}</strong></span></div>
+      </article> }] : [
         { title: 'SỐ CHỨNG TỪ', dataIndex: 'reference', width: 135, render: (value: string, item) => <button className={styles.tableLink} onClick={() => openDocument(item.id)}>{value}</button> },
-        { title: 'NGÀY', dataIndex: 'date', width: 105, sorter: isDemo ? (a, b) => a.date.localeCompare(b.date) : true, render: formatDate },
+        { title: 'NGÀY', dataIndex: 'date', width: 105, sortOrder: sort === 'date' ? (direction === 'asc' ? 'ascend' : 'descend') : null, sorter: isDemo ? (a, b) => a.date.localeCompare(b.date) : true, render: formatDate },
         { title: 'DIỄN GIẢI / ĐỐI TƯỢNG', dataIndex: 'description', render: (value: string, item) => <><span>{value}</span><small className={styles.cellSub}>{data.partners.find(partner => partner.id === item.partnerId)?.name ?? 'Không có đối tượng chung'}</small></> },
         { title: 'LOẠI', dataIndex: 'type', width: 120, render: (value: DocumentType) => documentTypes[value] },
-        { title: 'TỔNG NỢ (VND)', key: 'amount', width: 150, align: 'right', sorter: isDemo ? (a, b) => { const diff = totals(a.lines).debit - totals(b.lines).debit; return diff < 0n ? -1 : diff > 0n ? 1 : 0; } : true, render: (_, item) => <strong className={styles.tableAmount}>{formatMoney(totals(item.lines).debit)}</strong> },
+        { title: 'TỔNG NỢ (VND)', key: 'amount', width: 150, align: 'right', sortOrder: sort === 'amount' ? (direction === 'asc' ? 'ascend' : 'descend') : null, sorter: isDemo ? (a, b) => { const diff = totals(a.lines).debit - totals(b.lines).debit; return diff < 0n ? -1 : diff > 0n ? 1 : 0; } : true, render: (_, item) => <strong className={styles.tableAmount}>{formatMoney(totals(item.lines).debit)}</strong> },
         { title: 'TRẠNG THÁI', dataIndex: 'status', width: 125, render: value => <StatusTag status={value} /> },
         { width: 46, render: (_, item) => <Button type="text" icon={<Icon name="chevron" size={15} />} aria-label={`Xem ${item.reference}`} onClick={() => openDocument(item.id)} /> },
       ]} />

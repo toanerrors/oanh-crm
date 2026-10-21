@@ -17,7 +17,7 @@ export function DataBoundary({ children }: { children: ReactNode }) {
 }
 
 export function StatusTag({ status }: { status: 'posted' | 'draft' }) {
-  return <Tag variant="filled" color={status === 'posted' ? 'success' : 'gold'} className={styles.statusTag}><span className={status === 'posted' ? styles.greenDot : styles.amberDot} />{status === 'posted' ? 'Đã ghi sổ' : 'Bản nháp'}</Tag>;
+  return <Tag variant="filled" className={`${styles.statusTag} ${status === 'posted' ? styles.postedStatus : styles.draftStatus}`}><span className={status === 'posted' ? styles.greenDot : styles.amberDot} />{status === 'posted' ? 'Đã ghi sổ' : 'Bản nháp'}</Tag>;
 }
 
 export function EmptyData({ description = 'Chưa có chứng từ trong phạm vi đã chọn', action }: { description?: string; action?: ReactNode }) {

@@ -19,7 +19,7 @@ test('gợi ý không dấu, nhập tự do và chiều cao control thống nh�
   const create = page.getByRole('button', { name: 'Tạo chứng từ', exact: true });
   expect((await create.boundingBox())?.height).toBe(40);
   for (const control of [
-    page.getByRole('textbox', { name: 'Tìm chứng từ trong kỳ' }).locator('xpath=ancestor::span[contains(@class,"ant-input-affix-wrapper")]'),
+    page.getByRole('combobox', { name: 'Tìm chứng từ trong kỳ' }).locator('xpath=ancestor::span[contains(@class,"ant-input-affix-wrapper")]'),
     page.getByRole('textbox', { name: 'Tìm trong danh sách chứng từ' }).locator('xpath=ancestor::span[contains(@class,"ant-input-affix-wrapper")]'),
     page.getByRole('combobox', { name: 'Chọn kỳ kế toán' }).locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
   ]) expect((await control.boundingBox())?.height).toBe(40);
@@ -55,6 +55,58 @@ test('gợi ý không dấu, nhập tự do và chiều cao control thống nh�
   await page.locator('.ant-drawer-close').click();
   await page.getByRole('button', { name: 'Tiếp tục nháp', exact: true }).click();
   await expect(description).toHaveValue('Diễn giải mới chưa có trong lịch sử');
+});
+
+test('tìm nhanh không dấu bằng bàn phím và Enter tra cứu toàn bộ kỳ', async ({ page }) => {
+  await page.goto('/');
+  const search = page.getByRole('combobox', { name: 'Tìm chứng từ trong kỳ' });
+  await search.fill('thue van phong');
+  await expect(page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'PC-10009' })).toBeVisible();
+  await search.press('ArrowDown');
+  await search.press('Enter');
+  await expect(page.getByRole('heading', { name: 'PC-10009', exact: true })).toBeVisible();
+  await page.locator('.ant-drawer-close').click();
+  await search.fill('BH-10008');
+  await search.press('Enter');
+  await expect(page).toHaveURL(/\/documents\?q=BH-10008$/);
+  await expect(page.getByRole('button', { name: 'BH-10008', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'PC-10009', exact: true })).toHaveCount(0);
+});
+
+test('tìm kiếm mobile và thẻ chứng từ hiển thị đủ tiền, đối tượng, trạng thái', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/documents');
+  await expect(page.getByText('185.000.000', { exact: true })).toBeVisible();
+  await expect(page.getByText('Công ty TNHH Minh Anh', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Mở tìm kiếm chứng từ', exact: true }).click();
+  const search = page.getByRole('dialog').getByRole('combobox', { name: 'Tìm chứng từ trong kỳ' });
+  await expect(search).toBeFocused();
+  await search.fill('thue van phong');
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'PC-10009' }).click();
+  await expect(page.getByRole('heading', { name: 'PC-10009', exact: true })).toBeVisible();
+  await page.locator('.ant-drawer-close').click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.locator('.ant-table-content').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.getByRole('listitem', { name: '2', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'BH-10006', exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Sắp xếp chứng từ', exact: true }).click();
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Số tiền giảm dần' }).click();
+  await expect(page.locator('.ant-table-tbody .ant-table-row').first()).toContainText('BH-10007');
+  await expect(page.getByRole('listitem', { name: '1', exact: true })).toHaveClass(/ant-pagination-item-active/);
+});
+
+test('nút lưu nháp luôn hiện khi nhập nhiều dòng', async ({ page }) => {
+  await page.goto('/documents');
+  await page.getByRole('button', { name: 'Tạo chứng từ', exact: true }).click();
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Nháp nhiều dòng');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(page.getByLabel('Diễn giải', { exact: true })).toHaveValue('Nháp nhiều dòng');
+  for (let index = 0; index < 8; index++) await page.getByRole('button', { name: 'Thêm dòng hạch toán' }).click();
+  await page.locator('.ant-drawer-body').evaluate(element => { element.scrollTop = 0; });
+  const save = page.getByRole('button', { name: 'Lưu nháp mẫu', exact: true });
+  await expect(save).toBeInViewport();
+  expect((await save.boundingBox())?.height).toBe(40);
 });
 
 test('lọc không dấu, mở nguồn chứng từ và xuất toàn bộ CSV', async ({ page }) => {

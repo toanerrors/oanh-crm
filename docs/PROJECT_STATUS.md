@@ -25,6 +25,12 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Gợi ý diễn giải và đơn vị tính từ dữ liệu đã tải, vẫn cho nhập nội dung mới. Tìm danh mục theo mã/tên có hoặc không dấu; nhãn đối tượng hiển thị cả mã và tên. Bố cục dòng mua/bán và bộ lọc tự xuống dòng trên màn hình nhỏ.
 - Kiểm tra: TypeScript strict, production build, 15 test Node, 8 E2E mẫu và 6 E2E backend thật đạt; có kiểm tra chiều cao 40px, gợi ý không dấu, nhập tự do/giữ nháp và form mua hàng ở 1440/820/390px. Kiểm tra thêm 20 cặp route/viewport từ 375–1440px, reduced motion và skip link bàn phím không có lỗi JavaScript hoặc tràn ngang. Chưa benchmark hiệu năng mới; cảnh báo chunk Ant Design khoảng 700 kB vẫn còn.
 
+### Hoàn thiện trải nghiệm tra cứu và nhập liệu
+
+- Sidebar xanh đậm, trạng thái điều hướng rõ hơn, thẻ doanh thu có điểm nhấn và thao tác nhanh nằm đầu trang. Nhãn ghi sổ/nháp có độ tương phản chữ lần lượt 6,35:1 và 5,45:1 trên nền thực tế.
+- Tìm chứng từ có gợi ý không dấu từ dữ liệu gần đây trong kỳ, chọn bằng bàn phím hoặc mở kết quả toàn kỳ. Màn hình nhỏ dùng hộp tìm kiếm riêng; danh sách chứng từ chuyển thành thẻ đủ đối tượng, trạng thái, ngày và số tiền, giữ phân trang và sắp xếp theo ngày/tiền. Nút lưu nháp giữ trong tầm nhìn khi nhập nhiều dòng.
+- Validation: TypeScript strict, production build, 15 test Node, 11 E2E mẫu và 6 E2E backend thật đạt. Kiểm tra 24 cặp route/viewport ở 375–1440px, popup khi giảm chuyển động, đổi thiết lập chuyển động không mất nháp; không có tràn ngang, lỗi JavaScript hoặc lỗi console trong lượt kiểm tra bổ sung. Chưa benchmark hiệu năng mới; cảnh báo chunk lớn vẫn còn.
+
 ### Các phân hệ hiện có
 
 | Phần | Chức năng có mã nguồn |

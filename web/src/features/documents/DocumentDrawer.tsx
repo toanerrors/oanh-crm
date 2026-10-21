@@ -19,7 +19,7 @@ import { api, apiScope, command, isDemo } from '../../shared/api/client';
 export function DocumentEditor() {
   const { draft, draftOpen, setDraftOpen } = useWorkspace();
   useBeforeUnload(useCallback((event: BeforeUnloadEvent) => { if (draft) { event.preventDefault(); event.returnValue = ''; } }, [draft]));
-  return <Drawer title={<span className={styles.drawerTitle}><Icon name="file" />{draft?.reference || 'Tạo chứng từ mới'}<StatusTag status="draft" /></span>} open={draftOpen} size={1080} onClose={() => setDraftOpen(false)} styles={{ body: { padding: 24 } }} extra={<span className={styles.muted}>Đóng để giữ nháp trong phiên</span>}>
+  return <Drawer className={styles.documentEditor} title={<span className={styles.drawerTitle}><Icon name="file" />{draft?.reference || 'Tạo chứng từ mới'}<StatusTag status="draft" /></span>} open={draftOpen} size={1080} onClose={() => setDraftOpen(false)} styles={{ body: { padding: 24 } }} extra={<span className={styles.muted}>Đóng để giữ nháp trong phiên</span>}>
     {draft && <DraftForm key={draft.id} initial={draft} />}
   </Drawer>;
 }
@@ -85,7 +85,7 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
       </>}</Form.List>
       <div className={styles.formTotals}><span>Tổng Nợ<strong>{total ? formatMoney(total.debit) : 'Không hợp lệ'}</strong></span><span>Tổng Có<strong>{total ? formatMoney(total.credit) : 'Không hợp lệ'}</strong></span><span className={total && total.debit === total.credit ? styles.positive : styles.warning}>{total && total.debit === total.credit ? <><Icon name="check" size={16} /> Cân đối Nợ / Có</> : <>Chênh lệch: {total ? formatMoney(total.debit - total.credit) : '—'}</>}</span></div>
       {total && total.debit !== total.credit && <Alert type="warning" showIcon title="Nháp đang lệch Nợ/Có. Có thể lưu để bổ sung, chưa đủ điều kiện ghi sổ." />}
-      <div className={styles.formFooter}><Button danger type="text" onClick={() => modal.confirm({ title: 'Bỏ nội dung nháp đang nhập?', content: 'Nội dung chưa lưu trong biểu mẫu sẽ bị bỏ. Chứng từ đã lưu vẫn giữ nguyên.', okText: 'Bỏ nháp', cancelText: 'Tiếp tục nhập', onOk: () => { setDraft(null); setDraftOpen(false); } })}>Bỏ nháp</Button><div><Button icon={<Icon name="download" size={16} />} onClick={exportDraft}>Xuất nháp</Button>{isDemo && <Tooltip title="Cần kết nối backend và kiểm tra nghiệp vụ"><Button disabled>Ghi sổ</Button></Tooltip>}<Button type="primary" htmlType="submit" loading={mutation.isPending}>{isDemo ? 'Lưu nháp mẫu' : 'Lưu nháp'}</Button></div></div>
+      <div className={`${styles.formFooter} ${styles.draftActions}`}><Button danger type="text" onClick={() => modal.confirm({ title: 'Bỏ nội dung nháp đang nhập?', content: 'Nội dung chưa lưu trong biểu mẫu sẽ bị bỏ. Chứng từ đã lưu vẫn giữ nguyên.', okText: 'Bỏ nháp', cancelText: 'Tiếp tục nhập', onOk: () => { setDraft(null); setDraftOpen(false); } })}>Bỏ nháp</Button><div><Button icon={<Icon name="download" size={16} />} onClick={exportDraft}>Xuất nháp</Button>{isDemo && <Tooltip title="Cần kết nối backend và kiểm tra nghiệp vụ"><Button disabled>Ghi sổ</Button></Tooltip>}<Button type="primary" htmlType="submit" loading={mutation.isPending}>{isDemo ? 'Lưu nháp mẫu' : 'Lưu nháp'}</Button></div></div>
     </Form>
   </>;
 }
