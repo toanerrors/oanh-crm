@@ -1,7 +1,8 @@
 @import 'antd/dist/reset.css';
 
-:root { font-family: Inter, 'Segoe UI', Arial, sans-serif; color: #24332f; background: #f7f9f8; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+:root { font-family: Inter, 'Segoe UI', Arial, sans-serif; color: #24332f; background: #f5f8f6; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 * { box-sizing: border-box; }
+html { scroll-padding-top: 88px; }
 body { margin: 0; min-width: 360px; }
 button, input, select { font: inherit; }
 button, a, input, select { -webkit-tap-highlight-color: transparent; }
@@ -10,24 +11,26 @@ button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 a { color: #087f6d; text-decoration: none; }
 a:hover { color: #066454; }
-button:focus-visible, a:focus-visible { outline: 3px solid #63baa6; outline-offset: 3px; }
+button:focus-visible, a:focus-visible { outline: 3px solid #087f6d; outline-offset: 3px; }
 h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { text-wrap: balance; }
 svg { flex-shrink: 0; vertical-align: middle; }
 ::selection { background: #c4e7d9; }
 input[type=date] { color-scheme: light; }
 .ant-table { font-variant-numeric: tabular-nums; }
-.ant-table-thead > tr > th { font-size: 10px; letter-spacing: .045em; font-weight: 600; }
+.ant-table-thead > tr > th { font-size: 11px; letter-spacing: .025em; font-weight: 600; }
 .ant-table-tbody > tr > td { border-bottom-color: #f0f3f1 !important; }
 .ant-table-summary { background: #f6faf7; font-size: 12px; }
 .ant-table-summary td { padding: 17px 12px !important; }
 .ant-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .ant-select-selection-item { font-weight: 500; }
-.ant-form-item-label > label { font-size: 12px; font-weight: 550; }
+.ant-form-item-label > label { font-size: 13px; font-weight: 550; }
+.ant-input[type=date], .ant-input[type=month] { height: 40px; }
 .ant-input-number-input { font-variant-numeric: tabular-nums; text-align: right; }
 .ant-tabs-tab { font-weight: 500; }
 .ant-drawer-title { font-size: 16px !important; }
 .ant-drawer-body, .ant-modal-body { overscroll-behavior: contain; }
 .ant-modal-title { font-size: 18px !important; }
 .ant-tooltip { font-size: 12px; }
+@media (max-width: 760px) { html { scroll-padding-top: 80px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

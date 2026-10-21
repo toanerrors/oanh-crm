@@ -66,6 +66,34 @@ test('khởi tạo, chính sách, ghi nhận bán hàng và tải lại vẫn gi
   expect(errors).toEqual([]);
 });
 
+test('gợi ý đơn vị, diễn giải và danh mục không dấu trên biểu mẫu mua hàng responsive', async ({ page }, testInfo) => {
+  await login(page);
+  await page.goto('/automation?kind=purchase');
+  await page.getByRole('tab', { name: 'Hàng hóa & dịch vụ', exact: true }).click();
+  await page.getByRole('button', { name: 'Thêm hàng hóa / dịch vụ', exact: true }).click();
+  const unit = page.getByLabel('Đơn vị', { exact: true });
+  await unit.fill('lan');
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'lần' }).click();
+  await expect(unit).toHaveValue('lần');
+  await page.locator('.ant-modal-close').click();
+  await page.goto('/automation?kind=purchase');
+  const description = page.getByLabel('Diễn giải', { exact: true });
+  await description.fill('dich vu kiem thu');
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Dịch vụ kiểm thử từ giao diện' }).click();
+  await expect(description).toHaveValue('Dịch vụ kiểm thử từ giao diện');
+  const partner = page.getByLabel('Khách hàng / nhà cung cấp', { exact: true });
+  await partner.fill('nha cung cap');
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'NCC1' }).click();
+  await expect(partner.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]')).toContainText('NCC1 · Nhà cung cấp kiểm thử');
+  for (const width of [1440, 820, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const row = page.getByLabel('Hàng/dịch vụ 1', { exact: true }).locator('xpath=ancestor::*[contains(@class,"tradeRow")]');
+    expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`purchase-${width}.png`), fullPage: true });
+  }
+});
+
 test('mất phản hồi sau commit rồi retry không tạo hai nháp; ghi sổ tiền lớn', async ({ page }) => {
   await login(page);
   await page.goto('/documents');
@@ -82,8 +110,10 @@ test('mất phản hồi sau commit rồi retry không tạo hai nháp; ghi sổ
   });
   await page.getByRole('button', { name: 'Lưu nháp', exact: true }).click();
   await expect(page.getByText('Không nhận được phản hồi sau khi lưu. Thử lại cùng nội dung.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Lưu nháp', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: 'Lưu nháp', exact: true }).click();
+  const retry = page.getByRole('button').filter({ hasText: /^Lưu nháp$/ });
+  await expect(retry).not.toHaveClass(/ant-btn-loading/);
+  await expect(retry).toBeEnabled();
+  await retry.click();
   await expect(page.getByText('Đã lưu nháp vào cơ sở dữ liệu. Kiểm tra chi tiết trước khi ghi sổ.')).toBeVisible();
   await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click();
   await page.getByRole('dialog').filter({ hasText: 'Ghi sổ chứng từ?' }).getByRole('button', { name: 'Ghi sổ', exact: true }).click();

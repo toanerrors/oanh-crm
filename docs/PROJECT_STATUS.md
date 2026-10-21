@@ -19,6 +19,14 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Cải thiện UI/UX ngày 21/10/2026
+
+- Bỏ footer nội dung và footer sidebar; đồng bộ Input, Select, InputNumber và Button ở chiều cao 40px qua theme Ant Design. Tăng cỡ chữ, độ tương phản, khoảng cách và chiều rộng điều hướng; thanh trên giữ khi cuộn, có khoảng chừa cho focus bàn phím.
+- Gợi ý diễn giải và đơn vị tính từ dữ liệu đã tải, vẫn cho nhập nội dung mới. Tìm danh mục theo mã/tên có hoặc không dấu; nhãn đối tượng hiển thị cả mã và tên. Bố cục dòng mua/bán và bộ lọc tự xuống dòng trên màn hình nhỏ.
+- Kiểm tra: TypeScript strict, production build, 15 test Node, 8 E2E mẫu và 6 E2E backend thật đạt; có kiểm tra chiều cao 40px, gợi ý không dấu, nhập tự do/giữ nháp và form mua hàng ở 1440/820/390px. Kiểm tra thêm 20 cặp route/viewport từ 375–1440px, reduced motion và skip link bàn phím không có lỗi JavaScript hoặc tràn ngang. Chưa benchmark hiệu năng mới; cảnh báo chunk Ant Design khoảng 700 kB vẫn còn.
+
+### Các phân hệ hiện có
+
 | Phần | Chức năng có mã nguồn |
 |---|---|
 | Nền tảng | Go HTTP/API và file tĩnh cùng origin; SQLite STRICT, migration/checksum, WAL/FULL, per-connection FK/timeout, một writer và read pool 3; khóa tiến trình Unix |

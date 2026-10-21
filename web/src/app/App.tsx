@@ -6,6 +6,7 @@ import { Icon } from '../shared/ui/Icon';
 import type { IconName } from '../shared/ui/Icon';
 import styles from './App.module.css';
 import { api, apiScope, isDemo } from '../shared/api/client';
+import { searchOptions } from '../shared/ui/search';
 
 const DocumentEditor = lazy(() => import('../features/documents/DocumentDrawer').then(module => ({ default: module.DocumentEditor })));
 const DocumentDetail = lazy(() => import('../features/documents/DocumentDrawer').then(module => ({ default: module.DocumentDetail })));
@@ -46,7 +47,6 @@ export function AppShell() {
     <div className={styles.sidebarBottom}>
       <div className={styles.helpCard}><span className={styles.helpIcon}><Icon name="spark" size={18} /></span><strong>Kế toán nhẹ nhàng hơn</strong><p>Bắt đầu từ một chứng từ.<br />Kết nối mọi con số.</p><Link to="/help" onClick={() => setMobileOpen(false)}>Khám phá hướng dẫn <Icon name="arrow" size={15} /></Link></div>
       <NavLink to="/settings" className={styles.navLink} onClick={() => setMobileOpen(false)}><Icon name="settings" size={19} />Thiết lập</NavLink>
-      <div className={styles.sidebarFooter}><span className={styles.greenDot} /> {isDemo ? 'Phiên trải nghiệm' : 'Dữ liệu được lưu bền vững'} <span>v0.2</span></div>
     </div>
   </>;
 
@@ -58,7 +58,7 @@ export function AppShell() {
       <header className={styles.topbar}>
         <div className={styles.breadcrumb}><Button className={styles.mobileMenu} type="text" icon={<Icon name="menu" />} aria-label="Mở điều hướng" onClick={() => setMobileOpen(true)} /><Icon name="building" size={17} /><span>Không gian làm việc</span><Icon name="chevron" size={12} /><strong>{current}</strong></div>
         <div className={styles.topbarActions}>
-          <Input className={styles.globalSearch} prefix={<Icon name="search" size={16} />} placeholder="Tìm chứng từ…" aria-label="Tìm chứng từ trong kỳ" value={search} onChange={event => setSearch(event.target.value)} onPressEnter={() => { navigate(`/documents?q=${encodeURIComponent(search)}`); setSearch(''); }} suffix={<kbd>↵</kbd>} />
+          <Input className={styles.globalSearch} prefix={<Icon name="search" size={16} />} placeholder="Tìm chứng từ…" aria-label="Tìm chứng từ trong kỳ" allowClear value={search} onChange={event => setSearch(event.target.value)} onPressEnter={() => { navigate(`/documents?q=${encodeURIComponent(search)}`); setSearch(''); }} suffix={<kbd>↵</kbd>} />
           <Tooltip title="Hướng dẫn sử dụng"><Button type="text" icon={<Icon name="help" />} aria-label="Hướng dẫn sử dụng" onClick={() => navigate('/help')} /></Tooltip>
           <Badge dot={draftCount > 0} offset={[-7, 6]}><Button type="text" icon={<Icon name="bell" />} aria-label="Xem thông báo" onClick={() => setNotificationsOpen(true)} /></Badge>
           <div className={styles.headerDivider} />
@@ -67,9 +67,8 @@ export function AppShell() {
       </header>
       {navigationState.state !== 'idle' && <div className={styles.routeProgress} role="progressbar" aria-label="Đang chuyển trang" />}
       <main id="main-content" className={styles.main} tabIndex={-1}>
-        <div className={styles.contextBar}><span><span className={styles.liveDot} /> Không gian kế toán của bạn</span><div>{draft && <Button size="small" type="text" onClick={() => setDraftOpen(true)} icon={<Icon name="file" size={14} />}>Tiếp tục nháp</Button>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch optionFilterProp="label" aria-label="Chọn kỳ kế toán" value={period} onChange={setPeriod} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
+        <div className={styles.contextBar}><span><span className={styles.liveDot} /> Không gian kế toán của bạn</span><div>{draft && <Button type="text" onClick={() => setDraftOpen(true)} icon={<Icon name="file" size={14} />}>Tiếp tục nháp</Button>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch={searchOptions} aria-label="Chọn kỳ kế toán" value={period} onChange={setPeriod} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
         <Outlet />
-        <footer className={styles.mainFooter}><span>© 2026 Oanh · Từng con số, thật rõ ràng.</span><Link to="/help">Trung tâm trợ giúp <Icon name="upRight" size={13} /></Link></footer>
       </main>
     </div>
     <Suspense fallback={null}>{draft && <DocumentEditor />}{detailId && <DocumentDetail />}</Suspense>

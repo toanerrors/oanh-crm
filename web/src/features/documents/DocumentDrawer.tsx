@@ -1,6 +1,6 @@
 import { CalculationDetails } from './CalculationDetails';
 import { useCallback, useState } from 'react';
-import { Alert, App, Button, Descriptions, Drawer, Form, Input, Select, Table, Tooltip, Upload } from 'antd';
+import { Alert, App, AutoComplete, Button, Descriptions, Drawer, Form, Input, Select, Table, Tooltip, Upload } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBeforeUnload } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
@@ -12,6 +12,7 @@ import { formatDate, formatMoney, isMoney } from '../../shared/accounting/money'
 import { Icon } from '../../shared/ui/Icon';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
 import { StatusTag } from '../../shared/ui/Page';
+import { searchOptions, suggestionOptions } from '../../shared/ui/search';
 import styles from '../../app/App.module.css';
 import { api, apiScope, command, isDemo } from '../../shared/api/client';
 
@@ -44,7 +45,8 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
   });
   if (!data) return null;
   const accountOptions = data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }));
-  const partnerOptions = data.partners.filter(item => item.active).map(item => ({ value: item.id, label: item.name }));
+  const descriptions = suggestionOptions(data.documents.map(item => item.description));
+  const partnerOptions = data.partners.filter(item => item.active).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }));
 
   function exportDraft() {
     const document = { ...initial, ...form.getFieldsValue(true), lines: validLines };
@@ -62,8 +64,8 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
       <div className={styles.formGrid}>
         <Form.Item name="type" label="Loại chứng từ" rules={[{ required: true }]}><Select options={Object.entries(documentTypes).map(([value, label]) => ({ value, label }))} /></Form.Item>
         <Form.Item name="date" label="Ngày chứng từ" rules={[{ required: true, message: 'Chọn ngày chứng từ' }]}><Input type="date" /></Form.Item>
-        <Form.Item name="partnerId" label="Đối tượng"><Select allowClear showSearch optionFilterProp="label" placeholder="Chọn khách hàng / nhà cung cấp" options={partnerOptions} /></Form.Item>
-        <Form.Item name="description" label="Diễn giải" rules={[{ required: true, whitespace: true, message: 'Nhập diễn giải chứng từ' }]}><Input placeholder="Nội dung nghiệp vụ kinh tế phát sinh" maxLength={500} /></Form.Item>
+        <Form.Item name="partnerId" label="Đối tượng"><Select allowClear showSearch={searchOptions} placeholder="Chọn khách hàng / nhà cung cấp" options={partnerOptions} /></Form.Item>
+        <Form.Item name="description" label="Diễn giải" rules={[{ required: true, whitespace: true, message: 'Nhập diễn giải chứng từ' }]}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn diễn giải đã dùng" maxLength={500} /></AutoComplete></Form.Item>
         {!isDemo && <Form.Item name="sourceId" label="Mã chứng từ nguồn (nếu có)"><Input placeholder="Mã nguồn dùng thống nhất khi nhập tay / import" maxLength={100} /></Form.Item>}
       </div>
       <h3 className={styles.sectionTitle}>Chi tiết hạch toán <span>VND · Số nguyên đến đồng</span></h3>
@@ -71,9 +73,9 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
         <div className={styles.editTable}>
           <Table pagination={false} size="small" rowKey="key" dataSource={fields} scroll={{ x: 900 }} columns={[
             { title: '#', width: 40, render: (_, __, index) => index + 1 },
-            { title: 'Tài khoản', width: 190, render: (_, field) => <Form.Item name={[field.name, 'accountId']} rules={[{ required: true, message: 'Chọn tài khoản' }]}><Select aria-label={`Tài khoản dòng ${field.name + 1}`} showSearch optionFilterProp="label" options={accountOptions} placeholder="Chọn tài khoản" /></Form.Item> },
-            { title: 'Đối tượng', width: 195, render: (_, field) => <Form.Item name={[field.name, 'partnerId']}><Select aria-label={`Đối tượng dòng ${field.name + 1}`} allowClear showSearch optionFilterProp="label" options={partnerOptions} placeholder="Chọn đối tượng" /></Form.Item> },
-            { title: 'Diễn giải dòng', width: 170, render: (_, field) => <Form.Item name={[field.name, 'description']}><Input aria-label={`Diễn giải dòng ${field.name + 1}`} placeholder="Diễn giải" /></Form.Item> },
+            { title: 'Tài khoản', width: 190, render: (_, field) => <Form.Item name={[field.name, 'accountId']} rules={[{ required: true, message: 'Chọn tài khoản' }]}><Select aria-label={`Tài khoản dòng ${field.name + 1}`} showSearch={searchOptions} options={accountOptions} placeholder="Chọn tài khoản" /></Form.Item> },
+            { title: 'Đối tượng', width: 195, render: (_, field) => <Form.Item name={[field.name, 'partnerId']}><Select aria-label={`Đối tượng dòng ${field.name + 1}`} allowClear showSearch={searchOptions} options={partnerOptions} placeholder="Chọn đối tượng" /></Form.Item> },
+            { title: 'Diễn giải dòng', width: 170, render: (_, field) => <Form.Item name={[field.name, 'description']}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input aria-label={`Diễn giải dòng ${field.name + 1}`} placeholder="Nhập hoặc chọn diễn giải" /></AutoComplete></Form.Item> },
             { title: 'Số tiền Nợ', width: 145, render: (_, field) => <Form.Item name={[field.name, 'debit']} rules={[{ validator: async (_, value: unknown) => { if (value !== undefined && !isMoney(value)) throw new Error('Nhập số nguyên không âm hợp lệ'); } }]}><MoneyInput label={`Số tiền Nợ dòng ${field.name + 1}`} /></Form.Item> },
             { title: 'Số tiền Có', width: 145, render: (_, field) => <Form.Item name={[field.name, 'credit']} rules={[{ validator: async (_, value: unknown) => { if (value !== undefined && !isMoney(value)) throw new Error('Nhập số nguyên không âm hợp lệ'); } }]}><MoneyInput label={`Số tiền Có dòng ${field.name + 1}`} /></Form.Item> },
             { width: 40, render: (_, field) => <Button type="text" danger aria-label={`Xóa dòng ${field.name + 1}`} icon={<Icon name="trash" size={16} />} onClick={() => remove(field.name)} /> },

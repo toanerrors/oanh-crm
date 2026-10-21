@@ -5,12 +5,56 @@ test('tổng quan, điều hướng SPA và các màn hình chính hiển thị 
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+  await expect(page.locator('footer')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Doanh thu trong kỳ/ })).toContainText('528');
   for (const [label, heading] of [['Bán hàng', 'Bán hàng'], ['Mua hàng', 'Mua hàng'], ['Tiền mặt & ngân hàng', 'Tiền mặt & ngân hàng'], ['Hàng tồn kho', 'Hàng tồn kho'], ['Công nợ', 'Công nợ'], ['Sổ sách & báo cáo', 'Sổ sách & báo cáo'], ['Danh mục', 'Danh mục']] as const) {
     await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: label, exact: true }).click();
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
   }
   expect(errors).toEqual([]);
+});
+
+test('gợi ý không dấu, nhập tự do và chiều cao control thống nhất', async ({ page }) => {
+  await page.goto('/documents');
+  const create = page.getByRole('button', { name: 'Tạo chứng từ', exact: true });
+  expect((await create.boundingBox())?.height).toBe(40);
+  for (const control of [
+    page.getByRole('textbox', { name: 'Tìm chứng từ trong kỳ' }).locator('xpath=ancestor::span[contains(@class,"ant-input-affix-wrapper")]'),
+    page.getByRole('textbox', { name: 'Tìm trong danh sách chứng từ' }).locator('xpath=ancestor::span[contains(@class,"ant-input-affix-wrapper")]'),
+    page.getByRole('combobox', { name: 'Chọn kỳ kế toán' }).locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
+  ]) expect((await control.boundingBox())?.height).toBe(40);
+  await create.click();
+  const description = page.getByLabel('Diễn giải', { exact: true });
+  await description.fill('thue van phong');
+  const suggestion = page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Thanh toán chi phí thuê văn phòng tháng 10' });
+  await expect(suggestion).toBeVisible();
+  await suggestion.click();
+  await expect(description).toHaveValue('Thanh toán chi phí thuê văn phòng tháng 10');
+  await description.fill('Diễn giải mới chưa có trong lịch sử');
+  await page.getByLabel('Ngày chứng từ', { exact: true }).click();
+  await expect(description).toHaveValue('Diễn giải mới chưa có trong lịch sử');
+
+  const partner = page.getByRole('combobox', { name: 'Đối tượng', exact: true });
+  await partner.fill('minh anh');
+  await expect(page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'KH001 · Công ty TNHH Minh Anh' })).toBeVisible();
+  await partner.press('Enter');
+  const account = page.getByRole('combobox', { name: 'Tài khoản dòng 1' });
+  await account.fill('tien mat');
+  await expect(page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: '111' })).toBeVisible();
+  await account.press('Enter');
+
+  for (const control of [
+    page.getByLabel('Ngày chứng từ', { exact: true }),
+    description,
+    partner.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
+    account.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
+    page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true }).locator('xpath=ancestor::*[contains(@class,"ant-input-number")][last()]'),
+    page.getByRole('button', { name: 'Lưu nháp mẫu', exact: true }),
+  ]) expect((await control.boundingBox())?.height).toBe(40);
+
+  await page.locator('.ant-drawer-close').click();
+  await page.getByRole('button', { name: 'Tiếp tục nháp', exact: true }).click();
+  await expect(description).toHaveValue('Diễn giải mới chưa có trong lịch sử');
 });
 
 test('lọc không dấu, mở nguồn chứng từ và xuất toàn bộ CSV', async ({ page }) => {
@@ -124,4 +168,5 @@ test('mobile 390px không tràn ngang và mở được điều hướng, biểu
   await expect(page.getByLabel('Diễn giải', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Tiếp tục nháp', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
