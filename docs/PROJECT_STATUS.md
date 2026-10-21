@@ -4,6 +4,7 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Phạm vi đã chốt
 
+- Quy trình sau mỗi task có thay đổi: validation → commit → release Docker trên server hiện tại → healthcheck. Người dùng đã ủy quyền mặc định, không cần xác nhận lại cho commit/release thông thường; quy tắc được lưu trong `AGENTS.md`.
 - Người dùng yêu cầu ứng dụng kế toán bao phủ workbook, UI/UX hoàn chỉnh và nghiệp vụ tự động; chính sách thay đổi trong Cài đặt.
 - Go + SQLite; React + TypeScript strict + Vite SPA, Ant Design Form/Table, React Router, TanStack Query; pnpm. Frontend và driver Go `modernc.org/sqlite` đã được chấp thuận cài đặt.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
