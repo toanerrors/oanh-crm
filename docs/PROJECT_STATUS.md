@@ -4,7 +4,7 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Phạm vi đã chốt
 
-- Quy trình sau mỗi task có thay đổi: validation → commit → release Docker trên server hiện tại → healthcheck. Người dùng đã ủy quyền mặc định, không cần xác nhận lại cho commit/release thông thường; quy tắc được lưu trong `AGENTS.md`.
+- Quy trình sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker trên server hiện tại → healthcheck. Người dùng đã ủy quyền mặc định, không cần xác nhận lại cho commit/push/release thông thường; quy tắc được lưu trong `AGENTS.md`.
 - Người dùng yêu cầu ứng dụng kế toán bao phủ workbook, UI/UX hoàn chỉnh và nghiệp vụ tự động; chính sách thay đổi trong Cài đặt.
 - Go + SQLite; React + TypeScript strict + Vite SPA, Ant Design Form/Table, React Router, TanStack Query; pnpm. Frontend và driver Go `modernc.org/sqlite` đã được chấp thuận cài đặt.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
@@ -14,7 +14,7 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Người dùng yêu cầu commit và release trên server hiện tại bằng Docker; domain `oanh.toanerrors.com` sẽ được cấu hình riêng ở Cloudflare Tunnel.
 - Bổ sung Dockerfile nhiều stage, Compose một container chạy user thường/read-only, healthcheck, restart policy và volume `oanh_data`; origin publish ở `127.0.0.1:8080`, bật cookie Secure cho HTTPS qua tunnel.
 - Đã build image `oanh-crm:0.2.0`, chạy container `oanh-app-1` healthy ở `127.0.0.1:8080`; UID 65532, root filesystem read-only, volume `oanh_data`. Restart giữ nguyên active dataset; API/database, HTML/SPA và màn hình khởi tạo không lỗi JavaScript đã kiểm tra. Host/Origin của domain HTTPS qua proxy được chấp nhận, request cross-origin bị chặn.
-- Build Docker chạy 15 test frontend và production build thành công; healthcheck Go đã qua compile/vet. Không tạo tài khoản hay dữ liệu mẫu trên volume release. Commit/tag phát hành local trên nhánh `release/v0.2.0`; chưa cấu hình Git remote hoặc route Cloudflare, chưa kiểm tra HTTPS công khai.
+- Build Docker chạy 15 test frontend và production build thành công; healthcheck Go đã qua compile/vet. Không tạo tài khoản hay dữ liệu mẫu trên volume release. Nhánh phát hành `release/v0.2.0`, tag `v0.2.0`; remote `origin` đã cấu hình tới `https://github.com/toanerrors/oanh-crm.git`. Chưa cấu hình route Cloudflare hoặc kiểm tra HTTPS công khai trong đợt release.
 - Runbook: [deployment.md](deployment.md).
 
 ## Đã triển khai
@@ -60,7 +60,7 @@ Tài khoản tự động hiện dùng danh mục khởi tạo cố định. Kha
 ## Dữ kiện và vận hành
 
 - Workbook: 84 sheet, 60.135 ô công thức, 7.299 giá trị lỗi lưu sẵn, hai workbook liên kết chưa cung cấp; nhiều sheet là hướng dẫn/ví dụ/nhập tay. Phân tích/hash và ánh xạ tại `reference/`; chưa chạy macro hay tính lại workbook bằng Excel.
-- Mã nguồn được quản lý Git trên nhánh `release/v0.2.0`, bản phát hành local `v0.2.0`; chưa có Git remote. Không đưa DB, backup, mật khẩu hoặc dữ liệu tài chính thực vào mã nguồn.
+- Mã nguồn được quản lý Git trên nhánh `release/v0.2.0`, tag `v0.2.0`; repository `toanerrors/oanh-crm` qua remote `origin`. Không đưa DB, backup, mật khẩu hoặc dữ liệu tài chính thực vào mã nguồn.
 - Test/E2E dùng thư mục tạm và dữ liệu giả lập. Hướng dẫn chạy, khởi tạo và giới hạn triển khai ở README; chi tiết API ở `api/openapi.yaml`; runbook recovery ở `backup-restore.md`.
 
 ## Bước tiếp theo

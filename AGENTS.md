@@ -94,7 +94,7 @@ Xây dựng ứng dụng web bao phủ file kế toán Excel đã phân tích: d
 
 ## Quy trình thực hiện và kiểm chứng
 
-- Sau mỗi task có thay đổi trong repository, mặc định thực hiện theo thứ tự: validation phù hợp → commit các thay đổi của task → release bằng Docker Compose trên server hiện tại → kiểm tra healthcheck và báo kết quả. Người dùng đã ủy quyền quy trình này; không hỏi xác nhận lại cho commit/release thông thường.
+- Sau mỗi task có thay đổi trong repository, mặc định thực hiện theo thứ tự: validation phù hợp → commit các thay đổi của task → push nhánh và tag liên quan lên remote đã cấu hình → release bằng Docker Compose trên server hiện tại → kiểm tra healthcheck và báo kết quả. Người dùng đã ủy quyền quy trình này; không hỏi xác nhận lại cho commit/push/release thông thường. Không force-push hoặc in thông tin xác thực trong output Git.
 - Dùng cấu hình release trong `compose.yaml` và `docs/deployment.md`, giữ dữ liệu trong volume hiện có. Gắn image với commit đã release; không di chuyển tag Git đã phát hành. Task chỉ tra cứu, không thay đổi file thì không tạo commit rỗng hoặc release lại.
 - Hiểu entry point và side effect trước khi sửa; thay đổi nhỏ, đúng phạm vi; tái sử dụng pattern hiện có. Không tạo abstraction chung, placeholder hoặc TODO khi chưa cần.
 - Thư viện đã có được ưu tiên. Package manager frontend là `pnpm`; Go dùng Go Modules. Không thêm production dependency ngoài phạm vi đã được người dùng chấp thuận; các gói đề xuất chưa cài không phải quyền cài tự động.

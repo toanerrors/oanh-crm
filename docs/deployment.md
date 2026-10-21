@@ -14,7 +14,7 @@ docker compose ps
 
 Image: `oanh-crm:0.2.0`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
 
-Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Không có registry hoặc Git remote được cấu hình trong repository ở mốc đầu; commit/tag/image đang được lưu local trên server.
+Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Mã nguồn dùng remote `origin` tại [toanerrors/oanh-crm](https://github.com/toanerrors/oanh-crm). Sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker → healthcheck. Image hiện được lưu local trên server, chưa cấu hình registry. Không force-push hoặc thay đổi tag đã phát hành; không in thông tin xác thực trong output Git.
 
 ## Cloudflare Tunnel
 
