@@ -1,0 +1,53 @@
+# Release bằng Docker trên máy chủ
+
+Bản phát hành: `0.2.0`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
+
+## Build và chạy
+
+Chạy tại thư mục repository:
+
+```bash
+OANH_REVISION=$(git rev-parse HEAD) docker compose build
+docker compose up -d --wait --wait-timeout 90
+docker compose ps
+```
+
+Image: `oanh-crm:0.2.0`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
+
+Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Không có registry hoặc Git remote được cấu hình trong repository ở mốc đầu; commit/tag/image đang được lưu local trên server.
+
+## Cloudflare Tunnel
+
+Khi `cloudflared` chạy trên cùng máy chủ, thêm route ứng dụng công khai với:
+
+| Trường | Giá trị |
+|---|---|
+| Subdomain | `oanh` |
+| Domain | `toanerrors.com` |
+| Type | `HTTP` |
+| Service URL | `http://127.0.0.1:8080` |
+| HTTP Host Header | Để mặc định, giữ hostname công khai |
+
+Truy cập ứng dụng qua `https://oanh.toanerrors.com`. TLS kết thúc ở Cloudflare, tunnel chuyển tới HTTP loopback. Container bật cookie Secure cho phiên truy cập HTTPS; chỉ cổng host 127.0.0.1:8080 được publish, không mở 0.0.0.0:8080 ra mạng.
+
+Thiết lập một lần chủ sở hữu/doanh nghiệp trước khi mở quyền truy cập rộng. Release không tạo tài khoản hay mật khẩu mặc định và không nạp dữ liệu giả lập. Dữ liệu phát sinh được giữ trong volume qua restart hoặc thay container; backup/restore thực hiện từ Cài đặt theo [runbook](backup-restore.md).
+
+Nếu chạy `cloudflared` trong container khác, địa chỉ loopback trỏ vào container đó; cần cấu hình đường mạng tới origin trên host hoặc network Docker phù hợp trước khi dùng Service URL ở trên.
+
+Tham chiếu: [Cloudflare Tunnel: thêm route](https://developers.cloudflare.com/cloudflare-one/networks/routes/add-routes/), [Docker multi-stage build](https://docs.docker.com/build/building/multi-stage/).
+
+## Kiểm tra và quản lý
+
+```bash
+curl --fail http://127.0.0.1:8080/api/v1/session
+docker compose exec -T app /healthcheck
+docker compose logs --tail 50 app
+docker compose restart app
+docker compose stop
+```
+
+Dùng `docker compose up -d --wait` để bật lại container đã stop. Chính sách `unless-stopped` hoạt động khi Docker daemon khởi động; container bị dừng chủ động không tự bật lại.
+
+Cập nhật: tạo backup từ ứng dụng, giữ image đang chạy theo commit, build phiên bản mới rồi `docker compose up -d --wait`. Không scale nhiều writer. Không dùng `docker compose down -v` vì thao tác đó xóa volume; không copy riêng file SQLite đang hoạt động. Rollback image chỉ áp dụng khi schema tương thích; khôi phục dữ liệu cần quy trình restore có xác nhận.
+
+Domain/Cloudflare do người vận hành cấu hình sau release; kiểm tra origin local không thay cho xác minh đường HTTPS bên ngoài. Các giới hạn nghiệp vụ và nghiệm thu còn lại ở [trạng thái dự án](PROJECT_STATUS.md).

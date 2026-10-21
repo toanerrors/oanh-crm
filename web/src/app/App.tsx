@@ -1,0 +1,82 @@
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Avatar, Badge, Button, Drawer, Dropdown, Input, Modal, Select, Tooltip } from 'antd';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useNavigation } from 'react-router-dom';
+import { useWorkspace } from './WorkspaceProvider';
+import { Icon } from '../shared/ui/Icon';
+import type { IconName } from '../shared/ui/Icon';
+import styles from './App.module.css';
+import { api, apiScope, isDemo } from '../shared/api/client';
+
+const DocumentEditor = lazy(() => import('../features/documents/DocumentDrawer').then(module => ({ default: module.DocumentEditor })));
+const DocumentDetail = lazy(() => import('../features/documents/DocumentDrawer').then(module => ({ default: module.DocumentDetail })));
+
+const navigation: { path: string; label: string; icon: IconName; group?: string }[] = [
+  { path: '/', label: 'Tổng quan', icon: 'grid', group: 'KHÔNG GIAN LÀM VIỆC' },
+  { path: '/sales', label: 'Bán hàng', icon: 'cart', group: 'NGHIỆP VỤ' },
+  { path: '/purchases', label: 'Mua hàng', icon: 'bag' },
+  { path: '/cash', label: 'Tiền mặt & ngân hàng', icon: 'wallet' },
+  { path: '/inventory', label: 'Hàng tồn kho', icon: 'box' },
+  { path: '/receivables', label: 'Công nợ', icon: 'users' },
+  { path: '/documents', label: 'Kế toán tổng hợp', icon: 'book' },
+  ...(!isDemo ? [{ path: '/automation', label: 'Nghiệp vụ tự động', icon: 'spark' as const }] : []),
+  { path: '/reports', label: 'Sổ sách & báo cáo', icon: 'chart', group: 'QUẢN LÝ' },
+  { path: '/catalog', label: 'Danh mục', icon: 'folder' },
+];
+
+export function AppShell() {
+  const { period, setPeriod, data, draft, setDraftOpen, detailId, refresh } = useWorkspace();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigationState = useNavigation();
+  const current = navigation.find(item => item.path === location.pathname)?.label ?? (location.pathname === '/settings' ? 'Thiết lập' : 'Trợ giúp');
+  const person = isDemo ? 'Minh Anh' : apiScope().name;
+  const initials = person.split(' ').slice(-2).map(value => value[0]).join('').toUpperCase();
+  const draftCount = data?.server?.draftCount ?? data?.documents.filter(item => item.status === 'draft' && item.date.startsWith(period)).length ?? 0;
+  const drafts = data?.documents.filter(item => item.status === 'draft' && item.date.startsWith(period)) ?? [];
+
+  useEffect(() => { document.title = `${current} · Oanh`; }, [current]);
+
+  const sidebar = <>
+    <Link to="/" className={styles.brand} aria-label="Oanh, về tổng quan"><span className={styles.brandMark}><span /><span /><span /></span><span>oanh<span className={styles.brandDot}>.</span></span></Link>
+    <button className={styles.companySwitch} onClick={() => navigate('/settings')}><span className={styles.companyIcon}><Icon name="building" size={20} /></span><span><strong>{isDemo ? 'Không gian mẫu' : data?.companyName ?? 'Doanh nghiệp'}</strong><small>Kế toán doanh nghiệp</small></span><Icon name="down" size={14} /></button>
+    <nav className={styles.navigation} aria-label="Điều hướng chính">{navigation.map(item => <div key={item.path}>{item.group && <div className={styles.navGroup}>{item.group}</div>}<NavLink to={item.path} end={item.path === '/'} onClick={() => setMobileOpen(false)} className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeNav : ''}`}><Icon name={item.icon} size={19} /><span>{item.label}</span>{item.path === '/documents' && draftCount > 0 && <span className={styles.navCount}>{draftCount}</span>}</NavLink></div>)}</nav>
+    <div className={styles.sidebarBottom}>
+      <div className={styles.helpCard}><span className={styles.helpIcon}><Icon name="spark" size={18} /></span><strong>Kế toán nhẹ nhàng hơn</strong><p>Bắt đầu từ một chứng từ.<br />Kết nối mọi con số.</p><Link to="/help" onClick={() => setMobileOpen(false)}>Khám phá hướng dẫn <Icon name="arrow" size={15} /></Link></div>
+      <NavLink to="/settings" className={styles.navLink} onClick={() => setMobileOpen(false)}><Icon name="settings" size={19} />Thiết lập</NavLink>
+      <div className={styles.sidebarFooter}><span className={styles.greenDot} /> {isDemo ? 'Phiên trải nghiệm' : 'Dữ liệu được lưu bền vững'} <span>v0.2</span></div>
+    </div>
+  </>;
+
+  return <div className={styles.app}>
+    <a href="#main-content" className={styles.skipLink}>Chuyển đến nội dung</a>
+    <aside className={styles.sidebar}>{sidebar}</aside>
+    <Drawer placement="left" open={mobileOpen} onClose={() => setMobileOpen(false)} size={248} title="Điều hướng" styles={{ body: { padding: 12 } }}>{sidebar}</Drawer>
+    <div className={styles.workspace}>
+      <header className={styles.topbar}>
+        <div className={styles.breadcrumb}><Button className={styles.mobileMenu} type="text" icon={<Icon name="menu" />} aria-label="Mở điều hướng" onClick={() => setMobileOpen(true)} /><Icon name="building" size={17} /><span>Không gian làm việc</span><Icon name="chevron" size={12} /><strong>{current}</strong></div>
+        <div className={styles.topbarActions}>
+          <Input className={styles.globalSearch} prefix={<Icon name="search" size={16} />} placeholder="Tìm chứng từ…" aria-label="Tìm chứng từ trong kỳ" value={search} onChange={event => setSearch(event.target.value)} onPressEnter={() => { navigate(`/documents?q=${encodeURIComponent(search)}`); setSearch(''); }} suffix={<kbd>↵</kbd>} />
+          <Tooltip title="Hướng dẫn sử dụng"><Button type="text" icon={<Icon name="help" />} aria-label="Hướng dẫn sử dụng" onClick={() => navigate('/help')} /></Tooltip>
+          <Badge dot={draftCount > 0} offset={[-7, 6]}><Button type="text" icon={<Icon name="bell" />} aria-label="Xem thông báo" onClick={() => setNotificationsOpen(true)} /></Badge>
+          <div className={styles.headerDivider} />
+          <Dropdown menu={{ items: [{ key: 'settings', label: isDemo ? 'Thông tin không gian mẫu' : 'Cài đặt doanh nghiệp', onClick: () => navigate('/settings') }, { key: 'help', label: 'Hướng dẫn sử dụng', onClick: () => navigate('/help') }, { key: 'refresh', label: 'Tải lại dữ liệu', onClick: refresh }, ...(!isDemo ? [{ key: 'logout', label: 'Đăng xuất', onClick: () => { void api('/auth/logout', { method: 'POST' }).then(() => window.location.reload()); } }] : [])] }} trigger={['click']}><button className={styles.profile}><Avatar size={34} style={{ background: '#e4eee8', color: '#3f6651', fontWeight: 700 }}>{initials}</Avatar><span>{person}<small>{isDemo ? 'Kế toán viên · Mẫu' : ({ owner: 'Chủ sở hữu', accountant: 'Kế toán', viewer: 'Chỉ xem' }[apiScope().permissions as 'owner'])}</small></span><Icon name="down" size={12} /></button></Dropdown>
+        </div>
+      </header>
+      {navigationState.state !== 'idle' && <div className={styles.routeProgress} role="progressbar" aria-label="Đang chuyển trang" />}
+      <main id="main-content" className={styles.main} tabIndex={-1}>
+        <div className={styles.contextBar}><span><span className={styles.liveDot} /> Không gian kế toán của bạn</span><div>{draft && <Button size="small" type="text" onClick={() => setDraftOpen(true)} icon={<Icon name="file" size={14} />}>Tiếp tục nháp</Button>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch optionFilterProp="label" aria-label="Chọn kỳ kế toán" value={period} onChange={setPeriod} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
+        <Outlet />
+        <footer className={styles.mainFooter}><span>© 2026 Oanh · Từng con số, thật rõ ràng.</span><Link to="/help">Trung tâm trợ giúp <Icon name="upRight" size={13} /></Link></footer>
+      </main>
+    </div>
+    <Suspense fallback={null}>{draft && <DocumentEditor />}{detailId && <DocumentDetail />}</Suspense>
+    <Modal title={isDemo ? 'Thông báo trong phiên mẫu' : 'Chứng từ cần kiểm tra'} open={notificationsOpen} onCancel={() => setNotificationsOpen(false)} footer={<Button onClick={() => setNotificationsOpen(false)}>Đóng</Button>}>
+      <div className={styles.notificationIntro}><Icon name="clock" />Có {draftCount} bản nháp trong kỳ cần kiểm tra.</div>
+      {drafts.map(item => <button className={styles.notification} key={item.id} onClick={() => { setNotificationsOpen(false); navigate('/documents?status=draft'); }}><span><strong>{item.reference}</strong><small>{item.description}</small></span><Icon name="chevron" size={16} /></button>)}
+      <p className={styles.muted}>{isDemo ? 'Thông báo được tạo từ bộ dữ liệu mẫu, chưa kết nối dịch vụ bên ngoài.' : 'Hiển thị nháp trong 100 chứng từ gần nhất. Mở Kế toán tổng hợp để tra cứu toàn bộ.'}</p>
+    </Modal>
+  </div>;
+}

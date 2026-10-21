@@ -1,0 +1,132 @@
+{
+  "ngay_phan_tich": "2026-10-21",
+  "tep_nguon": "Sổ-Sách-Kế-Toán-Trên-Excel-TT 200 (1).xls.xlsm",
+  "sha256": "3af5712a36df05c4c5773b1934b285f6faf1e552b5cdc319025106a1fab59386",
+  "so_sheet": 84,
+  "sheet_trong": [
+    "Trang tính10",
+    "Trang tính8",
+    "Trang tính9"
+  ],
+  "so_o_cong_thuc": 60135,
+  "so_o_cong_thuc_dung_chung": 20289,
+  "gia_tri_loi_luu_san": {
+    "#N/A": 1984,
+    "#REF!": 5314,
+    "#VALUE!": 1
+  },
+  "so_cong_thuc_goc_co_REF": 31,
+  "so_defined_name_co_REF": 14,
+  "so_workbook_lien_ket_ngoai": 2,
+  "so_cong_thuc_goc_lien_ket_ngoai": 39,
+  "vba_so_module_doc_duoc": 76,
+  "vba_so_khai_bao_thu_tuc_ham": 25,
+  "vba_thu_tuc": [
+    {
+      "module": "Module1",
+      "procedures": [
+        "printpreview",
+        "printpreviewPTC",
+        "printpreviewPNX",
+        "printpreview_Theluong"
+      ]
+    },
+    {
+      "module": "Module12",
+      "procedures": [
+        "printpreview"
+      ]
+    },
+    {
+      "module": "Module2",
+      "procedures": [
+        "in_hangloat_PT",
+        "in_hangloat_PC",
+        "in_hangloat_THELUONG"
+      ]
+    },
+    {
+      "module": "Module3",
+      "procedures": [
+        "in_hangloat_PN",
+        "in_hangloat_PX"
+      ]
+    },
+    {
+      "module": "Module4",
+      "procedures": [
+        "chuyenTKNH"
+      ]
+    },
+    {
+      "module": "Module5",
+      "procedures": [
+        "printpreviewUNC"
+      ]
+    },
+    {
+      "module": "Module6",
+      "procedures": [
+        "Printpreview_THNXT"
+      ]
+    },
+    {
+      "module": "Module7",
+      "procedures": [
+        "noichuoi"
+      ]
+    },
+    {
+      "module": "Module8",
+      "procedures": [
+        "Printpreview_BCC"
+      ]
+    },
+    {
+      "module": "Module9",
+      "procedures": [
+        "Printpreview_BTLUONG"
+      ]
+    },
+    {
+      "module": "Sheet24",
+      "procedures": [
+        "Worksheet_Activate"
+      ]
+    },
+    {
+      "module": "Sheet25",
+      "procedures": [
+        "Worksheet_Activate"
+      ]
+    },
+    {
+      "module": "Sheet26",
+      "procedures": [
+        "Worksheet_Activate",
+        "Worksheet_Change"
+      ]
+    },
+    {
+      "module": "Sheet27",
+      "procedures": [
+        "Worksheet_Activate",
+        "Worksheet_Change"
+      ]
+    },
+    {
+      "module": "Sheet37",
+      "procedures": [
+        "Worksheet_Change"
+      ]
+    },
+    {
+      "module": "Sheet7",
+      "procedures": [
+        "Worksheet_Activate",
+        "Worksheet_Change"
+      ]
+    }
+  ],
+  "pham_vi_kiem_tra": "Đọc cấu trúc OOXML, công thức gốc/công thức dùng chung, giá trị lưu sẵn, validation, defined name, liên kết ngoài và mã nguồn VBA. Không chạy macro, không tính lại toàn bộ workbook, không kiểm toán số liệu."
+}

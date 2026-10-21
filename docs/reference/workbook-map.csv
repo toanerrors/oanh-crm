@@ -1,0 +1,85 @@
+﻿STT,Sheet,Loại nội dung,Phân hệ web,Giai đoạn đề xuất,Ô có dữ liệu/công thức,Ô công thức,Ô có giá trị lỗi lưu sẵn,Nhận xét
+1,BẢNG SƠ ĐỒ,Dữ liệu hoặc tiện ích hỗ trợ,"M00 - Sheet kỹ thuật, bản phụ và sheet trống",Chuyển thành tiện ích hoặc bỏ sheet rỗng,34,9,0,Dữ liệu phụ có @dropdown và ví dụ tài sản; chưa có bằng chứng đây là dashboard hoàn chỉnh.
+2,Trang tính10,Trống,"M00 - Sheet kỹ thuật, bản phụ và sheet trống",Chuyển thành tiện ích hoặc bỏ sheet rỗng,0,0,0,Không có ô dữ liệu hoặc công thức.
+3,Trang tính8,Trống,"M00 - Sheet kỹ thuật, bản phụ và sheet trống",Chuyển thành tiện ích hoặc bỏ sheet rỗng,0,0,0,Không có ô dữ liệu hoặc công thức.
+4,DM KH,Biểu mẫu có công thức/nhập liệu,M01 - Thiết lập và danh mục,GĐ1,31,11,0,"Mã, tên, MST, địa chỉ, tài khoản ngân hàng; dữ liệu danh mục hiện rất ít."
+5,DM NCC,Biểu mẫu có công thức/nhập liệu,M01 - Thiết lập và danh mục,GĐ1,34,15,0,"Mã, tên, MST, địa chỉ và ngân hàng; dùng để theo dõi TK331."
+6,DMHH,Biểu mẫu có công thức/nhập liệu,M01 - Thiết lập và danh mục,GĐ1,504,491,0,"Mã hàng, tên hàng, đơn vị tính, tài khoản kho; có hai mã hàng được điền."
+7,NHẬT KÝ CHUNG,Biểu mẫu có công thức/nhập liệu,M09 - Kế toán tổng hợp và cuối kỳ,GĐ1,704,615,0,"Nguồn ghi sổ chính; chứng từ, diễn giải, tài khoản, phát sinh Nợ/Có và mã thống kê."
+8,Phiếu Chi,Biểu mẫu có công thức/nhập liệu,M03 - Tiền mặt và ngân hàng,GĐ1,59,21,0,"Phiếu chi; chọn từng phiếu hoặc khoảng phiếu, số tiền bằng chữ, thông tin ký."
+9,BẢNG TH N-X-T,Biểu mẫu có công thức/nhập liệu,M04 - Kho và chi phí mua hàng,GĐ1,98,44,3,"Tổng hợp tồn đầu, nhập, xuất, tồn cuối theo tháng; có dữ liệu/mẫu thiếu và giá trị lỗi lưu sẵn."
+10,Trang tính9,Trống,"M00 - Sheet kỹ thuật, bản phụ và sheet trống",Chuyển thành tiện ích hoặc bỏ sheet rỗng,0,0,0,Không có ô dữ liệu hoặc công thức.
+11,BK NHẬP - XUẤT,Biểu mẫu có công thức/nhập liệu,M04 - Kho và chi phí mua hàng,GĐ1,6974,6916,0,"Nhập/xuất từng dòng hàng, số lượng, đơn giá, tồn và thông tin in; mẫu đang có dữ liệu ngoài năm tiêu đề."
+12,Sổ chi tiết 331,Biểu mẫu có công thức/nhập liệu,M05 - Công nợ,GĐ1,5683,5633,1221,Sổ chi tiết phải trả theo mã NCC; có tham chiếu lỗi.
+13,Sổ chi tiết 131,Biểu mẫu có công thức/nhập liệu,M05 - Công nợ,GĐ1,5872,5822,1263,Sổ chi tiết phải thu theo mã KH; có tham chiếu lỗi.
+14,Trang tính7,Dữ liệu hoặc tiện ích hỗ trợ,"M00 - Sheet kỹ thuật, bản phụ và sheet trống",Chuyển thành tiện ích hoặc bỏ sheet rỗng,27,17,0,Bản danh mục phụ; nội dung tiêu đề lẫn khách hàng/nhà cung cấp.
+15,KH TSCĐ - TK 214,Biểu mẫu có công thức/nhập liệu,"M06 - Tài sản, công cụ và chi phí trả trước",GĐ2,116,58,0,"Nguyên giá, số năm, mức khấu hao tháng, lũy kế và giá trị còn lại; công thức một phần."
+16,PB CPMH,Biểu mẫu có công thức/nhập liệu,M04 - Kho và chi phí mua hàng,GĐ1,1017,976,0,Có cấu trúc phân bổ chi phí mua hàng; các công thức hiện đọc được chỉ tra tên hàng và ĐVT.
+17,PB CPTT - TK 242,Biểu mẫu có công thức/nhập liệu,"M06 - Tài sản, công cụ và chi phí trả trước",GĐ2,210,128,0,"Giá trị, thời gian phân bổ, từng tháng, lũy kế và còn lại; công thức một phần."
+18,BẢNG TÍNH THUẾ TNCN,Biểu mẫu có công thức/nhập liệu,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,800,507,1,"Thu nhập, miễn thuế, giảm trừ, nhóm hợp đồng, thuế TNCN; có số cố định và liên kết ngoài."
+19,BẢNG TÍNH LƯƠNG,Biểu mẫu có công thức/nhập liệu,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,864,489,1,"Lương, phụ cấp, bảo hiểm, tạm ứng, TNCN và thực lĩnh theo tháng; nhiều ô mẫu chưa tính đủ."
+20,BẢNG CHẤM CÔNG,Biểu mẫu có công thức/nhập liệu,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,1169,258,1,"Chấm công ngày, nửa ngày, nghỉ có lương và không lương; chọn tháng để in."
+21,Thẻ giá thành DV,Biểu mẫu chủ yếu nhập tay,M08 - Giá thành dịch vụ,GĐ2,29,0,0,Thẻ giá thành có số liệu ví dụ; không có công thức.
+22,CĐTK,Biểu mẫu có công thức/nhập liệu,M09 - Kế toán tổng hợp và cuối kỳ,GĐ1,705,95,0,"Cân đối số phát sinh, số dư đầu/cuối; có mẫu năm trước, chưa tự động nối toàn bộ từ NKC."
+23,Bảng CĐKT,Biểu mẫu có công thức/nhập liệu,M11 - Báo cáo tài chính,GĐ3,859,40,0,Bảng CĐKT có phần mẫu năm trước và cột nguồn số liệu; chỉ một phần có công thức.
+24,BC KQKD,Biểu mẫu có công thức/nhập liệu,M11 - Báo cáo tài chính,GĐ3,204,9,0,KQKD có mẫu và cột hướng dẫn nguồn số liệu; chỉ có 9 ô công thức.
+25,BC LCTT,Biểu mẫu có công thức/nhập liệu,M11 - Báo cáo tài chính,GĐ3,371,7,2,LCTT theo phương pháp trực tiếp; có liên kết ngoài và giá trị lỗi lưu sẵn.
+26,TM BCTC,Biểu mẫu có công thức/nhập liệu,M11 - Báo cáo tài chính,GĐ3,4673,106,58,"Thuyết minh gồm nội dung định tính, bảng số liệu và nhiều liên kết ngoài."
+27,Thông Tin DN,Biểu mẫu có công thức/nhập liệu,M01 - Thiết lập và danh mục,GĐ1,62,1,0,"Thông tin pháp nhân, năm tài chính, tài khoản ngân hàng, người ký và mẫu tiêu đề."
+28,Lưu ý,Hướng dẫn/tra cứu; có thể kèm ví dụ,M12 - Hướng dẫn và tra cứu,GĐ3,21,0,0,Hướng dẫn sử dụng Excel; chuyển phần phù hợp thành trợ giúp trong ứng dụng.
+29,DMTK,Biểu mẫu có công thức/nhập liệu,M01 - Thiết lập và danh mục,GĐ1,721,0,0,Hệ thống tài khoản phân cấp; cần phiên bản theo chế độ kế toán và kỳ áp dụng.
+30,Phiếu Nhập Kho,Biểu mẫu có công thức/nhập liệu,M04 - Kho và chi phí mua hàng,GĐ1,157,110,0,In phiếu nhập theo số; dữ liệu nhiều dòng; có lựa chọn in khoảng phiếu.
+31,Phiếu Xuất Kho,Biểu mẫu có công thức/nhập liệu,M04 - Kho và chi phí mua hàng,GĐ1,163,111,0,In phiếu xuất theo số; có lựa chọn in khoảng phiếu.
+32,SỔ CT VT-HH,Biểu mẫu có công thức/nhập liệu,M04 - Kho và chi phí mua hàng,GĐ1,10888,10833,1974,"Sổ chi tiết vật tư/hàng hóa; số lượng, giá trị, tồn; có nhiều giá trị lỗi tra cứu."
+33,Data,Dữ liệu hoặc tiện ích hỗ trợ,M01 - Thiết lập và danh mục,GĐ1,4724,2022,0,"Danh sách ngân hàng, tháng, số phiếu, mã nhân viên và mã tài khoản phục vụ các sheet khác."
+34,Thẻ lương,Biểu mẫu có công thức/nhập liệu,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,139,47,5,"Phiếu lương cá nhân, chọn mã nhân viên/tháng, in một hoặc nhiều nhân viên."
+35,TT THUẾ TNDN,Biểu mẫu có công thức/nhập liệu,M10 - Thuế và chi phí không được trừ,GĐ3,147,46,0,"Tạm tính TNDN, tổng hợp một phần từ NKC; phạm vi SUMIF cố định và có vùng lệch dòng."
+36,TH - PHẢI THU KH - 131,Biểu mẫu có công thức/nhập liệu,M05 - Công nợ,GĐ1,95,58,0,"Tổng hợp phải thu đầu kỳ, phát sinh, cuối kỳ theo khách hàng."
+37,TH - PHẢI TRẢ NB - 331,Biểu mẫu có công thức/nhập liệu,M05 - Công nợ,GĐ1,96,66,0,"Tổng hợp phải trả đầu kỳ, phát sinh, cuối kỳ theo nhà cung cấp."
+38,Data2,Dữ liệu hoặc tiện ích hỗ trợ,"M00 - Sheet kỹ thuật, bản phụ và sheet trống",Chuyển thành tiện ích hoặc bỏ sheet rỗng,61,15,0,Tra tháng theo vị trí dòng và hỗ trợ kiểm tra; thay bằng truy vấn theo kỳ.
+39,Temp,Dữ liệu hoặc tiện ích hỗ trợ,"M00 - Sheet kỹ thuật, bản phụ và sheet trống",Chuyển thành tiện ích hoặc bỏ sheet rỗng,640,500,250,Chuyển số thành chữ cho chứng từ; một số nguồn số tiền đã mất tham chiếu.
+40,Sổ Cái,Biểu mẫu có công thức/nhập liệu,M09 - Kế toán tổng hợp và cuối kỳ,GĐ1,5413,4172,11,Sổ Cái lọc theo tài khoản tổng hợp; có công thức tham chiếu lỗi.
+41,Sổ Chi Tiết TK,Biểu mẫu có công thức/nhập liệu,M09 - Kế toán tổng hợp và cuối kỳ,GĐ1,5828,5777,1253,Sổ chi tiết tài khoản; có công thức tham chiếu lỗi.
+42,BK CP KĐT,Biểu mẫu chủ yếu nhập tay,M10 - Thuế và chi phí không được trừ,GĐ3,27,1,0,"Bảng kê chi phí không được trừ có thông tin chứng từ, lý do, tài khoản và số tiền; phần lớn nhập tay."
+43,Sổ TGNH,Biểu mẫu có công thức/nhập liệu,M03 - Tiền mặt và ngân hàng,GĐ1,5004,4956,609,Sổ tiền gửi ngân hàng theo tài khoản; có công thức tham chiếu lỗi.
+44,SỔ QUỸ TM,Biểu mẫu có công thức/nhập liệu,M03 - Tiền mặt và ngân hàng,GĐ1,5303,5252,646,"Sổ quỹ tiền mặt, thu/chi và tồn; có công thức tham chiếu lỗi."
+45,Bảng Kê Thu - Chi,Biểu mẫu có công thức/nhập liệu,M03 - Tiền mặt và ngân hàng,GĐ1,1563,1477,0,"Nhập thu/chi, người nộp/nhận, tài khoản đối ứng; tính tồn và cấp dữ liệu phiếu."
+46,Phiếu Thu,Biểu mẫu có công thức/nhập liệu,M03 - Tiền mặt và ngân hàng,GĐ1,59,21,0,"Phiếu thu; chọn từng phiếu hoặc khoảng phiếu, số tiền bằng chữ, thông tin ký."
+47,BK chuyển khoản,Biểu mẫu có công thức/nhập liệu,M03 - Tiền mặt và ngân hàng,GĐ1,2106,2065,0,Bảng kê UNC nhiều ngân hàng; mã tham chiếu tới mẫu UNC chưa có trong danh sách sheet.
+48,HTSS,Hướng dẫn/tra cứu; có thể kèm ví dụ,M12 - Hướng dẫn và tra cứu,GĐ3,154,0,0,Sơ đồ trình tự ghi sổ và danh mục mẫu sổ; không phải sổ giao dịch tự động.
+49,KPCĐ,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,50,2,0,Quy định KPCĐ và bảng ví dụ; các tỷ lệ phải quản lý theo ngày hiệu lực.
+50,BHBB,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,161,20,0,Quy định BHBB và các bảng tỷ lệ/ví dụ; không phải hệ thống nộp hồ sơ bảo hiểm.
+51,TỜ KHAI THUẾ GTGT,Biểu mẫu có công thức/nhập liệu,M10 - Thuế và chi phí không được trừ,GĐ3,148,19,0,Mẫu 01/GTGT có liên kết bảng kê mua/bán và phụ lục giảm thuế năm 2022; chưa có tích hợp nộp điện tử.
+52,Bảng Kê Mua Vào,Biểu mẫu có công thức/nhập liệu,M10 - Thuế và chi phí không được trừ,GĐ3,195,63,0,"Bảng kê đầu vào, giá trị hàng/dịch vụ và thuế đủ điều kiện khấu trừ; thông tin hóa đơn nhập tay."
+53,Bảng Kê Bán Ra,Biểu mẫu có công thức/nhập liệu,M10 - Thuế và chi phí không được trừ,GĐ3,117,26,0,Bảng kê đầu ra phân loại nhóm thuế; thông tin hóa đơn nhập tay.
+54,PL 43-2022-QH15,Biểu mẫu có công thức/nhập liệu,M10 - Thuế và chi phí không được trừ,GĐ3,40,12,0,Phụ lục giảm thuế theo quy định năm 2022; giữ mẫu lịch sử và cập nhật quy tắc theo kỳ.
+55,Thuê TS,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,78,0,0,"Hướng dẫn thuê tài sản cá nhân và thuế, chủ yếu văn bản."
+56,CKTM,Ví dụ nghiệp vụ có tính toán,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,80,7,0,"Ví dụ tính chiết khấu thương mại; có 7 ô công thức, không phải quy trình bán hàng hoàn chỉnh."
+57,KM,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,27,0,0,"Hướng dẫn hạch toán biếu tặng và khuyến mại, có so sánh TT133/TT200."
+58,Thừa - Thiếu,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,48,0,0,Hướng dẫn xử lý hàng thừa/thiếu khi mua.
+59,Phạt VP,Hướng dẫn/tra cứu; có thể kèm ví dụ,M12 - Hướng dẫn và tra cứu,GĐ3,58,0,0,Bảng tra hành vi và mức phạt từ văn bản cũ; cần duyệt nội dung theo hiệu lực.
+60,Bút toán CK,Hướng dẫn/tra cứu; có thể kèm ví dụ,M09 - Kế toán tổng hợp và cuối kỳ,GĐ1,497,140,0,"Danh sách công việc đầu năm, tháng, quý, cuối năm và hướng dẫn kết chuyển; chưa có engine tự sinh bút toán."
+61,CKTT,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,32,0,0,Hướng dẫn và ví dụ chiết khấu thanh toán.
+62,Chi hộ - Thu Hộ,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,75,0,0,Hướng dẫn thu hộ/chi hộ theo đối tượng và chứng từ.
+63,Thử việc,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,32,0,0,"Hướng dẫn thử việc, hợp đồng và thuế/bảo hiểm; không phải quản lý nhân sự hoàn chỉnh."
+64,DV,Ví dụ nghiệp vụ có tính toán,M08 - Giá thành dịch vụ,GĐ2,251,44,0,Ví dụ tập hợp/phân bổ chi phí theo hợp đồng hoặc gói dịch vụ; có công thức ví dụ.
+65,HBBTL,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,28,0,0,Hướng dẫn hàng bán bị trả lại; không có công thức.
+66,Thai sản,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,136,1,0,"Quy định và ví dụ thai sản theo văn bản cũ; một ô công thức, chưa có quy trình hồ sơ."
+67,Mẫu 01B-HSB,Biểu mẫu chủ yếu nhập tay,"M07 - Chấm công, lương, bảo hiểm và TNCN",GĐ2,268,0,0,"Mẫu đề nghị hưởng chế độ ốm đau, thai sản, dưỡng sức; không có công thức."
+68,Lưu ý khi ghi sổ NKC,Hướng dẫn/tra cứu; có thể kèm ví dụ,M12 - Hướng dẫn và tra cứu,GĐ3,64,0,0,Hướng dẫn thống nhất tài khoản tổng hợp/chi tiết và đối tượng ghi sổ.
+69,Mã thống kê,Hướng dẫn/tra cứu; có thể kèm ví dụ,M01 - Thiết lập và danh mục,GĐ1,23,0,0,"Mã thống kê như chi phí không được trừ, lãi vay, điều chỉnh hóa đơn, kỳ hạn ngắn/dài."
+70,ĐK KT,Hướng dẫn/tra cứu; có thể kèm ví dụ,M10 - Thuế và chi phí không được trừ,GĐ3,13,0,0,Hướng dẫn điều kiện khấu trừ thuế theo quy định cũ; không dùng nguyên văn làm điều kiện hiện hành.
+71,Nhập Khẩu,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,86,0,0,"Hướng dẫn tính giá nhập, thuế nhập khẩu, GTGT và hạch toán; không có workflow nhập khẩu tự động."
+72,Thanh Toán cho người bán,Hướng dẫn/tra cứu; có thể kèm ví dụ,M05 - Công nợ,GĐ1,38,0,0,"Hướng dẫn trả trước, trả nhiều lần, công nợ NCC và ghi sổ."
+73,Nhận Thanh Toán,Hướng dẫn/tra cứu; có thể kèm ví dụ,M05 - Công nợ,GĐ1,35,0,0,"Hướng dẫn nhận trước, thu nhiều lần, công nợ KH và ghi sổ."
+74,Nhập Kho,Hướng dẫn/tra cứu; có thể kèm ví dụ,M04 - Kho và chi phí mua hàng,GĐ1,44,0,0,Hướng dẫn lập phiếu nhập kho và chuyển thông tin giữa các bảng.
+75,Xuất Kho,Hướng dẫn/tra cứu; có thể kèm ví dụ,M04 - Kho và chi phí mua hàng,GĐ1,22,0,0,Hướng dẫn xuất kho; có trường hợp bình quân cuối kỳ và chuyển giá xuất giữa các bảng.
+76,Mua HH-VT,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,41,0,0,"Hướng dẫn mua hàng/vật tư: kho, thanh toán, thuế và ghi sổ riêng từng bước."
+77,Mua CCDC,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M06 - Tài sản, công cụ và chi phí trả trước",GĐ2,51,0,0,Hướng dẫn mua CCDC nhập kho hoặc đưa vào sử dụng/phân bổ.
+78,Mua TSCĐ,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M06 - Tài sản, công cụ và chi phí trả trước",GĐ2,22,0,0,"Hướng dẫn mua TSCĐ, xác định nguyên giá và hạch toán."
+79,Mua Dịch Vụ,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,33,0,0,Hướng dẫn mua dịch vụ dùng ngay hoặc phân bổ nhiều kỳ.
+80,Bán HH,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,43,0,0,"Hướng dẫn bán hàng: xuất kho, thu tiền/công nợ, thuế và ghi sổ."
+81,KH TSCĐ,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M06 - Tài sản, công cụ và chi phí trả trước",GĐ2,181,0,0,Bảng tra khung thời gian khấu hao theo nhóm tài sản; không phải bảng tính khấu hao.
+82,Phiếu Kế Toán,Biểu mẫu chủ yếu nhập tay,M09 - Kế toán tổng hợp và cuối kỳ,GĐ1,763,2,0,"Mẫu phiếu kế toán với danh sách số phiếu; dữ liệu ví dụ, tự động hóa còn ít."
+83,Đặt Cọc,Hướng dẫn/tra cứu; có thể kèm ví dụ,"M02 - Mua hàng, bán hàng và nghiệp vụ đặc thù",GĐ2,31,0,0,Hướng dẫn đặt/nhận cọc theo các chế độ kế toán.
+84,Thẻ TSCĐ,Biểu mẫu chủ yếu nhập tay,"M06 - Tài sản, công cụ và chi phí trả trước",GĐ2,65,2,1,"Thẻ TSCĐ dạng mẫu, có số liệu tài sản ví dụ và giá trị lỗi lưu sẵn."

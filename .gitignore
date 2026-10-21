@@ -1,0 +1,31 @@
+# Runtime data and recovery archives
+/data/
+/backups/
+/server/data/
+/server/backups/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated build/test output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+/server/bin/
+*.test
+*.out
+
+# Editor and OS files
+.DS_Store
+*.swp

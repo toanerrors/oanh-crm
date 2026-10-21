@@ -1,0 +1,1810 @@
+openapi: 3.1.0
+info:
+  title: Oanh Accounting API
+  version: 0.2.0
+  description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
+    key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
+servers:
+- url: /api/v1
+security:
+- SessionCookie: []
+paths:
+  /session:
+    get:
+      summary: Thông tin phiên
+      operationId: get_session
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /setup:
+    post:
+      summary: Khởi tạo một lần
+      operationId: post_setup
+      description: 'Quyền: all.'
+      responses:
+        '201':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initialized:
+                    const: true
+                required:
+                - initialized
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Setup'
+      security: []
+  /auth/login:
+    post:
+      summary: Đăng nhập
+      operationId: post_auth_login
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      security: []
+  /auth/logout:
+    post:
+      summary: Đăng xuất
+      operationId: post_auth_logout
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /workspace:
+    get:
+      summary: Danh mục, chỉ số server và 100 chứng từ gần nhất trong kỳ
+      operationId: get_workspace
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - &id001
+        name: period
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/Period'
+  /documents:
+    get:
+      summary: Danh sách và tổng toàn bộ tập lọc
+      operationId: get_documents
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Documents'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - &id003
+        name: kind
+        in: query
+        required: false
+        schema:
+          enum:
+          - journal
+          - ledger
+          - trial
+          - debt
+          - income
+      - &id004
+        name: account
+        in: query
+        required: false
+        schema: &id002
+          type: string
+      - &id005
+        name: status
+        in: query
+        required: false
+        schema: *id002
+      - &id006
+        name: type
+        in: query
+        required: false
+        schema: *id002
+      - &id007
+        name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 300
+      - &id008
+        name: sort
+        in: query
+        required: false
+        schema:
+          enum:
+          - date
+          - amount
+      - &id009
+        name: direction
+        in: query
+        required: false
+        schema:
+          enum:
+          - asc
+          - desc
+      - &id010
+        name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+      - &id011
+        name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - &id012
+        name: revision
+        in: query
+        required: false
+        schema: &id015
+          type: integer
+          minimum: 0
+    post:
+      summary: Lưu nháp; sourceType khớp type hoặc manual
+      operationId: post_documents
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - &id013
+        $ref: '#/components/parameters/Epoch'
+      - &id014
+        $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+  /documents/export:
+    get:
+      summary: Xuất toàn bộ tập lọc (tối đa 100.000 chứng từ)
+      operationId: get_documents_export
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            text/csv:
+              schema:
+                type: string
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - *id003
+      - *id004
+      - *id005
+      - *id006
+      - *id007
+      - *id008
+      - *id009
+      - *id010
+      - *id011
+      - *id012
+  /documents/{id}:
+    get:
+      summary: Đọc chứng từ
+      operationId: get_documents_id
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ID'
+  /documents/{id}/post:
+    post:
+      summary: Ghi sổ nháp
+      operationId: post_documents_id_post
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ID'
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: *id002
+                version: *id015
+              required:
+              - version
+  /documents/{id}/reverse:
+    post:
+      summary: Đảo chứng từ thủ công; từ chối nguồn phân hệ
+      operationId: post_documents_id_reverse
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ID'
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: *id002
+                date:
+                  $ref: '#/components/schemas/Date'
+                reason: *id002
+              required:
+              - date
+              - reason
+  /documents/{id}/calculation:
+    get:
+      summary: Cơ sở tính và chính sách đã lưu
+      operationId: get_documents_id_calculation
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trace'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ID'
+  /reports:
+    get:
+      summary: Đọc/xuất/in sổ cùng snapshot; tối đa 100.000 dòng khi xuất/in
+      operationId: get_reports
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - *id003
+      - *id004
+      - *id005
+      - *id006
+      - *id007
+      - *id008
+      - *id009
+      - *id010
+      - *id011
+      - *id012
+  /reports/export:
+    get:
+      summary: Đọc/xuất/in sổ cùng snapshot; tối đa 100.000 dòng khi xuất/in
+      operationId: get_reports_export
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            text/csv:
+              schema:
+                type: string
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - *id003
+      - *id004
+      - *id005
+      - *id006
+      - *id007
+      - *id008
+      - *id009
+      - *id010
+      - *id011
+      - *id012
+  /reports/print:
+    get:
+      summary: Đọc/xuất/in sổ cùng snapshot; tối đa 100.000 dòng khi xuất/in
+      operationId: get_reports_print
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            text/html:
+              schema:
+                type: string
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - *id003
+      - *id004
+      - *id005
+      - *id006
+      - *id007
+      - *id008
+      - *id009
+      - *id010
+      - *id011
+      - *id012
+  /partners:
+    post:
+      summary: Lưu danh mục đối tượng
+      operationId: post_partners
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Partner'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                partners:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Partner'
+              required:
+              - partners
+  /accounts:
+    post:
+      summary: Lưu tài khoản
+      operationId: post_accounts
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+  /periods:
+    post:
+      summary: Mở hoặc khóa kỳ; từ chối mở kỳ có kết chuyển chưa đảo
+      operationId: post_periods
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountingPeriod'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountingPeriod'
+  /periods/reopen:
+    post:
+      summary: Mở lại kỳ và đảo kết chuyển liên kết
+      operationId: post_periods_reopen
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                period:
+                  $ref: '#/components/schemas/Period'
+                reason: *id002
+              required:
+              - period
+              - reason
+  /automation:
+    get:
+      summary: Danh mục và chính sách nghiệp vụ
+      operationId: get_automation
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Automation'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /policies:
+    post:
+      summary: Lưu policies
+      operationId: post_policies
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Policy'
+  /items:
+    post:
+      summary: Lưu items
+      operationId: post_items
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Item'
+  /employees:
+    post:
+      summary: Lưu employees
+      operationId: post_employees
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Employee'
+  /operations/preview:
+    post:
+      summary: Tính trong transaction rồi rollback
+      operationId: post_operations_preview
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calculation'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Operation'
+  /operations:
+    post:
+      summary: Tính lại và ghi sổ cùng phân hệ; bắt buộc expectedPolicyId/expectedRevision
+      operationId: post_operations
+      description: 'Quyền: owner, accountant; closing chỉ owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calculation'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Operation'
+  /imports/preview:
+    post:
+      summary: Kiểm tra CSV, không ghi dữ liệu
+      operationId: post_imports_preview
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Import'
+  /imports:
+    post:
+      summary: Nhập cả gói nháp, bắt buộc expectedRevision
+      operationId: post_imports
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Import'
+  /users:
+    get:
+      summary: Danh sách người dùng
+      operationId: get_users
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Lưu quyền/mật khẩu và thu hồi phiên
+      operationId: post_users
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: '#/components/schemas/User'
+              - type: object
+                properties:
+                  password:
+                    type: string
+                    writeOnly: true
+  /audit:
+    get:
+      summary: 200 sự kiện gần nhất
+      operationId: get_audit
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: *id015
+                    actor: *id002
+                    action: *id002
+                    occurredAt:
+                      type: string
+                      format: date-time
+                    revision: *id015
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /backup:
+    post:
+      summary: Tạo, kiểm tra và tải snapshot ZIP
+      operationId: post_backup
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+  /restore/stage:
+    post:
+      summary: Kiểm tra gói ZIP trong vùng tạm
+      operationId: post_restore_stage
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staged'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+              description: Tối đa 128 MiB; dữ liệu giải nén tối đa 256 MiB.
+  /restore/activate:
+    post:
+      summary: Xác nhận khôi phục; đổi epoch, thu hồi phiên
+      operationId: post_restore_activate
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored:
+                    const: true
+                  snapshot:
+                    $ref: '#/components/schemas/Manifest'
+                  loginRequired:
+                    const: true
+                required:
+                - restored
+                - snapshot
+                - loginRequired
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stageId: *id002
+                confirmCompanyId: *id002
+              required:
+              - stageId
+              - confirmCompanyId
+  /documents/{id}/attachments:
+    get:
+      summary: Danh sách file đính kèm
+      operationId: get_documents_id_attachments
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: *id002
+                    name: *id002
+                    size: *id015
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ID'
+    post:
+      summary: Thêm blob bất biến, tối đa 10 MiB
+      operationId: post_documents_id_attachments
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: *id002
+                  name: *id002
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ID'
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+  /attachments/{id}:
+    get:
+      summary: Tải file đính kèm
+      operationId: get_attachments_id
+      description: 'Quyền: all.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ID'
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: oanh_session
+      description: HttpOnly, SameSite=Strict, 12 giờ; Secure theo cấu hình HTTPS.
+  parameters:
+    Epoch:
+      name: X-Dataset-Epoch
+      in: header
+      required: true
+      schema: *id002
+      description: Epoch đã đọc từ session/workspace.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        $ref: '#/components/schemas/ID'
+      description: Một khóa cho một ý định; cùng key khác payload bị 409.
+  schemas:
+    ID:
+      type: string
+      pattern: ^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$
+    Money:
+      type: string
+      pattern: ^(0|[1-9][0-9]{0,18})$
+      description: Số nguyên VND không âm, tối đa 9223372036854775807; server kiểm tra range.
+    Aggregate:
+      type: string
+      pattern: ^-?(0|[1-9][0-9]*)$
+      description: Số nguyên chính xác; tổng báo cáo có thể vượt int64.
+    Decimal:
+      type: string
+      pattern: ^(0|[1-9][0-9]{0,14})(\.[0-9]{1,6})?$
+    Date:
+      type: string
+      format: date
+    Period:
+      type: string
+      pattern: ^[0-9]{4}-(0[1-9]|1[0-2])$
+    Error:
+      type: object
+      properties:
+        code: *id002
+        message: *id002
+        request_id: *id002
+      required:
+      - code
+      - message
+      - request_id
+    Context:
+      type: object
+      properties:
+        companyId: *id002
+        companyName: *id002
+        epoch: *id002
+        regime: *id002
+        revision: *id015
+        currency:
+          const: VND
+        scale:
+          const: 0
+        period:
+          $ref: '#/components/schemas/Period'
+      required:
+      - companyId
+      - companyName
+      - epoch
+      - revision
+      - currency
+      - scale
+      - regime
+    User:
+      type: object
+      properties:
+        id: *id002
+        username: *id002
+        name: *id002
+        role:
+          enum:
+          - owner
+          - accountant
+          - viewer
+        active: &id016
+          type: boolean
+      required:
+      - id
+      - username
+      - name
+      - role
+      - active
+    Login:
+      type: object
+      properties:
+        username: *id002
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - username
+      - password
+    Setup:
+      type: object
+      properties:
+        username: *id002
+        name: *id002
+        companyName: *id002
+        regime: *id002
+        password:
+          type: string
+          minLength: 12
+          writeOnly: true
+        confirmAccounts:
+          const: true
+      required:
+      - username
+      - password
+      - name
+      - companyName
+      - regime
+      - confirmAccounts
+    Line:
+      type: object
+      properties:
+        accountId:
+          $ref: '#/components/schemas/ID'
+        partnerId:
+          $ref: '#/components/schemas/ID'
+        description: *id002
+        debit:
+          $ref: '#/components/schemas/Money'
+        credit:
+          $ref: '#/components/schemas/Money'
+        partnerName: *id002
+        accountName: *id002
+      required:
+      - accountId
+      - debit
+      - credit
+    Document:
+      type: object
+      properties:
+        id: *id002
+        reference: *id002
+        description: *id002
+        partnerId: *id002
+        sourceType: *id002
+        sourceId: *id002
+        reversalOf: *id002
+        policyId: *id002
+        type:
+          enum:
+          - receipt
+          - payment
+          - sale
+          - purchase
+          - journal
+        date:
+          $ref: '#/components/schemas/Date'
+        status:
+          enum:
+          - draft
+          - posted
+        version: *id015
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/Line'
+      required:
+      - id
+      - type
+      - date
+      - description
+      - version
+      - lines
+    Partner:
+      type: object
+      properties:
+        id: *id002
+        code: *id002
+        name: *id002
+        email: *id002
+        phone: *id002
+        role:
+          enum:
+          - customer
+          - supplier
+          - both
+        active: *id016
+      required:
+      - id
+      - code
+      - name
+      - role
+      - active
+    Account:
+      type: object
+      properties:
+        id: *id002
+        code: *id002
+        name: *id002
+        group:
+          enum:
+          - cash
+          - receivable
+          - payable
+          - revenue
+          - expense
+          - inventory
+          - asset
+          - capital
+          - tax
+          - liability
+          - wip
+        requiresPartner: *id016
+        active: *id016
+      required:
+      - id
+      - code
+      - name
+      - group
+      - requiresPartner
+      - active
+    AccountingPeriod:
+      type: object
+      properties:
+        period:
+          $ref: '#/components/schemas/Period'
+        closed: *id016
+      required:
+      - period
+      - closed
+    Policy:
+      type: object
+      properties:
+        id: *id002
+        regime: *id002
+        version: *id015
+        effectiveFrom:
+          $ref: '#/components/schemas/Date'
+        confirmed:
+          const: true
+        rounding:
+          enum:
+          - half_up
+          - half_even
+          - down
+        vatMethod:
+          enum:
+          - deduction
+          - direct
+        vatRates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Decimal'
+        inventoryMethod:
+          enum:
+          - fifo
+          - moving_average
+        quantityScale:
+          type: integer
+          minimum: 0
+          maximum: 6
+        standardDays:
+          $ref: '#/components/schemas/Decimal'
+        hoursPerDay:
+          $ref: '#/components/schemas/Decimal'
+        corporateTaxRate:
+          $ref: '#/components/schemas/Decimal'
+        personalDeduction:
+          $ref: '#/components/schemas/Money'
+        dependentDeduction:
+          $ref: '#/components/schemas/Money'
+        insurance:
+          type: array
+          items:
+            type: object
+            properties:
+              name: *id002
+              employeeRate:
+                $ref: '#/components/schemas/Decimal'
+              employerRate:
+                $ref: '#/components/schemas/Decimal'
+            required:
+            - name
+            - employeeRate
+            - employerRate
+        pitBrackets:
+          type: array
+          items:
+            type: object
+            properties:
+              upTo: *id002
+              rate:
+                $ref: '#/components/schemas/Decimal'
+            required:
+            - upTo
+            - rate
+        depreciationMethod:
+          const: straight_line
+        residualMethod:
+          const: last_period
+      required:
+      - regime
+      - effectiveFrom
+      - confirmed
+      - rounding
+      - vatMethod
+      - vatRates
+      - inventoryMethod
+      - quantityScale
+      - standardDays
+      - hoursPerDay
+      - corporateTaxRate
+      - personalDeduction
+      - dependentDeduction
+      - insurance
+      - pitBrackets
+      - depreciationMethod
+      - residualMethod
+    Item:
+      type: object
+      properties:
+        id: *id002
+        code: *id002
+        name: *id002
+        unit: *id002
+        quantity: *id002
+        value: *id002
+        scale: *id015
+        tracked: *id016
+        active: *id016
+      required:
+      - id
+      - code
+      - name
+      - unit
+      - tracked
+      - active
+    Employee:
+      type: object
+      properties:
+        id: *id002
+        code: *id002
+        name: *id002
+        baseSalary:
+          $ref: '#/components/schemas/Money'
+        insuranceBase:
+          $ref: '#/components/schemas/Money'
+        dependents:
+          type: integer
+          minimum: 0
+          maximum: 100
+        active: *id016
+      required:
+      - id
+      - code
+      - name
+      - baseSalary
+      - insuranceBase
+      - dependents
+      - active
+    Asset:
+      type: object
+      properties:
+        id: *id002
+        code: *id002
+        name: *id002
+        kind:
+          enum:
+          - fixed
+          - prepaid
+        cost:
+          $ref: '#/components/schemas/Money'
+        residual:
+          $ref: '#/components/schemas/Money'
+        allocated:
+          $ref: '#/components/schemas/Money'
+        months:
+          type: integer
+          minimum: 1
+          maximum: 1200
+        startPeriod:
+          $ref: '#/components/schemas/Period'
+      required:
+      - id
+      - code
+      - name
+      - kind
+      - cost
+      - residual
+      - months
+      - startPeriod
+    TradeLine:
+      type: object
+      properties:
+        itemId:
+          $ref: '#/components/schemas/ID'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        unitPrice:
+          $ref: '#/components/schemas/Decimal'
+        vatRate:
+          $ref: '#/components/schemas/Decimal'
+        deductible: *id016
+      required:
+      - itemId
+      - quantity
+      - unitPrice
+      - vatRate
+    Operation:
+      type: object
+      properties:
+        kind:
+          enum:
+          - sale
+          - purchase
+          - payroll
+          - asset
+          - depreciation
+          - costing
+          - closing
+          - corporate_tax
+        sourceId:
+          $ref: '#/components/schemas/ID'
+        date:
+          $ref: '#/components/schemas/Date'
+        description: *id002
+        partnerId: *id002
+        expectedPolicyId: *id002
+        expectedRevision: *id015
+        priceMode:
+          enum:
+          - exclusive
+          - inclusive
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TradeLine'
+        employeeId: *id002
+        workedDays:
+          $ref: '#/components/schemas/Decimal'
+        overtimeHours:
+          $ref: '#/components/schemas/Decimal'
+        overtimeMultiplier:
+          $ref: '#/components/schemas/Decimal'
+        allowance:
+          $ref: '#/components/schemas/Money'
+        nonTaxableAllowance:
+          $ref: '#/components/schemas/Money'
+        amount:
+          $ref: '#/components/schemas/Money'
+        nonDeductible:
+          $ref: '#/components/schemas/Money'
+        exemptIncome:
+          $ref: '#/components/schemas/Money'
+        carriedLoss:
+          $ref: '#/components/schemas/Money'
+        taxFrom:
+          $ref: '#/components/schemas/Date'
+        asset:
+          $ref: '#/components/schemas/Asset'
+        assetId: *id002
+      required:
+      - kind
+      - sourceId
+      - date
+      - description
+    Calculation:
+      type: object
+      properties:
+        revision: *id015
+        policyId: *id002
+        policyVersion: *id015
+        document:
+          $ref: '#/components/schemas/Document'
+        amounts:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Aggregate'
+        notes:
+          type: array
+          items: *id002
+      required:
+      - revision
+      - policyId
+      - policyVersion
+      - document
+      - amounts
+      - notes
+    Import:
+      type: object
+      properties:
+        csv: *id002
+        expectedRevision: *id015
+      required:
+      - csv
+    ImportResult:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+        revision: *id015
+      required:
+      - documents
+      - revision
+    ReportRow:
+      type: object
+      properties:
+        key: *id002
+        code: *id002
+        name: *id002
+        date: *id002
+        documentId: *id002
+        description: *id002
+        account: *id002
+        debit:
+          $ref: '#/components/schemas/Aggregate'
+        credit:
+          $ref: '#/components/schemas/Aggregate'
+        openingDebit:
+          $ref: '#/components/schemas/Aggregate'
+        openingCredit:
+          $ref: '#/components/schemas/Aggregate'
+        closingDebit:
+          $ref: '#/components/schemas/Aggregate'
+        closingCredit:
+          $ref: '#/components/schemas/Aggregate'
+      required:
+      - key
+      - code
+      - name
+      - debit
+      - credit
+    Report:
+      allOf:
+      - $ref: '#/components/schemas/Context'
+      - type: object
+        properties:
+          rows:
+            type: array
+            items:
+              $ref: '#/components/schemas/ReportRow'
+          total: *id015
+          debit:
+            $ref: '#/components/schemas/Aggregate'
+          credit:
+            $ref: '#/components/schemas/Aggregate'
+          openingDebit:
+            $ref: '#/components/schemas/Aggregate'
+          openingCredit:
+            $ref: '#/components/schemas/Aggregate'
+          closingDebit:
+            $ref: '#/components/schemas/Aggregate'
+          closingCredit:
+            $ref: '#/components/schemas/Aggregate'
+          accountBalance:
+            $ref: '#/components/schemas/ReportRow'
+        required:
+        - rows
+        - total
+        - debit
+        - credit
+    Documents:
+      allOf:
+      - $ref: '#/components/schemas/Context'
+      - type: object
+        properties:
+          documents:
+            type: array
+            items:
+              $ref: '#/components/schemas/Document'
+          total: *id015
+          amount:
+            $ref: '#/components/schemas/Aggregate'
+          counts:
+            type: object
+            additionalProperties: *id015
+        required:
+        - documents
+        - total
+        - amount
+        - counts
+    Manifest:
+      type: object
+      properties:
+        format: *id015
+        schemaHash: *id002
+        companyId: *id002
+        companyName: *id002
+        epoch: *id002
+        createdAt: *id002
+        revision: *id015
+        documents: *id015
+        posted: *id015
+        debit:
+          $ref: '#/components/schemas/Aggregate'
+        credit:
+          $ref: '#/components/schemas/Aggregate'
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              path: *id002
+              sha256: *id002
+              size: *id015
+            required:
+            - path
+            - sha256
+            - size
+        sqliteVersion: *id002
+    Staged:
+      type: object
+      properties:
+        id: *id002
+        manifest:
+          $ref: '#/components/schemas/Manifest'
+      required:
+      - id
+      - manifest
+    Session:
+      type: object
+      properties:
+        needsSetup: *id016
+        user:
+          $ref: '#/components/schemas/User'
+        context:
+          $ref: '#/components/schemas/Context'
+      required:
+      - needsSetup
+    Workspace:
+      allOf:
+      - $ref: '#/components/schemas/Context'
+      - type: object
+        properties:
+          actor: *id002
+          permissions: *id002
+          mode:
+            const: live
+          documents:
+            type: array
+            items:
+              $ref: '#/components/schemas/Document'
+          accounts:
+            type: array
+            items:
+              $ref: '#/components/schemas/Account'
+          partners:
+            type: array
+            items:
+              $ref: '#/components/schemas/Partner'
+          periods:
+            type: array
+            items:
+              $ref: '#/components/schemas/AccountingPeriod'
+          server:
+            type: object
+            properties:
+              revenue:
+                $ref: '#/components/schemas/Aggregate'
+              expense:
+                $ref: '#/components/schemas/Aggregate'
+              receivable:
+                $ref: '#/components/schemas/Aggregate'
+              balances:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/Aggregate'
+              documentCount: *id015
+              postedCount: *id015
+              draftCount: *id015
+              months:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key:
+                      $ref: '#/components/schemas/Period'
+                    revenue:
+                      $ref: '#/components/schemas/Aggregate'
+                    expense:
+                      $ref: '#/components/schemas/Aggregate'
+    Trace:
+      type: object
+      properties:
+        input:
+          $ref: '#/components/schemas/Operation'
+        calculation:
+          $ref: '#/components/schemas/Calculation'
+        policy:
+          $ref: '#/components/schemas/Policy'
+      required:
+      - input
+      - calculation
+      - policy
+    Automation:
+      type: object
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Policy'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+        employees:
+          type: array
+          items:
+            $ref: '#/components/schemas/Employee'
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
