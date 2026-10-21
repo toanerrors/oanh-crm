@@ -7,6 +7,7 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Quy trình sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker trên server hiện tại → healthcheck. Người dùng đã ủy quyền mặc định, không cần xác nhận lại cho commit/push/release thông thường; quy tắc được lưu trong `AGENTS.md`.
 - Người dùng yêu cầu ứng dụng kế toán bao phủ workbook, UI/UX hoàn chỉnh và nghiệp vụ tự động; chính sách thay đổi trong Cài đặt.
 - Go + SQLite; React + TypeScript strict + Vite SPA, Ant Design Form/Table, React Router, TanStack Query; pnpm. Frontend và driver Go `modernc.org/sqlite` đã được chấp thuận cài đặt.
+- UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
 ## Release Docker 0.2.0
@@ -30,6 +31,13 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Sidebar xanh đậm, trạng thái điều hướng rõ hơn, thẻ doanh thu có điểm nhấn và thao tác nhanh nằm đầu trang. Nhãn ghi sổ/nháp có độ tương phản chữ lần lượt 6,35:1 và 5,45:1 trên nền thực tế.
 - Tìm chứng từ có gợi ý không dấu từ dữ liệu gần đây trong kỳ, chọn bằng bàn phím hoặc mở kết quả toàn kỳ. Màn hình nhỏ dùng hộp tìm kiếm riêng; danh sách chứng từ chuyển thành thẻ đủ đối tượng, trạng thái, ngày và số tiền, giữ phân trang và sắp xếp theo ngày/tiền. Nút lưu nháp giữ trong tầm nhìn khi nhập nhiều dòng.
 - Validation: TypeScript strict, production build, 15 test Node, 11 E2E mẫu và 6 E2E backend thật đạt. Kiểm tra 24 cặp route/viewport ở 375–1440px, popup khi giảm chuyển động, đổi thiết lập chuyển động không mất nháp; không có tràn ngang, lỗi JavaScript hoặc lỗi console trong lượt kiểm tra bổ sung. Chưa benchmark hiệu năng mới; cảnh báo chunk lớn vẫn còn.
+
+### Thu gọn giao diện theo mật độ thông tin
+
+- Thống nhất chữ chính 13px, chữ phụ 12px, tiêu đề trang 20px và Input/Select/InputNumber/Button cao 32px. Giảm khoảng cách khung, thẻ, bảng, tab và biểu mẫu; thao tác nhanh nằm cùng hàng trên desktop. Giữ gợi ý nhập liệu và thanh lưu nháp khi cuộn.
+- Tại viewport 1440×900 trên dữ liệu mẫu: đủ 8 dòng chứng từ cùng tổng tiền trong màn hình, thay cho 6 dòng trọn vẹn trước đó; chiều cao trang tổng quan giảm từ khoảng 1.565px xuống 1.113px. Đây là phép đo bố cục, chưa phải benchmark hiệu năng.
+- Sửa CSS giảm chuyển động để tắt transition thay vì tạo transition ngắn cho mọi thuộc tính; menu sắp xếp không bị lệch vị trí ngoài viewport. Kiểm tra 28 cặp route/viewport từ 375–1920px không tràn ngang hoặc lỗi JavaScript/console; form ở 1440/820/390px giữ chiều cao control 32px.
+- Validation: TypeScript strict, production build, 15 test Node, 11 E2E mẫu và 6 E2E backend thật đạt; chạy lại riêng 2 E2E tìm kiếm sau điều chỉnh padding popup. Cảnh báo chunk Ant Design khoảng 700 kB vẫn còn.
 
 ### Các phân hệ hiện có
 

@@ -2,8 +2,8 @@
 
 :root { font-family: Inter, 'Segoe UI', Arial, sans-serif; color: #24332f; background: #f5f8f6; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 * { box-sizing: border-box; }
-html { scroll-padding-top: 88px; }
-body { margin: 0; min-width: 360px; }
+html { scroll-padding-top: 64px; }
+body { margin: 0; min-width: 360px; font-size: 13px; line-height: 1.5; }
 button, input, select { font: inherit; }
 button, a, input, select { -webkit-tap-highlight-color: transparent; }
 button, a { touch-action: manipulation; }
@@ -18,19 +18,18 @@ svg { flex-shrink: 0; vertical-align: middle; }
 ::selection { background: #c4e7d9; }
 input[type=date] { color-scheme: light; }
 .ant-table { font-variant-numeric: tabular-nums; }
-.ant-table-thead > tr > th { font-size: 11px; letter-spacing: .025em; font-weight: 600; }
+.ant-table-thead > tr > th { font-size: 12px; letter-spacing: 0; font-weight: 600; }
 .ant-table-tbody > tr > td { border-bottom-color: #f0f3f1 !important; }
 .ant-table-summary { background: #f6faf7; font-size: 12px; }
-.ant-table-summary td { padding: 17px 12px !important; }
-.ant-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.ant-table-summary td { padding: 8px 12px !important; }
+.ant-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .ant-select-selection-item { font-weight: 500; }
 .ant-form-item-label > label { font-size: 13px; font-weight: 550; }
-.ant-input[type=date], .ant-input[type=month] { height: 40px; }
+.ant-input[type=date], .ant-input[type=month] { height: 32px; }
 .ant-input-number-input { font-variant-numeric: tabular-nums; text-align: right; }
 .ant-tabs-tab { font-weight: 500; }
-.ant-drawer-title { font-size: 16px !important; }
+.ant-drawer-title { font-size: 14px !important; }
 .ant-drawer-body, .ant-modal-body { overscroll-behavior: contain; }
-.ant-modal-title { font-size: 18px !important; }
+.ant-modal-title { font-size: 16px !important; }
 .ant-tooltip { font-size: 12px; }
-@media (max-width: 760px) { html { scroll-padding-top: 80px; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition: none !important; scroll-behavior: auto !important; } }

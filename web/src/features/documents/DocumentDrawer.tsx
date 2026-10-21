@@ -19,7 +19,7 @@ import { api, apiScope, command, isDemo } from '../../shared/api/client';
 export function DocumentEditor() {
   const { draft, draftOpen, setDraftOpen } = useWorkspace();
   useBeforeUnload(useCallback((event: BeforeUnloadEvent) => { if (draft) { event.preventDefault(); event.returnValue = ''; } }, [draft]));
-  return <Drawer className={styles.documentEditor} title={<span className={styles.drawerTitle}><Icon name="file" />{draft?.reference || 'Tạo chứng từ mới'}<StatusTag status="draft" /></span>} open={draftOpen} size={1080} onClose={() => setDraftOpen(false)} styles={{ body: { padding: 24 } }} extra={<span className={styles.muted}>Đóng để giữ nháp trong phiên</span>}>
+  return <Drawer className={styles.documentEditor} title={<span className={styles.drawerTitle}><Icon name="file" />{draft?.reference || 'Tạo chứng từ mới'}<StatusTag status="draft" /></span>} open={draftOpen} size={1080} onClose={() => setDraftOpen(false)} styles={{ body: { padding: 16 } }} extra={<span className={styles.muted}>Đóng để giữ nháp trong phiên</span>}>
     {draft && <DraftForm key={draft.id} initial={draft} />}
   </Drawer>;
 }

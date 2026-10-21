@@ -17,12 +17,12 @@ test('tổng quan, điều hướng SPA và các màn hình chính hiển thị 
 test('gợi ý không dấu, nhập tự do và chiều cao control thống nhất', async ({ page }) => {
   await page.goto('/documents');
   const create = page.getByRole('button', { name: 'Tạo chứng từ', exact: true });
-  expect((await create.boundingBox())?.height).toBe(40);
+  expect((await create.boundingBox())?.height).toBe(32);
   for (const control of [
     page.getByRole('combobox', { name: 'Tìm chứng từ trong kỳ' }).locator('xpath=ancestor::span[contains(@class,"ant-input-affix-wrapper")]'),
     page.getByRole('textbox', { name: 'Tìm trong danh sách chứng từ' }).locator('xpath=ancestor::span[contains(@class,"ant-input-affix-wrapper")]'),
     page.getByRole('combobox', { name: 'Chọn kỳ kế toán' }).locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
-  ]) expect((await control.boundingBox())?.height).toBe(40);
+  ]) expect((await control.boundingBox())?.height).toBe(32);
   await create.click();
   const description = page.getByLabel('Diễn giải', { exact: true });
   await description.fill('thue van phong');
@@ -50,7 +50,7 @@ test('gợi ý không dấu, nhập tự do và chiều cao control thống nh�
     account.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
     page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true }).locator('xpath=ancestor::*[contains(@class,"ant-input-number")][last()]'),
     page.getByRole('button', { name: 'Lưu nháp mẫu', exact: true }),
-  ]) expect((await control.boundingBox())?.height).toBe(40);
+  ]) expect((await control.boundingBox())?.height).toBe(32);
 
   await page.locator('.ant-drawer-close').click();
   await page.getByRole('button', { name: 'Tiếp tục nháp', exact: true }).click();
@@ -106,7 +106,7 @@ test('nút lưu nháp luôn hiện khi nhập nhiều dòng', async ({ page }) =
   await page.locator('.ant-drawer-body').evaluate(element => { element.scrollTop = 0; });
   const save = page.getByRole('button', { name: 'Lưu nháp mẫu', exact: true });
   await expect(save).toBeInViewport();
-  expect((await save.boundingBox())?.height).toBe(40);
+  expect((await save.boundingBox())?.height).toBe(32);
 });
 
 test('lọc không dấu, mở nguồn chứng từ và xuất toàn bộ CSV', async ({ page }) => {
