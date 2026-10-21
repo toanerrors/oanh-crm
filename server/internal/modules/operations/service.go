@@ -336,6 +336,11 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 	r.PolicyVersion = p.Version
 	doc := ledger.Document{ID: sqlite.ID(), Type: "journal", Date: input.Date, Description: input.Description, PartnerID: input.PartnerID, SourceType: input.Kind, SourceID: input.SourceID, PolicyID: p.ID, Lines: []ledger.Line{}}
 	switch input.Kind {
+	case "treasury_reversal":
+		doc.SourceID = input.OriginalDocumentID
+		err = s.reverseTreasury(ctx, tx, input, &doc, &r)
+	case "receipt", "payment", "transfer":
+		err = s.treasury(ctx, tx, input, &doc, &r)
 	case "sale", "purchase":
 		err = s.trade(ctx, tx, input, p, &doc, &r)
 	case "payroll":

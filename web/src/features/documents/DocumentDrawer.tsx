@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { CalculationDetails } from './CalculationDetails';
 import { useCallback, useState } from 'react';
 import { Alert, App, AutoComplete, Button, Descriptions, Drawer, Form, Input, Select, Table, Tooltip, Upload } from 'antd';
@@ -91,6 +92,7 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
 }
 
 export function DocumentDetail() {
+  const navigate = useNavigate();
   const { detailId, openDocument, data, editDraft } = useWorkspace();
   const { message, modal } = App.useApp();
   const client = useQueryClient();
@@ -135,7 +137,7 @@ export function DocumentDetail() {
         { title: 'Có', dataIndex: 'credit', align: 'right', render: (value: string) => formatMoney(value) },
       ]} summary={() => <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng cộng</strong></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><strong>{total && formatMoney(total.debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={3} align="right"><strong>{total && formatMoney(total.credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />
       <p className={styles.muted}>{isDemo ? 'Nguồn: bộ chứng từ giả lập' : `Nguồn: ${document.sourceType ?? 'chứng từ'} / ${document.sourceId ?? document.id}`} · Phiên bản dữ liệu {data.revision}. {document.status === 'draft' ? 'Chứng từ nháp chưa tác động đến sổ.' : isDemo ? 'Trạng thái ghi sổ thuộc dữ liệu mẫu, chưa phải giao dịch thực tế.' : 'Chứng từ đã ghi sổ được giữ nguyên; sửa sai bằng chứng từ có liên kết.'}</p>
-      <div className={styles.headingActions}>{!isDemo && canWrite && document.policyId && !document.reversalOf && <CalculationDetails id={document.id} />}{document.status === 'draft' && canWrite && <><Button onClick={() => editDraft(document)}>Sửa bản nháp</Button>{!isDemo && <Button type="primary" loading={posting} onClick={() => modal.confirm({ title: 'Ghi sổ chứng từ?', content: 'Server sẽ kiểm tra Nợ/Có, quyền, kỳ, phiên bản nháp và nguồn nghiệp vụ trước khi commit.', okText: 'Ghi sổ', cancelText: 'Kiểm tra lại', onOk: post })}>Ghi sổ</Button>}</>}{!isDemo && canWrite && document.status === 'posted' && !document.policyId && !document.reversalOf && <Button onClick={reverse}>Lập chứng từ đảo</Button>}</div>
+      <div className={styles.headingActions}>{!isDemo && canWrite && document.policyId && ['receipt', 'payment', 'transfer'].includes(document.sourceType ?? '') && !document.reversalOf && <Button onClick={() => { openDocument(null); navigate(`/automation?kind=treasury_reversal&original=${encodeURIComponent(document.id)}`); }}>Đảo phiếu tiền</Button>}{!isDemo && canWrite && document.policyId && !document.reversalOf && <CalculationDetails id={document.id} />}{document.status === 'draft' && canWrite && <><Button onClick={() => editDraft(document)}>Sửa bản nháp</Button>{!isDemo && <Button type="primary" loading={posting} onClick={() => modal.confirm({ title: 'Ghi sổ chứng từ?', content: 'Server sẽ kiểm tra Nợ/Có, quyền, kỳ, phiên bản nháp và nguồn nghiệp vụ trước khi commit.', okText: 'Ghi sổ', cancelText: 'Kiểm tra lại', onOk: post })}>Ghi sổ</Button>}</>}{!isDemo && canWrite && document.status === 'posted' && !document.policyId && !document.reversalOf && <Button onClick={reverse}>Lập chứng từ đảo</Button>}</div>
       {!isDemo && <section style={{ marginTop: 30 }}><h3>Chứng từ đính kèm</h3>{files.data?.map(file => <p key={file.id}><a href={`/api/v1/attachments/${file.id}`} download>{file.name}</a> <small>{file.size} byte</small></p>)}{canWrite && <Upload showUploadList={false} beforeUpload={async file => { try { const body = new FormData(); body.append('file', file); await api(`/documents/${document.id}/attachments`, { method: 'POST', body, headers: { 'X-Dataset-Epoch': apiScope().epoch, 'Idempotency-Key': crypto.randomUUID() } }); await client.invalidateQueries({ queryKey: [...workspaceKey(), 'attachments', detailId] }); void message.success('Đã lưu file đính kèm.'); } catch (error) { void message.error((error as Error).message); } return Upload.LIST_IGNORE; }}><Button>Thêm file đính kèm (tối đa 10 MB)</Button></Upload>}</section>}
     </article>}
     {!document && detailId && <Alert type={detail.error ? 'error' : 'info'} title={detail.error?.message ?? 'Đang tải chứng từ…'} />}

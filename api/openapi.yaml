@@ -637,6 +637,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /trade-invoices:
+    get:
+      summary: Công nợ theo chứng từ mua/bán và ghi tăng tài sản
+      operationId: get_trade_invoices
+      description: 'Quyền: owner, accountant, viewer. Số liệu cùng snapshot; đánh dấu công nợ có bút toán giảm chưa phân bổ hoặc thanh toán sau ngày tra cứu.'
+      parameters:
+      - {name: asOf, in: query, required: true, schema: {$ref: '#/components/schemas/Date'}}
+      - {name: kind, in: query, required: true, schema: {enum: [sale, purchase]}}
+      - {name: partner, in: query, schema: {type: string}}
+      - {name: page, in: query, schema: {type: integer, minimum: 1, maximum: 1000000, default: 1}}
+      - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 10}}
+      responses:
+        '200':
+          description: Tổng toàn bộ tập lọc và một trang chứng từ tại ngày tra cứu.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoices:
+                    type: array
+                    items: {$ref: '#/components/schemas/TradeInvoice'}
+                  total: {type: integer}
+                  amount: {type: string}
+                  paid: {type: string}
+                  remaining: {type: string}
+                  revision: {type: integer}
+                required: [invoices, total, amount, paid, remaining, revision]
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
   /policies:
     post:
       summary: Lưu policies
@@ -1508,6 +1541,10 @@ components:
           enum:
           - sale
           - purchase
+          - receipt
+          - payment
+          - transfer
+          - treasury_reversal
           - payroll
           - asset
           - depreciation
@@ -1520,6 +1557,25 @@ components:
           $ref: '#/components/schemas/Date'
         description: *id002
         partnerId: *id002
+        moneyAccount:
+          enum: ['111', '1121']
+        counterAccount: {type: string}
+        destinationAccount:
+          enum: ['111', '1121']
+        originalDocumentId: {type: string}
+        allocations:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            properties:
+              documentId: {$ref: '#/components/schemas/ID'}
+              amount: {$ref: '#/components/schemas/Money'}
+            required: [documentId, amount]
+        invoiceNumber: {type: string, maxLength: 100}
+        invoiceSeries: {type: string, maxLength: 100}
+        invoiceDate: {$ref: '#/components/schemas/Date'}
+        dueDate: {$ref: '#/components/schemas/Date'}
         expectedPolicyId: *id002
         expectedRevision: *id015
         priceMode:
@@ -1559,6 +1615,25 @@ components:
       - sourceId
       - date
       - description
+    TradeInvoice:
+      type: object
+      properties:
+        documentId: {type: string}
+        reference: {type: string}
+        kind: {enum: [sale, purchase]}
+        date: {$ref: '#/components/schemas/Date'}
+        description: {type: string}
+        partnerId: {type: string}
+        partnerName: {type: string}
+        invoiceNumber: {type: string}
+        invoiceSeries: {type: string}
+        invoiceDate: {type: string}
+        dueDate: {type: string}
+        amount: {$ref: '#/components/schemas/Money'}
+        paid: {$ref: '#/components/schemas/Money'}
+        remaining: {$ref: '#/components/schemas/Money'}
+        unallocated: {type: boolean}
+      required: [documentId, reference, kind, date, description, partnerId, partnerName, invoiceNumber, invoiceSeries, invoiceDate, dueDate, amount, paid, remaining, unallocated]
     Calculation:
       type: object
       properties:
@@ -1671,6 +1746,15 @@ components:
           counts:
             type: object
             additionalProperties: *id015
+          money:
+            type: object
+            description: Số dư và phát sinh đã ghi sổ của cả kỳ khi account bằng 111 hoặc 1121; không phụ thuộc phân trang/lọc trạng thái.
+            properties:
+              opening: {$ref: '#/components/schemas/Aggregate'}
+              receipts: {$ref: '#/components/schemas/Aggregate'}
+              payments: {$ref: '#/components/schemas/Aggregate'}
+              closing: {$ref: '#/components/schemas/Aggregate'}
+            required: [opening, receipts, payments, closing]
         required:
         - documents
         - total

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+
+	"oanh.local/accounting/internal/accounting"
 )
 
 func fingerprint(ctx context.Context, db *sql.DB) (string, error) {
@@ -64,6 +66,159 @@ func verifySchema(ctx context.Context, db *sql.DB) error {
 	}
 	if version != 1 || count != 1 {
 		return fmt.Errorf("unsupported migration version")
+	}
+	return nil
+}
+
+func verifySettlements(ctx context.Context, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, `SELECT o.payload,o.kind,d.id,d.partner_id,d.date,COALESCE(r.date,'')
+		FROM operations o JOIN documents d ON d.id=o.document_id LEFT JOIN documents r ON r.reversal_of=d.id AND r.status='posted'
+		WHERE o.kind IN ('receipt','payment') AND json_array_length(o.payload,'$.allocations')>0 AND d.status='posted'`)
+	if err != nil {
+		return err
+	}
+	type allocation struct {
+		DocumentID string `json:"documentId"`
+		Amount     string `json:"amount"`
+	}
+	type payment struct {
+		MoneyAccount                              string       `json:"moneyAccount"`
+		Amount                                    string       `json:"amount"`
+		Allocations                               []allocation `json:"allocations"`
+		kind, documentID, partner, date, reversed string
+	}
+	payments := []payment{}
+	for rows.Next() {
+		var p payment
+		var payload string
+		if err = rows.Scan(&payload, &p.kind, &p.documentID, &p.partner, &p.date, &p.reversed); err != nil {
+			rows.Close()
+			return err
+		}
+		if err = json.Unmarshal([]byte(payload), &p); err != nil {
+			rows.Close()
+			return err
+		}
+		payments = append(payments, p)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	totals := map[string]*big.Int{}
+	limits := map[string]*big.Int{}
+	for _, p := range payments {
+		amount, err := accounting.Money(p.Amount)
+		if err != nil || amount == 0 || len(p.Allocations) > 100 {
+			return fmt.Errorf("invalid settlement amount")
+		}
+		if p.MoneyAccount != "111" && p.MoneyAccount != "1121" {
+			return fmt.Errorf("invalid settlement money account")
+		}
+		counter := "131"
+		if p.kind == "payment" {
+			counter = "331"
+		}
+		r, e := db.QueryContext(ctx, "SELECT account_id,COALESCE(partner_id,''),debit,credit FROM document_lines WHERE document_id=?", p.documentID)
+		if e != nil {
+			return e
+		}
+		moneyNet, debtNet := new(big.Int), new(big.Int)
+		for r.Next() {
+			var account, partner string
+			var debit, credit int64
+			if e = r.Scan(&account, &partner, &debit, &credit); e != nil {
+				r.Close()
+				return e
+			}
+			if account != counter && account != p.MoneyAccount || account == counter && partner != p.partner {
+				r.Close()
+				return fmt.Errorf("settlement ledger dimensions differ")
+			}
+			if p.kind == "payment" {
+				debit, credit = credit, debit
+			}
+			if account == counter {
+				debtNet.Add(debtNet, big.NewInt(credit))
+				debtNet.Sub(debtNet, big.NewInt(debit))
+			} else {
+				moneyNet.Add(moneyNet, big.NewInt(debit))
+				moneyNet.Sub(moneyNet, big.NewInt(credit))
+			}
+		}
+		e = r.Err()
+		r.Close()
+		if e != nil {
+			return e
+		}
+		if moneyNet.Cmp(big.NewInt(amount)) != 0 || debtNet.Cmp(big.NewInt(amount)) != 0 {
+			return fmt.Errorf("settlement payload differs from ledger")
+		}
+		total := new(big.Int)
+		seen := map[string]bool{}
+		for _, a := range p.Allocations {
+			n, err := accounting.Money(a.Amount)
+			if err != nil || n == 0 || seen[a.DocumentID] {
+				return fmt.Errorf("invalid settlement allocation")
+			}
+			seen[a.DocumentID] = true
+			total.Add(total, big.NewInt(n))
+			var kind, partner, date string
+			err = db.QueryRowContext(ctx, `SELECT o.kind,d.partner_id,d.date FROM documents d JOIN operations o ON o.document_id=d.id WHERE d.id=? AND d.status='posted'`, a.DocumentID).Scan(&kind, &partner, &date)
+			if err != nil || partner != p.partner || date > p.date || p.reversed != "" && p.reversed < p.date || p.kind == "receipt" && kind != "sale" || p.kind == "payment" && kind != "purchase" && kind != "asset" {
+				return fmt.Errorf("invalid settlement source")
+			}
+			if limits[a.DocumentID] == nil {
+				account := "131"
+				if p.kind == "payment" {
+					account = "331"
+				}
+				r, e := db.QueryContext(ctx, "SELECT debit,credit,COALESCE(partner_id,'') FROM document_lines WHERE document_id=? AND account_id=?", a.DocumentID, account)
+				if e != nil {
+					return e
+				}
+				limit := new(big.Int)
+				for r.Next() {
+					var debit, credit int64
+					var linePartner string
+					if e = r.Scan(&debit, &credit, &linePartner); e != nil {
+						r.Close()
+						return e
+					}
+					if linePartner != partner {
+						r.Close()
+						return fmt.Errorf("settlement source partner differs")
+					}
+					if p.kind == "payment" {
+						debit, credit = credit, debit
+					}
+					limit.Add(limit, big.NewInt(debit))
+					limit.Sub(limit, big.NewInt(credit))
+				}
+				e = r.Err()
+				r.Close()
+				if e != nil {
+					return e
+				}
+				if limit.Sign() <= 0 {
+					return fmt.Errorf("settlement source has no debt")
+				}
+				limits[a.DocumentID] = limit
+				totals[a.DocumentID] = new(big.Int)
+			}
+			if p.reversed == "" {
+				totals[a.DocumentID].Add(totals[a.DocumentID], big.NewInt(n))
+			}
+		}
+		if total.Cmp(big.NewInt(amount)) != 0 {
+			return fmt.Errorf("settlement allocations differ from payment")
+		}
+	}
+	for id, total := range totals {
+		if total.Cmp(limits[id]) > 0 {
+			return fmt.Errorf("settlements exceed source debt")
+		}
 	}
 	return nil
 }
@@ -182,5 +337,5 @@ func verifySubledgers(ctx context.Context, db *sql.DB) error {
 	if draftSources != 0 {
 		return fmt.Errorf("subledger points to unposted source")
 	}
-	return nil
+	return verifySettlements(ctx, db)
 }

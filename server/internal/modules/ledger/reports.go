@@ -69,6 +69,13 @@ type DocumentList struct {
 	Total     int            `json:"total"`
 	Amount    string         `json:"amount"`
 	Counts    map[string]int `json:"counts"`
+	Money     *MoneySummary  `json:"money,omitempty"`
+}
+type MoneySummary struct {
+	Opening  string `json:"opening"`
+	Receipts string `json:"receipts"`
+	Payments string `json:"payments"`
+	Closing  string `json:"closing"`
 }
 
 func search(value string) string {
@@ -206,6 +213,12 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 	if f.Revision != nil && *f.Revision != result.Revision {
 		return result, accounting.Fail("VERSION_CONFLICT", "Danh sách đã thay đổi. Tải lại dữ liệu trước khi tiếp tục.")
 	}
+	if f.Account == "111" || f.Account == "1121" {
+		result.Money, err = moneySummary(ctx, tx, f.Account, f.Period)
+		if err != nil {
+			return result, err
+		}
+	}
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM documents WHERE substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id", f.Period)
 	if err != nil {
 		return result, err
@@ -286,6 +299,38 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 		result.Documents = []Document{}
 	}
 	return result, tx.Commit()
+}
+func moneySummary(ctx context.Context, tx *sql.Tx, account, period string) (*MoneySummary, error) {
+	start, err := time.Parse("2006-01", period)
+	if err != nil {
+		return nil, accounting.Fail("BAD_REQUEST", "Kỳ báo cáo tiền không hợp lệ.")
+	}
+	end := start.AddDate(0, 1, 0).Format("2006-01-02")
+	rows, err := tx.QueryContext(ctx, "SELECT d.date,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE d.status='posted' AND l.account_id=? AND d.date<?", account, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	opening, receipts, payments := new(big.Int), new(big.Int), new(big.Int)
+	for rows.Next() {
+		var date string
+		var debit, credit int64
+		if err = rows.Scan(&date, &debit, &credit); err != nil {
+			return nil, err
+		}
+		if date < start.Format("2006-01-02") {
+			opening.Add(opening, big.NewInt(debit))
+			opening.Sub(opening, big.NewInt(credit))
+		} else {
+			receipts.Add(receipts, big.NewInt(debit))
+			payments.Add(payments, big.NewInt(credit))
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	closing := new(big.Int).Sub(new(big.Int).Add(opening, receipts), payments)
+	return &MoneySummary{opening.String(), receipts.String(), payments.String(), closing.String()}, nil
 }
 func bounds(page, size, total int) (int, int) {
 	if page < 1 {

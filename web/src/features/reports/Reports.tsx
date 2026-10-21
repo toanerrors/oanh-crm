@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, App, Button, Input, Select, Table, Tabs } from 'antd';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { partnerBalances, trialBalance } from '../../shared/accounting/ledger';
 import { formatDate, formatMoney, normalizeSearch } from '../../shared/accounting/money';
@@ -47,7 +47,7 @@ export function Component() {
   ]); };
 
   return <DataBoundary>
-    <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} actions={<>{!isDemo && <Button icon={<Icon name="print" size={16} />} onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }}>In báo cáo</Button>}<Button icon={<Icon name="download" size={16} />} onClick={exportReport} disabled={!filtered.length}>Xuất CSV</Button></>} />
+    <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} actions={<>{!isDemo && isDebt && <Link to="/settlements"><Button>Công nợ theo chứng từ</Button></Link>}{!isDemo && <Button icon={<Icon name="print" size={16} />} onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }}>In báo cáo</Button>}<Button icon={<Icon name="download" size={16} />} onClick={exportReport} disabled={!filtered.length}>Xuất CSV</Button></>} />
     <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : 'book'} /></span><div><strong>{titles[tab]} · Kỳ {period.split('-').reverse().join('/')}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
     {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={refresh}>Tải lại dữ liệu</Button>} />}
     <section className={styles.panel}>

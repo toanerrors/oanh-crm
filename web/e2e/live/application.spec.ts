@@ -181,6 +181,73 @@ test('khôi phục qua giao diện đổi epoch, thu hồi phiên và bỏ dữ 
   await expect(page.getByText('Đối tượng sau snapshot', { exact: true })).toHaveCount(0);
 });
 
+test('thu công nợ theo chứng từ, đảo phân bổ và chuyển tiền qua giao diện', async ({ page }, testInfo) => {
+  await login(page);
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/sales');
+  await page.getByRole('button', { name: 'Công nợ theo chứng từ', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Công nợ theo chứng từ', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Thu tiền', exact: true }).click();
+  await page.getByLabel('Mã nguồn / ký hiệu-số chứng từ gốc', { exact: true }).fill('E2E-RECEIPT');
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Thu một phần công nợ từ giao diện');
+  await choose(page, 'Tài khoản thu/chi', '1121');
+  await page.getByRole('spinbutton', { name: 'Số tiền thu/chi', exact: true }).fill('500');
+  await page.getByRole('spinbutton', { name: 'Số phân bổ 1', exact: true }).fill('500');
+  await page.getByRole('button', { name: 'Tính và xem trước', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Kết quả server tính/ })).toBeVisible();
+  const receiptResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/operations') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Ghi nhận và ghi sổ', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Ghi nhận và ghi sổ', exact: true }).click();
+  const receipt = await (await receiptResponse).json();
+  await expect(page.getByRole('heading', { name: receipt.document.reference, exact: true })).toBeVisible();
+  const invoices = await (await page.request.get('/api/v1/trade-invoices?kind=sale&asOf=2026-10-21')).json();
+  expect(invoices.paid).toBe('500'); expect(invoices.remaining).toBe('1500');
+  await page.getByRole('button', { name: 'Đảo phiếu tiền', exact: true }).click();
+  await page.getByLabel('Mã nguồn / ký hiệu-số chứng từ gốc', { exact: true }).fill('E2E-REVERSE-RECEIPT');
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Đảo phiếu thu lập sai');
+  await page.getByRole('button', { name: 'Tính và xem trước', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Kết quả server tính/ })).toBeVisible();
+  const reverseResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/operations') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Ghi nhận và ghi sổ', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Ghi nhận và ghi sổ', exact: true }).click();
+  const reversal = await (await reverseResponse).json();
+  expect(reversal.document.reversalOf).toBe(receipt.document.id);
+  await expect(page.getByRole('heading', { name: reversal.document.reference, exact: true })).toBeVisible();
+  const restored = await (await page.request.get('/api/v1/trade-invoices?kind=sale&asOf=2026-10-21')).json();
+  expect(restored.paid).toBe('0'); expect(restored.remaining).toBe('2000');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ant-drawer:visible')).toHaveCount(0);
+  await page.goto('/cash');
+  await page.getByRole('button', { name: 'Chuyển tiền', exact: true }).click();
+  await page.getByLabel('Mã nguồn / ký hiệu-số chứng từ gốc', { exact: true }).fill('E2E-TRANSFER');
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Nộp tiền mặt vào ngân hàng');
+  await choose(page, 'Tài khoản nhận', '1121');
+  await page.getByRole('spinbutton', { name: 'Số tiền thu/chi', exact: true }).fill('123');
+  await page.getByRole('button', { name: 'Tính và xem trước', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Kết quả server tính/ })).toBeVisible();
+  const transferResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/operations') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Ghi nhận và ghi sổ', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Ghi nhận và ghi sổ', exact: true }).click();
+  const transfer = await (await transferResponse).json();
+  await expect(page.getByRole('heading', { name: transfer.document.reference, exact: true })).toBeVisible();
+  const bank = await (await page.request.get('/api/v1/documents?period=2026-10&account=1121')).json();
+  expect(bank.money).toEqual({ opening: '0', receipts: '623', payments: '500', closing: '123' });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ant-drawer:visible')).toHaveCount(0);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const route of ['/cash', '/bank', '/settlements', '/automation?kind=payment']) {
+      await page.goto(route);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.getByText('Đang cập nhật…', { exact: true })).toHaveCount(0);
+      if (route.startsWith('/automation')) await expect(page.getByText('Chính sách v1 · Từ 2026-01-01', { exact: true })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`treasury-${width}.png`), fullPage: true });
+  }
+  expect(errors).toEqual([]);
+});
+
 test('tài khoản chỉ xem không có thao tác ghi hoặc cơ sở tính lương', async ({ page }) => {
   await login(page);
   await command(page.request, '/users', { id: 'e2e-viewer', username: 'e2e-viewer', name: 'Người chỉ xem', role: 'viewer', active: true, password: 'Synthetic-viewer-2026' });

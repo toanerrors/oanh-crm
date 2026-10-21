@@ -79,7 +79,7 @@ func (s *Service) Write(ctx context.Context, cmd Command, operation string, payl
 	return json.RawMessage(b), nil
 }
 func reservedSource(source string) bool {
-	return source != "" && strings.Contains("|closing|closing_reversal|reversal|payroll|asset|depreciation|costing|corporate_tax|", "|"+source+"|")
+	return source != "" && strings.Contains("|closing|closing_reversal|reversal|payroll|asset|depreciation|costing|corporate_tax|transfer|treasury_reversal|", "|"+source+"|")
 }
 func manualSource(kind, source string) (string, error) {
 	if source != "" && source != "manual" && source != kind {

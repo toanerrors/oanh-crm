@@ -39,3 +39,15 @@ Tối đa 500 chứng từ, 5.000 dòng/gói. Các dòng cùng nguồn tạo m�
 Response lỗi có `code`, `message`, `request_id`. HTTP 400: cấu trúc/tham số; 401: phiên; 403: quyền; 404: tài nguyên; 409: version/epoch/idempotency/nguồn/lịch sử; 422: quy tắc nghiệp vụ; 429: khóa đăng nhập tạm thời; 500: lỗi nội bộ với thông báo không lộ SQL/path. Log dùng request ID, không log mật khẩu/body tài chính.
 
 Các mã thường gặp: `UNBALANCED_ENTRY`, `PERIOD_CLOSED`, `PERIOD_FINALIZED`, `VERSION_CONFLICT`, `IDEMPOTENCY_CONFLICT`, `DATASET_CHANGED`, `DUPLICATE_SOURCE`, `AMOUNT_OVERFLOW`, `POLICY_REQUIRED`, `STOCK_POLICY_LOCKED`, `INSUFFICIENT_STOCK`. Không đổi kết quả commit thành thất bại chỉ vì request tải lại dữ liệu lỗi.
+
+## Thu/chi và thanh toán theo chứng từ
+
+`POST /operations/preview` và `/operations` hỗ trợ thêm `receipt`, `payment`, `transfer`, `treasury_reversal`, dùng cùng cơ chế xem trước/chính sách/revision/epoch/chống trùng. Thu/chi nhận `moneyAccount` là `111` hoặc `1121`, `amount` là số nguyên VND dương. Thu/chi khác nhận `counterAccount` do người lập xác nhận; không tự tách thuế. Kho, tài sản, công nợ và chuyển tiền dùng luồng nghiệp vụ tương ứng.
+
+Thanh toán nhận `partnerId` và `allocations: [{ documentId, amount }]`; server xác định tài khoản 131/331. Tổng phân bổ bằng số tiền phiếu; mỗi nguồn chỉ xuất hiện một lần, cùng đối tượng, đúng loại và không sau ngày thanh toán. Nguồn phải được quản lý bởi nghiệp vụ mua/bán/ghi tăng tài sản; chứng từ thủ công cần đối soát riêng. Mọi phân bổ cùng transaction với phiếu tiền. `OVERPAYMENT`, `ALLOCATION_MISMATCH`, `INVALID_INVOICE`, `UNALLOCATED_SETTLEMENT` là lỗi nghiệp vụ 422. Không tự phân bổ bút toán công nợ cũ hoặc suy đoán chiết khấu/chênh lệch.
+
+Chuyển tiền nhận `moneyAccount` và `destinationAccount` khác nhau. Đảo phiếu nhận `originalDocumentId`, ngày và diễn giải lý do; đảo toàn bộ, giữ liên kết và trả lại phân bổ theo ngày đảo. Phiếu gốc vẫn còn trong lịch sử, cùng nguồn không được đảo lần hai. Chưa kiểm soát hạn mức thấu chi hoặc âm quỹ riêng theo chính sách.
+
+`GET /trade-invoices?asOf=YYYY-MM-DD&kind=sale|purchase&partner=&page=1&pageSize=10` trả công nợ từ chứng từ mua/bán và ghi tăng tài sản có 331. Số đã phân bổ chỉ gồm phân bổ đến ngày tra cứu chưa bị đảo tại ngày đó. Có thanh toán sau ngày tra cứu hoặc bút toán giảm công nợ ngoài luồng sẽ đánh dấu `unallocated` và chặn thanh toán tự động; số còn lại của dòng này chưa phải số dư công nợ đã đối soát. Công nợ từ chứng từ khác vẫn xem bằng báo cáo theo đối tượng. Tổng toàn bộ tập lọc dùng số nguyên lớn; giới hạn tập 100.000 chứng từ.
+
+Mua/bán nhận thông tin hóa đơn tùy chọn: `invoiceNumber`, `invoiceSeries`, `invoiceDate`, `dueDate`. Nhập số hóa đơn phải có ngày; hạn thanh toán không trước ngày hóa đơn. Kiểm tra trùng theo bên phát hành + ký hiệu + số trong các nghiệp vụ tự động đã lưu, lỗi `DUPLICATE_INVOICE` trả 409. Chưa xác minh hóa đơn với nhà cung cấp dịch vụ bên ngoài, không thay cho khóa định danh hóa đơn điện tử pháp định đầy đủ.

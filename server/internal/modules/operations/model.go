@@ -70,29 +70,42 @@ type TradeLine struct {
 	UnitPrice  string `json:"unitPrice"`
 	VATRate    string `json:"vatRate"`
 }
+type Allocation struct {
+	DocumentID string `json:"documentId"`
+	Amount     string `json:"amount"`
+}
 type Input struct {
-	TaxFrom             string      `json:"taxFrom,omitempty"`
-	NonDeductible       string      `json:"nonDeductible,omitempty"`
-	ExemptIncome        string      `json:"exemptIncome,omitempty"`
-	CarriedLoss         string      `json:"carriedLoss,omitempty"`
-	ExpectedPolicyID    string      `json:"expectedPolicyId,omitempty"`
-	ExpectedRevision    *int64      `json:"expectedRevision,omitempty"`
-	Kind                string      `json:"kind"`
-	SourceID            string      `json:"sourceId"`
-	Date                string      `json:"date"`
-	Description         string      `json:"description"`
-	PartnerID           string      `json:"partnerId"`
-	PriceMode           string      `json:"priceMode"`
-	Lines               []TradeLine `json:"lines"`
-	EmployeeID          string      `json:"employeeId"`
-	WorkedDays          string      `json:"workedDays"`
-	Allowance           string      `json:"allowance"`
-	NonTaxableAllowance string      `json:"nonTaxableAllowance"`
-	OvertimeHours       string      `json:"overtimeHours"`
-	OvertimeMultiplier  string      `json:"overtimeMultiplier"`
-	Asset               Asset       `json:"asset"`
-	AssetID             string      `json:"assetId"`
-	Amount              string      `json:"amount"`
+	OriginalDocumentID  string       `json:"originalDocumentId,omitempty"`
+	MoneyAccount        string       `json:"moneyAccount,omitempty"`
+	CounterAccount      string       `json:"counterAccount,omitempty"`
+	DestinationAccount  string       `json:"destinationAccount,omitempty"`
+	Allocations         []Allocation `json:"allocations,omitempty"`
+	InvoiceNumber       string       `json:"invoiceNumber,omitempty"`
+	InvoiceSeries       string       `json:"invoiceSeries,omitempty"`
+	InvoiceDate         string       `json:"invoiceDate,omitempty"`
+	DueDate             string       `json:"dueDate,omitempty"`
+	TaxFrom             string       `json:"taxFrom,omitempty"`
+	NonDeductible       string       `json:"nonDeductible,omitempty"`
+	ExemptIncome        string       `json:"exemptIncome,omitempty"`
+	CarriedLoss         string       `json:"carriedLoss,omitempty"`
+	ExpectedPolicyID    string       `json:"expectedPolicyId,omitempty"`
+	ExpectedRevision    *int64       `json:"expectedRevision,omitempty"`
+	Kind                string       `json:"kind"`
+	SourceID            string       `json:"sourceId"`
+	Date                string       `json:"date"`
+	Description         string       `json:"description"`
+	PartnerID           string       `json:"partnerId"`
+	PriceMode           string       `json:"priceMode"`
+	Lines               []TradeLine  `json:"lines"`
+	EmployeeID          string       `json:"employeeId"`
+	WorkedDays          string       `json:"workedDays"`
+	Allowance           string       `json:"allowance"`
+	NonTaxableAllowance string       `json:"nonTaxableAllowance"`
+	OvertimeHours       string       `json:"overtimeHours"`
+	OvertimeMultiplier  string       `json:"overtimeMultiplier"`
+	Asset               Asset        `json:"asset"`
+	AssetID             string       `json:"assetId"`
+	Amount              string       `json:"amount"`
 }
 type Result struct {
 	Revision      int64             `json:"revision"`

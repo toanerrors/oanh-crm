@@ -63,6 +63,7 @@ func New(store *sqlite.Store, assets string, secure bool) *Server {
 	m.HandleFunc("POST /api/v1/periods", s.periods)
 	m.HandleFunc("POST /api/v1/periods/reopen", s.reopenPeriod)
 	m.HandleFunc("GET /api/v1/automation", s.automation)
+	m.HandleFunc("GET /api/v1/trade-invoices", s.invoices)
 	m.HandleFunc("POST /api/v1/policies", s.policy)
 	m.HandleFunc("POST /api/v1/items", s.item)
 	m.HandleFunc("POST /api/v1/employees", s.employee)
@@ -160,7 +161,7 @@ func (s *Server) failure(w http.ResponseWriter, r *http.Request, err error) {
 		status = 404
 	case "RATE_LIMITED":
 		status = 429
-	case "VERSION_CONFLICT", "DATASET_CHANGED", "IDEMPOTENCY_CONFLICT", "DUPLICATE_SOURCE", "DUPLICATE_CODE", "DOCUMENT_POSTED", "ALREADY_INITIALIZED", "HISTORY_LOCKED", "STOCK_POLICY_LOCKED":
+	case "VERSION_CONFLICT", "DATASET_CHANGED", "IDEMPOTENCY_CONFLICT", "DUPLICATE_SOURCE", "DUPLICATE_INVOICE", "DUPLICATE_CODE", "DOCUMENT_POSTED", "ALREADY_INITIALIZED", "HISTORY_LOCKED", "STOCK_POLICY_LOCKED":
 		status = 409
 	}
 	message := err.Error()

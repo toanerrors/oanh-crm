@@ -39,6 +39,15 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Sửa CSS giảm chuyển động để tắt transition thay vì tạo transition ngắn cho mọi thuộc tính; menu sắp xếp không bị lệch vị trí ngoài viewport. Kiểm tra 28 cặp route/viewport từ 375–1920px không tràn ngang hoặc lỗi JavaScript/console; form ở 1440/820/390px giữ chiều cao control 32px.
 - Validation: TypeScript strict, production build, 15 test Node, 11 E2E mẫu và 6 E2E backend thật đạt; chạy lại riêng 2 E2E tìm kiếm sau điều chỉnh padding popup. Cảnh báo chunk Ant Design khoảng 700 kB vẫn còn.
 
+### Thu/chi và công nợ theo chứng từ — đối chiếu ảnh ngày 21/10/2026
+
+- Tách Tiền mặt (111) và Tiền gửi (1121); thêm phiếu thu/chi tự động, chuyển tiền nội bộ và đảo phiếu tiền có nguồn. Dư đầu/thu/chi/dư cuối kỳ đọc cùng snapshot từ bút toán đã ghi sổ, độc lập bộ lọc và phân trang danh sách.
+- Phân bổ một phiếu cho nhiều chứng từ mua/bán hoặc ghi tăng tài sản/242 có 331; hỗ trợ thanh toán từng phần, chặn vượt/sai đối tượng/sai loại và tổng phân bổ khác số phiếu. Đảo phiếu trả lại phân bổ theo ngày đảo, giữ lịch sử trước đó. Bút toán công nợ thủ công chưa phân bổ hoặc thanh toán sau ngày tra cứu được đánh dấu cần đối soát và chặn thanh toán tự động.
+- Bổ sung số/ký hiệu/ngày hóa đơn và hạn thanh toán cho mua/bán, kiểm tra trùng trong nghiệp vụ tự động theo bên phát hành/ký hiệu/số. Có màn hình công nợ theo chứng từ, hạn quá hạn, tổng toàn bộ tập lọc và truy nguồn phân bổ. Không tích hợp phát hành/tra cứu hóa đơn điện tử.
+- Giữ schema/migration hiện tại, không thêm dependency; payload nghiệp vụ, chứng từ, số phiếu, audit và chống trùng cùng transaction. Kiểm tra mở dữ liệu/backup đối chiếu phân bổ với phiếu tiền, đối tượng, nguồn và công nợ; từ chối payload sai tổng hoặc khác sổ. Thêm lối vào ghi tăng chi phí trả trước từ Mua hàng, kết chuyển và quản lý kỳ từ Kế toán tổng hợp.
+- Validation: Go race/vet cho `operations`, `ledger`, `httpserver`; TypeScript strict, production build, 15 test Node, 7 E2E backend thật và 11 E2E mẫu đã đạt. Có kiểm thử thanh toán đồng thời, rollback, retry, số tiền trên 2^53, mở lại SQLite, thanh toán 242 và biên kỳ. Ảnh form và luồng mới kiểm tra ở desktop/mobile; chưa benchmark tập công nợ lớn. Cảnh báo chunk Ant Design lớn vẫn còn.
+- Yêu cầu bổ sung đầy đủ **chưa hoàn tất**. Ma trận theo ảnh và phần còn thiếu tại [reference/business-coverage.md](reference/business-coverage.md): kiểm kê tiền, sao kê/đối chiếu, ngân hàng điện tử, dự báo, đơn/hợp đồng mua, trả lại/giảm giá, quyết toán tạm ứng, khóa theo loại chứng từ và BCTC pháp định. Người dùng chưa biết ngân hàng, nhà cung cấp hóa đơn điện tử hoặc chế độ BCTC; không tự chọn hoặc đổi chính sách hiện tại.
+
 ### Các phân hệ hiện có
 
 | Phần | Chức năng có mã nguồn |
@@ -73,7 +82,7 @@ Tài khoản tự động hiện dùng danh mục khởi tạo cố định. Kha
 ## Chưa hoàn tất
 
 - Chưa bao phủ toàn bộ nghiệp vụ của 84 sheet. Chưa có nhập số dư chuyển đổi có mốc/cutoff riêng, chart cha/con có phiên bản, nhiều kho/đơn vị quy đổi, kiểm kê/điều chuyển/trả lại/điều chỉnh giá hồi tố hoặc đảo nghiệp vụ phân hệ tổng quát.
-- Thu/chi và thanh toán công nợ hiện dùng chứng từ thủ công; chưa có phân bổ thanh toán theo hóa đơn, tuổi nợ, đối soát sao kê ngân hàng hoặc tích hợp hóa đơn điện tử.
+- Đã có thu/chi và phân bổ thanh toán theo chứng từ; còn thiếu gắn phân bổ cho chứng từ tiền thủ công cũ, tuổi nợ theo nhóm/tổng hợp, ứng trước/bù trừ/chiết khấu, đối soát sao kê ngân hàng hoặc tích hợp hóa đơn điện tử. Tiền gửi hiện gộp TK1121, chưa có chiều số tài khoản/ngân hàng.
 - Lương nhận ngày công tổng hợp; chưa có bảng chấm công theo ngày, trần/điều kiện BH tự động, quy tắc miễn làm thêm theo từng đối tượng hoặc quyết toán TNCN năm. Chưa có thanh lý/điều chỉnh tài sản hay phân bổ giá thành nhiều dịch vụ theo tiêu thức.
 - Chưa có bộ BCTC pháp định, lưu chuyển tiền tệ, mẫu tờ khai/XML và gửi cơ quan thuế, phiên bản mapping chế độ/tài khoản/báo cáo đã thẩm định. TNDN hiện là phép tạm tính một khoảng không chồng lấn, chưa xử lý nộp bổ sung/quyết toán và điều chỉnh tự động các khoảng đã ghi nhận.
 - Chưa có parser XLSX, nhập workbook liên kết ngoài, lịch tác vụ định kỳ, lịch/retention backup hoặc dọn staging/blob mồ côi tự động.

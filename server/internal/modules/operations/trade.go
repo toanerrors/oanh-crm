@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
+	"strings"
 
 	"oanh.local/accounting/internal/accounting"
 	"oanh.local/accounting/internal/modules/ledger"
@@ -14,6 +15,21 @@ import (
 )
 
 func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc *ledger.Document, result *Result) error {
+	if len(in.InvoiceNumber) > 100 || len(in.InvoiceSeries) > 100 || in.InvoiceNumber != strings.TrimSpace(in.InvoiceNumber) || in.InvoiceSeries != strings.TrimSpace(in.InvoiceSeries) || in.InvoiceDate != "" && !accounting.Date(in.InvoiceDate) || in.DueDate != "" && !accounting.Date(in.DueDate) || in.InvoiceNumber != "" && in.InvoiceDate == "" || in.InvoiceNumber == "" && (in.InvoiceDate != "" || in.InvoiceSeries != "") {
+		return accounting.Fail("VALIDATION", "Thông tin hóa đơn không hợp lệ. Khi nhập số hóa đơn cần nhập cả ngày hóa đơn.")
+	}
+	if in.InvoiceDate != "" && in.DueDate != "" && in.DueDate < in.InvoiceDate {
+		return accounting.Fail("VALIDATION", "Hạn thanh toán không được trước ngày hóa đơn.")
+	}
+	if in.InvoiceNumber != "" {
+		var duplicate int
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM operations WHERE kind=? AND json_extract(payload,'$.invoiceNumber')=? AND COALESCE(json_extract(payload,'$.invoiceSeries'),'')=? AND (?='sale' OR json_extract(payload,'$.partnerId')=?)`, in.Kind, in.InvoiceNumber, in.InvoiceSeries, in.Kind, in.PartnerID).Scan(&duplicate); err != nil {
+			return err
+		}
+		if duplicate > 0 {
+			return accounting.Fail("DUPLICATE_INVOICE", "Hóa đơn cùng bên phát hành, ký hiệu và số đã được ghi nhận. Kiểm tra chứng từ nguồn.")
+		}
+	}
 	if len(in.Lines) == 0 || len(in.Lines) > 100 || in.PriceMode != "exclusive" && in.PriceMode != "inclusive" {
 		return accounting.Fail("VALIDATION", "Nhập từ 1–100 dòng hàng và chọn giá trước/sau thuế.")
 	}

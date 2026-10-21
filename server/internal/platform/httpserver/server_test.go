@@ -59,6 +59,9 @@ func TestHTTPAuthenticationPermissionsAndContext(t *testing.T) {
 	if status, _ := call("GET", "/api/v1/workspace?period=2026-10", nil, nil); status != 401 {
 		t.Fatal(status)
 	}
+	if status, _ := call("GET", "/api/v1/trade-invoices?asOf=2026-10-21&kind=sale", nil, nil); status != 401 {
+		t.Fatal(status)
+	}
 	setup := identity.Setup{Username: "admin", Password: "Integration-test-2026", Name: "Quản trị thử", CompanyName: "Doanh nghiệp thử", Regime: "Chính sách thử", ConfirmAccounts: true}
 	if status, _ := call("POST", "/api/v1/setup", setup, map[string]string{"Origin": "https://untrusted.invalid"}); status != 403 {
 		t.Fatal(status)
@@ -70,6 +73,14 @@ func TestHTTPAuthenticationPermissionsAndContext(t *testing.T) {
 		t.Fatal(status)
 	}
 	if status, b := call("POST", "/api/v1/auth/login", map[string]string{"username": "admin", "password": setup.Password}, nil); status != 200 {
+		t.Fatal(status, string(b))
+	}
+	for _, query := range []string{"asOf=2026-02-30&kind=sale", "asOf=2026-10-21&kind=unknown", "asOf=2026-10-21&kind=sale&pageSize=101", "asOf=2026-10-21&kind=sale&page=wrong"} {
+		if status, b := call("GET", "/api/v1/trade-invoices?"+query, nil, nil); status != 400 {
+			t.Fatal(status, string(b))
+		}
+	}
+	if status, b := call("GET", "/api/v1/trade-invoices?asOf=2026-10-21&kind=sale", nil, nil); status != 200 {
 		t.Fatal(status, string(b))
 	}
 	status, b := call("GET", "/api/v1/session", nil, nil)
