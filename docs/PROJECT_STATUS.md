@@ -20,9 +20,9 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
-### Sửa ô tài khoản chuyển tiền bị co hẹp — 0.7.1
+### Sửa ô tài khoản chuyển tiền bị co hẹp — 0.7.1–0.7.2
 
-- Cố định chiều rộng ô mã tài khoản đi/đến, loại bỏ quy tắc flex ghi đè làm ô chọn chỉ còn mũi tên. Chỉ hiển thị mã đã chọn; danh sách vẫn có đủ mã và tên tài khoản. Ô tiền mặt/ngân hàng chia phần còn lại và tự xuống dòng khi thiếu chỗ.
+- Cố định chiều rộng ô mã tài khoản đi/đến, loại bỏ quy tắc flex ghi đè làm ô chọn chỉ còn mũi tên. Chỉ hiển thị mã đã chọn; 0.7.2 mở danh sách rộng320px để đọc đủ mã và tên tài khoản thay vì bị cắt theo ô mã112px. Ô tiền mặt/ngân hàng chia phần còn lại và tự xuống dòng khi thiếu chỗ.
 - Đã chạy `pnpm typecheck`, `pnpm build`, `git diff --check`; kiểm tra Edge với dữ liệu giả lập ở 1874/768/390px, đổi tiền mặt/ngân hàng hai chiều, mở danh sách và quản lý/chọn ngân hàng. Mã tài khoản giữ 112px, không có lỗi console. Không lưu/ghi sổ chứng từ thật; không đổi backend/schema/quy tắc số liệu.
 
 ### Tài khoản cha–con và bảng cây — 0.7.0
