@@ -12,6 +12,7 @@ import { workspaceKey } from '../../shared/data/workspace';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
 import { searchOptions } from '../../shared/ui/search';
 import { Icon } from '../../shared/ui/Icon';
+import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import styles from './OpeningBalances.module.css';
 
 type OpeningLine = JournalLine & { bankAccountId?: string };
@@ -28,8 +29,8 @@ export function OpeningBalances() {
   const state = useQuery({ queryKey: [...workspaceKey(), 'opening-balances', data?.revision], queryFn: ({ signal }) => api<OpeningState>('/opening-balances', { signal }), retry: false });
   const owner = apiScope().permissions === 'owner';
   return <>
-    <Button type="primary" icon={<Icon name="plus" size={16} />} loading={state.isPending} disabled={!state.data || !owner && !state.data.input} onClick={() => { if (!state.data) return; if (!state.data.input && state.data.postedCount) { void message.error('Đã có chứng từ ghi sổ. Chỉ khởi tạo số dư trước lần ghi sổ đầu tiên để tránh cộng trùng lịch sử.'); return; } setInitial(state.data); }}>{state.data?.document?.status === 'posted' ? 'Xem số dư đầu kỳ' : state.data?.input ? 'Tiếp tục nhập số dư' : 'Nhập số dư đầu kỳ'}</Button>
-    {state.error && <Button danger onClick={() => void state.refetch()}>Lỗi tải số dư · Thử lại</Button>}
+    <ToolbarButton type="primary" loading={state.isPending} disabled={!state.data || !owner && !state.data.input} onClick={() => { if (!state.data) return; if (!state.data.input && state.data.postedCount) { void message.error('Đã có chứng từ ghi sổ. Chỉ khởi tạo số dư trước lần ghi sổ đầu tiên để tránh cộng trùng lịch sử.'); return; } setInitial(state.data); }} label={state.data?.document?.status === 'posted' ? 'Xem số dư đầu kỳ' : state.data?.input ? 'Tiếp tục nhập số dư' : 'Nhập số dư đầu kỳ'} icon="book" />
+    {state.error && <ToolbarButton danger onClick={() => void state.refetch()} label="Lỗi tải số dư · Thử lại" icon="refresh" />}
     {initial && <OpeningEditor initial={initial} period={period} onClose={() => setInitial(null)} onSaved={saved => { client.setQueryData([...workspaceKey(), 'opening-balances', data?.revision], saved); void client.invalidateQueries({ queryKey: workspaceKey() }); void refresh(); }} />}
   </>;
 }

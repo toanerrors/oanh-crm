@@ -44,7 +44,7 @@ export function Component() {
   const unbalanced = drafts.filter(item => { const total = totals(item.lines); return total.debit !== total.credit; });
   const ratio = chartRatio(bank > 0n ? bank : 0n, (bank > 0n ? bank : 0n) + (pocket > 0n ? pocket : 0n));
 
-  const pageActions = <><Tooltip title="Tải lại dữ liệu trong phiên"><Button icon={<Icon name="refresh" size={16} />} loading={isFetching} onClick={refresh} aria-label="Tải lại tổng quan" /></Tooltip>{canWrite && <Dropdown trigger={['click']} menu={{ items: Object.entries(documentTypes).map(([key, label]) => ({ key, label, onClick: () => newDraft(key as AccountingDocument['type']) })) }}><Button type="primary" icon={<Icon name="plus" size={17} />}>Tạo chứng từ <Icon name="down" size={13} /></Button></Dropdown>}</>;
+  const pageActions = <><Tooltip title="Tải lại dữ liệu trong phiên"><Button icon={<Icon name="refresh" size={16} />} loading={isFetching} onClick={refresh} aria-label="Tải lại tổng quan" /></Tooltip>{canWrite && <Tooltip title="Tạo chứng từ" trigger={['hover', 'focus']}><Dropdown trigger={['click']} menu={{ items: Object.entries(documentTypes).map(([key, label]) => ({ key, label, onClick: () => newDraft(key as AccountingDocument['type']) })) }}><Button type="primary" aria-label="Tạo chứng từ" icon={<Icon name="plus" size={17} />} /></Dropdown></Tooltip>}</>;
 
   return <DataBoundary>
     <PageHeading title="Tổng quan" description="Một góc nhìn rõ ràng về tình hình kinh doanh của bạn." />

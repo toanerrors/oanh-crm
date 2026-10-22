@@ -399,3 +399,5 @@
 .toolbarFilters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1 1 280px; min-width: 0; }
 .toolbarActions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 @media (max-width: 760px) { .tableToolbar .toolbarFilters, .tableToolbar .toolbarActions { width: 100%; } .tableToolbar .toolbarActions { justify-content: flex-end; } }
+
+.toolbarButton { display: inline-flex; flex: 0 0 auto; vertical-align: middle; }

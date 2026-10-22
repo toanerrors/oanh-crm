@@ -19,6 +19,8 @@ const paths = {
   plus: 'M12 5v14M5 12h14',
   arrow: 'M5 12h14m-6-6 6 6-6 6',
   upRight: 'M7 17 17 7M7 7h10v10',
+  upload: 'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5',
+  transfer: 'M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4',
   download: 'M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5',
   calendar: 'M8 2v5M16 2v5M3 10h18M3 5h18v17H3V5Z',
   file: 'M14 2H4v20h16V8l-6-6ZM14 2v6h6M8 13h8M8 17h5',

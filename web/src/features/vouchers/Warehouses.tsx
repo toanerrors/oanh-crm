@@ -7,6 +7,7 @@ import { automationOptions, warehousesOptions } from '../../shared/data/operatio
 import type { Warehouse } from '../../shared/data/operations';
 import { workspaceKey } from '../../shared/data/workspace';
 import { formatMoney, formatQuantity } from '../../shared/accounting/money';
+import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import { Icon } from '../../shared/ui/Icon';
 import { searchOptions } from '../../shared/ui/search';
 
@@ -15,7 +16,7 @@ export function WarehouseSelect({ value, onChange, label, disabled }: { value?: 
   const [open, setOpen] = useState(false);
   return <div style={{ display: 'flex', gap: 4 }}><Select style={{ flex: 1, minWidth: 0 }} value={value} disabled={disabled} aria-label={label} showSearch={searchOptions} options={query.data?.warehouses.filter(w => w.active || w.id === value).map(w => ({ value: w.id, label: w.code, disabled: !w.active }))} onChange={onChange} /><Button disabled={disabled} aria-label={`Quản lý ${label}`} icon={<Icon name="plus" size={14} />} onClick={() => setOpen(true)} /><WarehouseDirectory open={open} onClose={() => setOpen(false)} onSelected={id => { onChange?.(id); setOpen(false); }} /></div>;
 }
-export function WarehousesButton() { const [open, setOpen] = useState(false); return <><Button onClick={() => setOpen(true)}>Danh mục và tồn theo kho</Button><WarehouseDirectory open={open} onClose={() => setOpen(false)} /></>; }
+export function WarehousesButton() { const [open, setOpen] = useState(false); return <><ToolbarButton onClick={() => setOpen(true)} label="Danh mục và tồn theo kho" icon="box" /><WarehouseDirectory open={open} onClose={() => setOpen(false)} /></>; }
 function WarehouseDirectory({ open, onClose, onSelected }: { open: boolean; onClose: () => void; onSelected?: (id: string) => void }) {
   const { message } = App.useApp();
   const { data } = useWorkspace();

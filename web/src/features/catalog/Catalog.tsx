@@ -10,6 +10,7 @@ import { saveDemoPartners, workspaceKey } from '../../shared/data/workspace';
 import type { Account, Partner } from '../../shared/data/types';
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { Icon } from '../../shared/ui/Icon';
+import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import styles from '../../app/App.module.css';
 import { api, apiScope, command, isDemo } from '../../shared/api/client';
 
@@ -51,7 +52,7 @@ export function Component() {
     downloadCsv(`danh-muc-${isDemo ? 'mau-' : ''}${tab}.csv`, tab === 'partners' ? [[isDemo ? 'DỮ LIỆU MẪU · Phiên bản' : `${data!.companyName} · Phiên bản`, String(data!.revision)], ['Mã', 'Tên', 'Vai trò', 'Email', 'Điện thoại', 'Trạng thái'], ...partners.map(item => [item.code, item.name, roles[item.role], item.email, `'${item.phone}`, item.active ? 'Đang sử dụng' : 'Ngừng sử dụng'])] : [[isDemo ? 'DỮ LIỆU MẪU' : data!.companyName ?? 'Danh mục doanh nghiệp'], ['Mã tài khoản', 'Tên tài khoản', 'Yêu cầu đối tượng'], ...accounts.map(item => [item.code, item.name, item.requiresPartner ? 'Có' : 'Không'])]);
   }
 
-  const pageActions = <><Button icon={<Icon name="download" size={16} />} onClick={exportData}>Xuất CSV</Button>{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <Button type="primary" onClick={() => editAccount()}>Thêm tài khoản</Button>}{tab === 'partners' && canEdit && <Button type="primary" icon={<Icon name="plus" size={17} />} onClick={() => edit(null)}>Thêm đối tượng</Button>}</>;
+  const pageActions = <><ToolbarButton onClick={exportData} label="Xuất CSV" icon="download" />{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <ToolbarButton type="primary" onClick={() => editAccount()} label="Thêm tài khoản" icon="plus" />}{tab === 'partners' && canEdit && <ToolbarButton type="primary" onClick={() => edit(null)} label="Thêm đối tượng" icon="plus" />}</>;
 
   return <DataBoundary>
     <PageHeading title={moduleRole === 'supplier' ? 'Nhà cung cấp' : moduleRole === 'customer' ? 'Khách hàng' : 'Danh mục'} description="Sắp xếp dữ liệu nền tảng để mỗi lần nhập liệu đều thuận tiện hơn." />
@@ -94,7 +95,7 @@ function ReferenceChart() {
  const missing = chart?.accounts.filter(a => !data?.accounts.some(current => current.code === a.code)) ?? [];
  return <div style={{ padding: 16 }}>
   <Alert type="info" showIcon title={`Hệ thống tài khoản do người dùng cung cấp · ${chart?.accounts.length ?? '…'} mã`} description={<>Phiên bản {chart?.version ?? '…'}. Tên được giữ theo nguồn; quan hệ cha/con đã chuẩn hóa theo mã tại các dòng lệch cột. <a href={chart?.source} target="_blank" rel="noreferrer">Mở Google Sheet nguồn</a>. Nạp danh mục chỉ thêm mã còn thiếu, giữ nguyên tài khoản và số liệu đã có.</>} />
-  <PageToolbar label="Công cụ tài khoản tham chiếu" actions={apiScope().permissions === 'owner' && <Button type="primary" disabled={!missing.length} loading={apply.isPending} onClick={() => modal.confirm({ title: `Bổ sung ${missing.length} mã tài khoản còn thiếu?`, content: 'Mã, tên và phân loại của tài khoản hiện có được giữ nguyên. Lịch sử chứng từ và chính sách hạch toán tự động không thay đổi.', okText: 'Bổ sung tài khoản', cancelText: 'Đóng', onOk: () => apply.mutateAsync().then(() => undefined) })}>Nạp {missing.length} mã còn thiếu</Button>}><Input className={styles.filterSearch} aria-label="Tìm tài khoản tham chiếu" placeholder="Tìm mã hoặc tên tài khoản…" allowClear value={search} onChange={event => setSearch(event.target.value)} /></PageToolbar>
+  <PageToolbar label="Công cụ tài khoản tham chiếu" actions={apiScope().permissions === 'owner' && <ToolbarButton type="primary" disabled={!missing.length} loading={apply.isPending} onClick={() => modal.confirm({ title: `Bổ sung ${missing.length} mã tài khoản còn thiếu?`, content: 'Mã, tên và phân loại của tài khoản hiện có được giữ nguyên. Lịch sử chứng từ và chính sách hạch toán tự động không thay đổi.', okText: 'Bổ sung tài khoản', cancelText: 'Đóng', onOk: () => apply.mutateAsync().then(() => undefined) })} label={`Nạp ${missing.length} mã còn thiếu`} icon="download" />}><Input className={styles.filterSearch} aria-label="Tìm tài khoản tham chiếu" placeholder="Tìm mã hoặc tên tài khoản…" allowClear value={search} onChange={event => setSearch(event.target.value)} /></PageToolbar>
   <Table<ChartAccount> rowKey="code" loading={query.isPending} dataSource={chart?.accounts.filter(a => normalizeSearch(`${a.code} ${a.name}`).includes(normalizeSearch(search)))} pagination={{ pageSize: 25, showSizeChanger: true }} scroll={{ x: 800 }} columns={[
    { title: 'Mã tài khoản', dataIndex: 'code', width: 180, render: (value: string, row) => <strong style={{ paddingLeft: (row.level - 1) * 16 }}>{value}</strong> },
    { title: 'Tên theo nguồn', dataIndex: 'name' }, { title: 'Tài khoản cha', dataIndex: 'parentCode', width: 120, render: value => value || '—' },

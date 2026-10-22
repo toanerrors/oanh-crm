@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Nút icon và tooltip trên thanh công cụ — 0.5.7
+
+- Thêm `ToolbarButton` dùng Ant Design Button/Tooltip: icon32×32px, nhãn tiếng Việt qua tooltip khi hover/focus và `aria-label`; wrapper giữ tooltip cho nút bị vô hiệu hóa. Giữ trạng thái disabled/loading, quyền và handler cũ.
+- Áp dụng thanh công cụ báo cáo/số dư/BCTC, danh sách chứng từ/thu chi/mua bán, nhập CSV, danh mục/ngân hàng/kho, công nợ, hàng hóa/nhân viên, chính sách/người dùng/kỳ và nút tạo trên tổng quan. Nhóm icon chứng từ thành hàng riêng trên mobile; các nút lưu/xác nhận trong form vẫn có chữ.
+- Validation:27 test Node và TypeScript strict/production build đạt; cập nhật E2E kiểm tra nút không có chữ, giữ accessible name và tooltip khi focus; kiểm tra danh sách11 test mẫu/8 test live, chưa chạy E2E tự động. Edge/dữ liệu giả lập: tooltip qua Tab, Enter mở đối tượng; mở đúng số dư/BCTC/nhập CSV/ngân hàng/kho và menu tạo chứng từ. Kiểm tra icon32×32 và không tràn trang ở390/820px; khôi phục viewport mặc định. Không ghi dữ liệu thử vào production.
+
 ### Hiển thị công ty trên header — 0.5.6
 
 - Chuyển tên công ty, biểu tượng và mô tả khỏi sidebar sang bên trái header dùng chung; nhấn vẫn mở Thiết lập. Sidebar desktop và menu mobile không còn khối công ty lặp.

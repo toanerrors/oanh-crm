@@ -17,6 +17,10 @@ test('tổng quan, điều hướng SPA và các màn hình chính hiển thị 
       const tools = page.getByRole('group', { name: 'Công cụ danh mục', exact: true });
       await expect(tools.getByRole('textbox', { name: 'Tìm trong danh mục', exact: true })).toBeVisible();
       await expect(tools.getByRole('button', { name: 'Thêm đối tượng', exact: true })).toBeVisible();
+      const add = tools.getByRole('button', { name: 'Thêm đối tượng', exact: true });
+      await expect(add).toHaveText('');
+      await add.focus();
+      await expect(page.getByRole('tooltip', { name: 'Thêm đối tượng', exact: true })).toBeVisible();
     }
   }
   expect(errors).toEqual([]);

@@ -12,6 +12,7 @@ import { Icon } from '../../shared/ui/Icon';
 import type { ServerReportRow } from '../../shared/data/reports';
 import { financialPreview, formatFinancialAmount } from './financial';
 import type { FinancialInput, FinancialReport, FinancialRow, FinancialTemplate } from './financial';
+import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import styles from './FinancialReports.module.css';
 import appStyles from '../../app/App.module.css';
 
@@ -42,13 +43,13 @@ export function FinancialReports() {
     const input: FinancialInput = { id: crypto.randomUUID(), version: 0, template: template.data!.version, from: `${selectedYear}-01-01`, to: `${selectedYear}-12-31`, previousFrom: `${BigInt(selectedYear) - 1n}-01-01`, previousTo: `${BigInt(selectedYear) - 1n}-12-31`, preparedBy: apiScope().name, chiefAccountant: '', director: '', preparedDate: businessToday(), address: '', sheets: ['B01-DN', ...(chosen.b02 ? ['B02-DN'] : []), ...(chosen.cashflow !== 'none' ? [chosen.cashflow] : [])], values: {}, notes: '', sourceRevision: data.revision };
     setSetup(false); setReport({ input, computed: {}, issues: [], updatedAt: '', companyName: apiScope().companyName });
   };
-  const pageActions = <Button type="primary" icon={<Icon name="plus" size={16} />} disabled={!template.data || apiScope().permissions === 'viewer'} onClick={() => { form.setFieldsValue({ year: year < '2026' ? '2026' : year, b02: true, cashflow: 'B03-DN' }); setSetup(true); }}>Lập báo cáo tài chính</Button>;
+  const pageActions = <ToolbarButton type="primary" disabled={!template.data || apiScope().permissions === 'viewer'} onClick={() => { form.setFieldsValue({ year: year < '2026' ? '2026' : year, b02: true, cashflow: 'B03-DN' }); setSetup(true); }} label="Lập báo cáo tài chính" icon="plus" />;
 
   return <DataBoundary>
     <PageHeading title="Sổ sách & báo cáo" description="Lập và đối chiếu báo cáo tài chính từ số liệu kế toán." />
     <section className={appStyles.panel}>
       <div className={styles.tabs}><Tabs activeKey="financial" onChange={value => setParams({ tab: value })} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, { key: 'financial', label: 'Báo cáo tài chính' }]} /></div>
-      <PageToolbar label="Công cụ BCTC" actions={<>{pageActions}<Button onClick={() => void list.refetch()}>Làm mới</Button></>}><Input className={appStyles.filterSearch} aria-label="Tìm BCTC" placeholder="Tìm người lập, kỳ báo cáo…" value={search} onChange={event => setSearch(event.target.value)} allowClear /><Input aria-label="Năm tra cứu BCTC" type="number" min="2026" max="9999" value={year} onChange={event => { setYear(event.target.value); }} style={{ width: 100 }} /></PageToolbar>
+      <PageToolbar label="Công cụ BCTC" actions={<>{pageActions}<ToolbarButton onClick={() => void list.refetch()} label="Làm mới" icon="refresh" /></>}><Input className={appStyles.filterSearch} aria-label="Tìm BCTC" placeholder="Tìm người lập, kỳ báo cáo…" value={search} onChange={event => setSearch(event.target.value)} allowClear /><Input aria-label="Năm tra cứu BCTC" type="number" min="2026" max="9999" value={year} onChange={event => { setYear(event.target.value); }} style={{ width: 100 }} /></PageToolbar>
       {(list.error || template.error) && <Alert type="error" title={(list.error || template.error)?.message} />}
       <Table<FinancialReport> rowKey={item => item.input.id} loading={list.isPending} dataSource={(list.data ?? []).filter(item => normalizeSearch(`${item.input.from} ${item.input.preparedBy}`).includes(normalizeSearch(search)))} scroll={{ x: 850 }} pagination={{ pageSize: 10, hideOnSinglePage: true, showSizeChanger: false }} locale={{ emptyText: 'Chưa có BCTC trong năm. Chọn “Lập báo cáo tài chính” để bắt đầu.' }} columns={[
         { title: 'KỲ BÁO CÁO', render: (_, item) => `Năm ${item.input.from.slice(0, 4)}`, width: 130 },

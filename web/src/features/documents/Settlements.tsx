@@ -9,6 +9,7 @@ import type { InvoiceList, TradeInvoice } from '../../shared/data/operations';
 import { businessToday, formatDate, formatMoney } from '../../shared/accounting/money';
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { searchOptions } from '../../shared/ui/search';
+import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import styles from '../../app/App.module.css';
 import { accountingModule } from '../../app/module-navigation';
 
@@ -31,7 +32,7 @@ function SettlementPage() {
   if (isDemo) return <Alert type="info" title="Công nợ theo chứng từ sử dụng backend và dữ liệu doanh nghiệp." />;
   const result = query.data;
   const pay = (invoice: TradeInvoice) => navigate(`/automation?${new URLSearchParams({ kind: kind === 'sale' ? 'receipt' : 'payment', invoice: invoice.documentId, partner: invoice.partnerId, amount: invoice.remaining })}`);
-  const pageActions = <Link to={module ? `${module.path}/reports?tab=debt&debt=${kind === 'purchase' ? 'payable' : 'receivable'}` : '/receivables'}><Button>Tổng hợp công nợ theo đối tượng</Button></Link>;
+  const pageActions = <Link to={module ? `${module.path}/reports?tab=debt&debt=${kind === 'purchase' ? 'payable' : 'receivable'}` : '/receivables'}><ToolbarButton label="Tổng hợp công nợ theo đối tượng" icon="users" /></Link>;
 
   return <DataBoundary>
     <PageHeading title="Công nợ theo chứng từ" description="Giá trị gốc và số đã/chưa phân bổ theo từng chứng từ đến ngày tra cứu." />

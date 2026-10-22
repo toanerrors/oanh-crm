@@ -7,6 +7,7 @@ import { banksOptions } from '../../shared/data/operations';
 import type { BankAccount } from '../../shared/data/operations';
 import { workspaceKey } from '../../shared/data/workspace';
 import { formatMoney } from '../../shared/accounting/money';
+import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import { Icon } from '../../shared/ui/Icon';
 import { searchOptions } from '../../shared/ui/search';
 
@@ -20,7 +21,7 @@ export function BankSelect({ value, onChange, onSelected, label, disabled }: { v
 
 export function BankAccountsButton() {
   const [open, setOpen] = useState(false);
-  return <><Button onClick={() => setOpen(true)}>Tài khoản ngân hàng</Button><BankDirectory open={open} onClose={() => setOpen(false)} /></>;
+  return <><ToolbarButton onClick={() => setOpen(true)} label="Tài khoản ngân hàng" icon="building" /><BankDirectory open={open} onClose={() => setOpen(false)} /></>;
 }
 
 function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: () => void; onSelected?: (account: BankAccount) => void }) {

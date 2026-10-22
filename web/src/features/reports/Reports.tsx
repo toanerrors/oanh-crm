@@ -7,6 +7,7 @@ import { downloadCsv } from '../../shared/accounting/csv';
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { Icon } from '../../shared/ui/Icon';
 import { searchOptions } from '../../shared/ui/search';
+import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import styles from '../../app/App.module.css';
 import { api, downloadApi, isDemo } from '../../shared/api/client';
 import { useQuery } from '@tanstack/react-query';
@@ -62,7 +63,7 @@ function BookReports() {
     ...(tab === 'trial' ? [['Mã', 'Tên', 'Dư đầu Nợ', 'Dư đầu Có', 'Phát sinh Nợ', 'Phát sinh Có', 'Dư cuối Nợ', 'Dư cuối Có'], ...filtered.map(row => [row.code, row.name, ...[row.openingDebit, row.openingCredit, row.debit, row.credit, row.closingDebit, row.closingCredit].map(value => `${formatMoney(value ?? 0n)} VND`)])] : [['Mã chứng từ / đối tượng', 'Ngày', 'Diễn giải / tên', 'Tài khoản', 'Nợ', 'Có'], ...filtered.map(row => [row.code, row.date ?? '', row.description ?? row.name, row.account ?? '', `${formatMoney(row.debit)} VND`, `${formatMoney(row.credit)} VND`])]),
   ]); };
 
-  const pageActions = <>{!isDemo && tab === 'trial' && <OpeningBalances />}{!isDemo && isDebt && <Link to={module && 'tradeKind' in module ? `${module.path}/settlements` : '/settlements'}><Button>Công nợ theo chứng từ</Button></Link>}{!isDemo && <Button icon={<Icon name="print" size={16} />} onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }}>In báo cáo</Button>}<Button icon={<Icon name="download" size={16} />} onClick={exportReport} disabled={!filtered.length}>Xuất CSV</Button></>;
+  const pageActions = <>{!isDemo && tab === 'trial' && <OpeningBalances />}{!isDemo && isDebt && <Link to={module && 'tradeKind' in module ? `${module.path}/settlements` : '/settlements'}><ToolbarButton label="Công nợ theo chứng từ" icon="users" /></Link>}{!isDemo && <ToolbarButton onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }} label="In báo cáo" icon="print" />}<ToolbarButton onClick={exportReport} disabled={!filtered.length} label="Xuất CSV" icon="download" /></>;
 
   return <DataBoundary>
     <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} />
