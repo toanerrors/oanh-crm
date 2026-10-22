@@ -29,6 +29,7 @@ export const router = createBrowserRouter([{
     { path: 'vouchers/new', lazy: () => import('../features/vouchers/VoucherForm') },
     { path: 'vouchers/:id', lazy: () => import('../features/vouchers/VoucherForm') },
     { path: 'automation', lazy: () => import('../features/workspace/Automation') },
+    { path: 'imports', lazy: () => import('../features/imports/ExcelImport') },
     { path: 'catalog', lazy: () => import('../features/catalog/Catalog') },
     ...['reports', 'receivables'].map(path => ({ path, lazy: () => import('../features/reports/Reports') })),
     ...['settings', 'help'].map(path => ({ path, lazy: () => import('../features/workspace/Workspace') })),

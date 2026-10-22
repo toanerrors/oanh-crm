@@ -40,8 +40,8 @@ export async function loadSession(signal?: AbortSignal): Promise<Session> {
   return session;
 }
 
-export async function downloadApi(path: string, filename: string): Promise<void> {
-  const response = await fetch(`/api/v1${path}`, { credentials: 'same-origin' });
+export async function downloadApi(path: string, filename: string, init: RequestInit = {}): Promise<void> {
+  const response = await fetch(`/api/v1${path}`, { ...init, credentials: 'same-origin' });
   if (!response.ok) { const body = await response.json() as { message: string }; throw new Error(body.message); }
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement('a'); link.href = url; link.download = filename; link.click();

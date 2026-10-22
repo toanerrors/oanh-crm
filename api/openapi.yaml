@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oanh Accounting API
-  version: 0.5.0
+  version: 0.6.0
   description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
     key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
 servers:
@@ -9,6 +9,357 @@ servers:
 security:
 - SessionCookie: []
 paths:
+  /excel-imports/schemas:
+    get:
+      summary: Loại và cột nhập theo quyền
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExcelSchema'
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /excel-imports/template:
+    get:
+      summary: Tải mẫu XLSX cơ bản hoặc nâng cao
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: kind
+        required: true
+        schema:
+          type: string
+          enum:
+          - partners
+          - accounts
+          - items
+          - warehouses
+          - banks
+          - employees
+          - journal-pairs
+          - journal-lines
+          - receipt
+          - payment
+          - transfer
+          - sale
+          - purchase
+          - opening
+      - in: query
+        name: advanced
+        required: false
+        schema:
+          type: boolean
+  /excel-imports/files:
+    post:
+      summary: Lưu tệp XLSX/CSV vào vùng chờ (tối đa20MB)
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelBatch'
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+  /excel-imports:
+    get:
+      summary: 50 tệp gần nhất của actor
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExcelBatch'
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+  /excel-imports/{id}:
+    get:
+      summary: Xem sheet, tiêu đề và10dòng dữ liệu mẫu
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelSource'
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: sheet
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: headerRow
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+  /excel-imports/{id}/configuration:
+    post:
+      summary: Lưu thiết lập ghép cột
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved:
+                    type: boolean
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExcelConfiguration'
+  /excel-imports/{id}/preview:
+    post:
+      summary: Kiểm tra toàn bộ rồi rollback
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelPreview'
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExcelConfiguration'
+  /excel-imports/{id}/errors:
+    post:
+      summary: Tải XLSX lỗi kiểm tra
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExcelConfiguration'
+  /excel-imports/{id}/commit:
+    post:
+      summary: Nhập toàn bộ gói; chứng từ và số dư chỉ lưu nháp
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelResult'
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExcelCommit'
+  /excel-imports/{id}/discard:
+    post:
+      summary: Bỏ tệp chờ của actor
+      responses:
+        '200':
+          description: Thành công; lệnh ghi chỉ trả sau commit.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  discarded:
+                    type: boolean
+        default:
+          description: Lỗi quyền, dữ liệu, epoch hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
   /opening-balances:
     get:
       summary: Đọc số dư đầu kỳ
@@ -2615,3 +2966,322 @@ components:
                     name: {type: string}
                     level: {type: integer}
                     formula: {type: array, items: {type: string}}
+
+    ExcelConfiguration:
+      type: object
+      properties:
+        schemaVersion:
+          type: integer
+          const: 1
+        kind:
+          type: string
+          enum:
+          - partners
+          - accounts
+          - items
+          - warehouses
+          - banks
+          - employees
+          - journal-pairs
+          - journal-lines
+          - receipt
+          - payment
+          - transfer
+          - sale
+          - purchase
+          - opening
+        sheet:
+          type: string
+        headerRow:
+          type: integer
+          minimum: 1
+          maximum: 50
+        mapping:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+            maximum: 127
+        dateFormat:
+          type: string
+          enum:
+          - dmy
+          - iso
+        numberFormat:
+          type: string
+          enum:
+          - plain
+          - vi
+          - en
+        mode:
+          type: string
+          enum:
+          - add
+          - update
+        ignoreUnmapped:
+          type: boolean
+        cutoff:
+          type: string
+          format: date
+        source:
+          type: string
+      required:
+      - schemaVersion
+      - kind
+      - sheet
+      - headerRow
+      - mapping
+      - dateFormat
+      - numberFormat
+      - mode
+      - ignoreUnmapped
+    ExcelField:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+        basic:
+          type: boolean
+        choices:
+          type: array
+          items:
+            type: string
+        default:
+          type: string
+        aliases:
+          type: array
+          items:
+            type: string
+    ExcelSchema:
+      type: object
+      properties:
+        key:
+          type: string
+          enum:
+          - partners
+          - accounts
+          - items
+          - warehouses
+          - banks
+          - employees
+          - journal-pairs
+          - journal-lines
+          - receipt
+          - payment
+          - transfer
+          - sale
+          - purchase
+          - opening
+        label:
+          type: string
+        group:
+          type: string
+        owner:
+          type: boolean
+        version:
+          type: integer
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcelField'
+    ExcelResult:
+      type: object
+      properties:
+        batchId:
+          type: string
+        kind:
+          type: string
+          enum:
+          - partners
+          - accounts
+          - items
+          - warehouses
+          - banks
+          - employees
+          - journal-pairs
+          - journal-lines
+          - receipt
+          - payment
+          - transfer
+          - sale
+          - purchase
+          - opening
+        count:
+          type: integer
+        rows:
+          type: integer
+        documentIds:
+          type: array
+          items:
+            type: string
+        revision:
+          type: integer
+    ExcelBatch:
+      type: object
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        hash:
+          type: string
+        state:
+          type: string
+          enum:
+          - staged
+          - imported
+        kind:
+          type: string
+          enum:
+          - partners
+          - accounts
+          - items
+          - warehouses
+          - banks
+          - employees
+          - journal-pairs
+          - journal-lines
+          - receipt
+          - payment
+          - transfer
+          - sale
+          - purchase
+          - opening
+        createdAt:
+          type: string
+          format: date-time
+        importedAt:
+          type: string
+          format: date-time
+        sheets:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              rows:
+                type: integer
+        configuration:
+          $ref: '#/components/schemas/ExcelConfiguration'
+        result:
+          $ref: '#/components/schemas/ExcelResult'
+    ExcelCell:
+      type: object
+      properties:
+        value:
+          type: string
+        kind:
+          type: string
+          enum:
+          - text
+          - number
+          - date
+          - bool
+          - error
+        formula:
+          type: boolean
+    ExcelSource:
+      type: object
+      properties:
+        batch:
+          $ref: '#/components/schemas/ExcelBatch'
+        sheet:
+          type: string
+        headerRow:
+          type: integer
+        headers:
+          type: array
+          items:
+            type: string
+        sample:
+          type: array
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/ExcelCell'
+        sampleRows:
+          type: array
+          items:
+            type: integer
+        populatedColumns:
+          type: array
+          items:
+            type: integer
+    ExcelIssue:
+      type: object
+      properties:
+        row:
+          type: integer
+        column:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+    ExcelPreviewRow:
+      type: object
+      properties:
+        row:
+          type: integer
+        source:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+          - valid
+          - invalid
+        debit:
+          type: string
+        credit:
+          type: string
+    ExcelPreview:
+      type: object
+      properties:
+        batchId:
+          type: string
+        revision:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcelPreviewRow'
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcelIssue'
+        errorCount:
+          type: integer
+        valid:
+          type: integer
+        invalid:
+          type: integer
+        records:
+          type: integer
+        debit:
+          type: string
+        credit:
+          type: string
+        fingerprint:
+          type: string
+    ExcelCommit:
+      type: object
+      properties:
+        configuration:
+          $ref: '#/components/schemas/ExcelConfiguration'
+        expectedRevision:
+          type: integer
+        fingerprint:
+          type: string
+      required:
+      - configuration
+      - expectedRevision
+      - fingerprint

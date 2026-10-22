@@ -9,6 +9,7 @@ import { workspaceKey } from '../../shared/data/workspace';
 import { formatMoney } from '../../shared/accounting/money';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import { Icon } from '../../shared/ui/Icon';
+import { ImportExcelButton } from '../imports/ExcelImport';
 import { searchOptions } from '../../shared/ui/search';
 
 export function BankSelect({ value, onChange, onSelected, label, disabled }: { value?: string; onChange?: (value?: string) => void; onSelected?: (account?: BankAccount) => void; label: string; disabled?: boolean }) {
@@ -45,7 +46,7 @@ function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: 
   return <><Modal open={open} onCancel={onClose} width={1100} title={`Tài khoản ngân hàng · Kỳ ${period}`} footer={<Button onClick={onClose}>Đóng</Button>}>
     {query.error && <Alert type="error" title={query.error.message} />}
     <p>Số dư chi tiết lấy từ chứng từ đã gắn tài khoản ngân hàng. Giao dịch cũ chưa gắn tài khoản vẫn nằm trong tổng sổ tiền gửi.</p>
-    {canWrite && <Button type="primary" icon={<Icon name="plus" size={15} />} onClick={() => edit()}>Thêm tài khoản ngân hàng</Button>}
+    {canWrite && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><ImportExcelButton kind="banks" /><ToolbarButton label="Thêm tài khoản ngân hàng" icon="plus" onClick={() => edit()} /></div>}
     <Table<BankAccount> rowKey="id" loading={query.isPending} dataSource={query.data?.accounts} scroll={{ x: 950 }} pagination={{ pageSize: 10 }} columns={[
       { title: 'Số tài khoản', dataIndex: 'number' }, { title: 'Ngân hàng', dataIndex: 'bankName' }, { title: 'TK kế toán', dataIndex: 'accountId', width: 100 },
       { title: 'Dư đầu', dataIndex: 'opening', align: 'right', render: value => value === undefined ? '—' : formatMoney(value) },

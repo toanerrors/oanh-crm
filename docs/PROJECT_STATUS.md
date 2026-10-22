@@ -20,6 +20,16 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Nhập XLSX/CSV theo luồng MISA — 0.6.0
+
+- Trình nhập4bước: chọn tệp/sheet/dòng tiêu đề → ghép cột tự động hoặc thủ công → kiểm tra toàn bộ/lọc lỗi/tải XLSX lỗi → kết quả. Mẫu cơ bản/nâng cao Text, định dạng ngày/số tường minh, xác nhận cột bỏ qua. Có lối vào tổng quan/sidebar và toolbar các phân hệ/danh mục/kho/ngân hàng/số dư; modal giữ tab nguồn, mobile giữ thanh bước gọn.
+-14loại: đối tượng/tài khoản/hàng/kho/ngân hàng/nhân viên; chứng từ khác cặp hoặc nhiều dòng; thu/chi tiền mặt/tiền gửi/chuyển nội bộ; mua/bán hàng hóa/dịch vụ; số dư tài khoản/đối tượng/ngân hàng/kho/TSCĐ/242. Tái sử dụng validator nghiệp vụ, hỗ trợ chiết khấu/phân bổ công nợ/nguồn chi phí mua hàng/nhiều kho. Chứng từ/số dư chỉ lưu nháp; không tự ghi sổ/xác nhận. Danh mục cập nhật theo mã giữ cột tùy chọn chưa ghép và khóa lịch sử hiện có.
+- Excelize2.11.0 được người dùng phê duyệt. Parser raw string/exact decimal, hệ ngày1900/1904; chặn công thức ở cột ghép, lỗi ô, macro/liên kết ngoài, XML địa chỉ ô/dòng mơ hồ. XLS nhị phân chưa hỗ trợ: cần Save As XLSX. Giới hạn20MB/20sheet/128cột/5.000dòng dữ liệu/500bản ghi, cùng giới hạn bộ đệm và nghiệp vụ; không nhập báo cáo dẫn xuất/bảng lương hoặc nghiệp vụ chưa hỗ trợ. Phạm vi và cách dùng: [excel-import.md](excel-import.md).
+- Schema5 lưu nguồn đã đọc/hash/cấu hình/kết quả theo actor và epoch; lịch sử50tệp, tối đa10tệp chờ/người. Preview rollback, commit toàn bộ cùng audit/idempotency và revision; lỗi bất kỳ dòng/commit không ghi một phần. Kiểm tra trùng nguồn xuyên kênh. Giữ API CSV cũ; backup/restore nhận schema1–5, giữ dữ liệu nhập đã lưu. Binary0.5.x không đọc schema5.
+- Validation: Go race/vet cho spreadsheet/operations/ledger/sqlite/httpserver đạt; regression gồm tiền trên2^53, rollback lỗi dòng/trigger cuối giao dịch, retry/cạnh tranh commit, revision/epoch/quyền/actor, phân bổ công nợ/chi phí mua hàng, migration4→5, backup/restore/reopen.39test Node, TypeScript strict, production build đạt. E2E mới và cập nhật quyền, đọc thành công danh sách9test live; chưa chạy E2E tự động.
+- Edge/dữ liệu giả lập: chọn sheet thứ2/tiêu đề dòng3, tự ghép tiếng Việt và ghép thủ công, báo lỗi dòng5/chặn nhập, tiền lớn nguyên vẹn, nhập2chứng từ thành nháp, tải lại/xem kết quả không nhập thêm, khôi phục cấu hình từ lịch sử, xác nhận bỏ qua cột và nhập mã đối tượng00009876, modal giữ Mua hàng;390px không tràn sau hiệu ứng, khôi phục viewport, console không lỗi. XLSX mẫu/báo lỗi được xác minh qua integration HTTP; chưa xác minh tệp tải xuống qua Edge vì công cụ chờ download timeout. Chưa benchmark giới hạn dữ liệu lớn; cảnh báo chunk Ant Design lớn vẫn còn.
+
+
 ### Căn hàng bộ lọc công nợ — 0.5.11
 
 - Nhãn Đến ngày đặt cạnh DatePicker trong một hàng flex, ô ngày rộng180px và cao32px như hai Select bên cạnh. Chỉ áp dụng bộ lọc công nợ theo chứng từ; giữ giá trị ngày/API và cơ chế lọc cũ.

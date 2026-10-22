@@ -30,35 +30,38 @@ type BankList struct {
 
 func (s *Service) SaveBank(ctx context.Context, cmd ledger.Command, b BankAccount) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "bank.save", b, func(tx *sql.Tx) (any, error) {
-		if b.Opening != "" || b.Receipts != "" || b.Payments != "" || b.Closing != "" {
-			return nil, accounting.Fail("DERIVED_FIELD", "Không được tự đặt số dư tài khoản ngân hàng.")
-		}
-		if !accounting.ID(b.ID) || b.Number == "" || b.Number != strings.TrimSpace(b.Number) || len(b.Number) > 100 || strings.TrimSpace(b.BankName) == "" || len(b.BankName) > 200 {
-			return nil, accounting.Fail("VALIDATION", "Nhập số tài khoản và tên ngân hàng hợp lệ.")
-		}
-		var group string
-		var active bool
-		if err := tx.QueryRowContext(ctx, "SELECT account_group,active FROM accounts WHERE id=?", b.AccountID).Scan(&group, &active); err != nil || !active || group != "cash" || b.AccountID == "111" {
-			return nil, accounting.Fail("INVALID_ACCOUNT", "Chọn tài khoản kế toán tiền gửi còn hiệu lực.")
-		}
-		var old BankAccount
-		err := tx.QueryRowContext(ctx, "SELECT number,bank_name,account_id FROM bank_accounts WHERE id=?", b.ID).Scan(&old.Number, &old.BankName, &old.AccountID)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, err
-		}
-		if err == nil && (old.Number != b.Number || old.BankName != b.BankName || old.AccountID != b.AccountID) {
-			return nil, accounting.Fail("HISTORY_LOCKED", "Giữ số tài khoản, ngân hàng và tài khoản kế toán đã tạo; có thể ngừng sử dụng.")
-		}
-		var duplicate int
-		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM bank_accounts WHERE number=? AND id<>?", b.Number, b.ID).Scan(&duplicate); err != nil {
-			return nil, err
-		}
-		if duplicate > 0 {
-			return nil, accounting.Fail("DUPLICATE_CODE", "Số tài khoản ngân hàng đã tồn tại.")
-		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO bank_accounts VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET active=excluded.active", b.ID, b.Number, b.BankName, b.AccountID, b.Active)
-		return b, err
+		return s.saveBankTx(ctx, tx, b)
 	})
+}
+func (s *Service) saveBankTx(ctx context.Context, tx *sql.Tx, b BankAccount) (any, error) {
+	if b.Opening != "" || b.Receipts != "" || b.Payments != "" || b.Closing != "" {
+		return nil, accounting.Fail("DERIVED_FIELD", "Không được tự đặt số dư tài khoản ngân hàng.")
+	}
+	if !accounting.ID(b.ID) || b.Number == "" || b.Number != strings.TrimSpace(b.Number) || len(b.Number) > 100 || strings.TrimSpace(b.BankName) == "" || len(b.BankName) > 200 {
+		return nil, accounting.Fail("VALIDATION", "Nhập số tài khoản và tên ngân hàng hợp lệ.")
+	}
+	var group string
+	var active bool
+	if err := tx.QueryRowContext(ctx, "SELECT account_group,active FROM accounts WHERE id=?", b.AccountID).Scan(&group, &active); err != nil || !active || group != "cash" || b.AccountID == "111" {
+		return nil, accounting.Fail("INVALID_ACCOUNT", "Chọn tài khoản kế toán tiền gửi còn hiệu lực.")
+	}
+	var old BankAccount
+	err := tx.QueryRowContext(ctx, "SELECT number,bank_name,account_id FROM bank_accounts WHERE id=?", b.ID).Scan(&old.Number, &old.BankName, &old.AccountID)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if err == nil && (old.Number != b.Number || old.BankName != b.BankName || old.AccountID != b.AccountID) {
+		return nil, accounting.Fail("HISTORY_LOCKED", "Giữ số tài khoản, ngân hàng và tài khoản kế toán đã tạo; có thể ngừng sử dụng.")
+	}
+	var duplicate int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM bank_accounts WHERE number=? AND id<>?", b.Number, b.ID).Scan(&duplicate); err != nil {
+		return nil, err
+	}
+	if duplicate > 0 {
+		return nil, accounting.Fail("DUPLICATE_CODE", "Số tài khoản ngân hàng đã tồn tại.")
+	}
+	_, err = tx.ExecContext(ctx, "INSERT INTO bank_accounts VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET active=excluded.active", b.ID, b.Number, b.BankName, b.AccountID, b.Active)
+	return b, err
 }
 func bankAt(ctx context.Context, q ledger.Queryer, id string) (BankAccount, error) {
 	var b BankAccount

@@ -32,6 +32,9 @@ var financialSchema string
 //go:embed opening.sql
 var openingSchema string
 
+//go:embed imports.sql
+var importsSchema string
+
 func schemaHash(version int) string {
 	if version == 1 {
 		return Hash([]byte(schema))
@@ -42,7 +45,10 @@ func schemaHash(version int) string {
 	if version == 3 {
 		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema))
 	}
-	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema))
+	if version == 4 {
+		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema))
+	}
+	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema))
 }
 
 func migrationChecksum(version int, source string) string {
@@ -194,7 +200,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
 		return err
 	}
-	if maximum > 4 {
+	if maximum > 5 {
 		return fmt.Errorf("database schema is newer than this application")
 	}
 	if maximum > 0 {
@@ -202,7 +208,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema} {
+	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema} {
 		version := index + 1
 		if version <= maximum {
 			continue

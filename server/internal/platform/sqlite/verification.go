@@ -35,15 +35,15 @@ func fingerprint(ctx context.Context, db *sql.DB) (string, error) {
 	return Hash(data), nil
 }
 
-var expectedFingerprints = sync.OnceValues(func() ([4]string, error) {
-	var values [4]string
+var expectedFingerprints = sync.OnceValues(func() ([5]string, error) {
+	var values [5]string
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		return values, err
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema} {
+	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema} {
 		if _, err = db.Exec(source); err != nil {
 			return values, err
 		}
@@ -60,10 +60,10 @@ func verifySchema(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0),count(*) FROM schema_migrations").Scan(&version, &count); err != nil {
 		return err
 	}
-	if version < 1 || version > 4 || count != version {
+	if version < 1 || version > 5 || count != version {
 		return fmt.Errorf("unsupported migration version")
 	}
-	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema} {
+	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema} {
 		if i >= version {
 			break
 		}

@@ -147,79 +147,85 @@ func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Wor
 }
 func (s *Service) SavePartners(ctx context.Context, cmd Command, partners []Partner) (json.RawMessage, error) {
 	return s.Write(ctx, cmd, "partner.save", partners, func(tx *sql.Tx) (any, error) {
-		if len(partners) == 0 || len(partners) > 100 {
-			return nil, accounting.Fail("VALIDATION", "Mỗi lần ghi từ 1 đến 100 đối tượng.")
-		}
-		for _, p := range partners {
-			p.Code = strings.ToUpper(strings.TrimSpace(p.Code))
-			p.Name = strings.TrimSpace(p.Name)
-			if !accounting.ID(p.ID) || !accounting.ID(p.Code) || p.Name == "" || len(p.Name) > 300 || len(p.Email) > 254 || len(p.Phone) > 40 || !strings.Contains("|customer|supplier|both|", "|"+p.Role+"|") {
-				return nil, accounting.Fail("VALIDATION", "Thông tin đối tượng không hợp lệ.")
-			}
-			var old Partner
-			err := tx.QueryRowContext(ctx, "SELECT code,name,role FROM partners WHERE id=?", p.ID).Scan(&old.Code, &old.Name, &old.Role)
-			if err != nil && err != sql.ErrNoRows {
-				return nil, err
-			}
-			if err == nil {
-				var count int
-				if err = tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM document_lines WHERE partner_id=?)+(SELECT count(*) FROM documents WHERE partner_id=?)", p.ID, p.ID).Scan(&count); err != nil {
-					return nil, err
-				}
-				if old.Code != p.Code || count > 0 && (old.Name != p.Name || old.Role != p.Role) {
-					return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã và thông tin đã được chứng từ tham chiếu.")
-				}
-			}
-			var duplicate int
-			if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM partners WHERE code=? AND id<>?", p.Code, p.ID).Scan(&duplicate); err != nil {
-				return nil, err
-			}
-			if duplicate > 0 {
-				return nil, accounting.Fail("DUPLICATE_CODE", "Mã đối tượng bị trùng.")
-			}
-			if _, err = tx.ExecContext(ctx, "INSERT INTO partners VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,role=excluded.role,email=excluded.email,phone=excluded.phone,active=excluded.active", p.ID, p.Code, p.Name, p.Role, p.Email, p.Phone, p.Active); err != nil {
-				return nil, err
-			}
-		}
-		return partners, nil
+		return s.SavePartnersTx(ctx, tx, partners)
 	})
 }
-func (s *Service) SaveAccount(ctx context.Context, cmd Command, a Account) (json.RawMessage, error) {
-	return s.Write(ctx, cmd, "admin.account.save", a, func(tx *sql.Tx) (any, error) {
-		if !accounting.ID(a.ID) || !accounting.ID(a.Code) || strings.TrimSpace(a.Name) == "" || !strings.Contains("|cash|receivable|payable|revenue|expense|inventory|capital|asset|tax|liability|wip|", "|"+a.Group+"|") {
-			return nil, accounting.Fail("VALIDATION", "Thông tin tài khoản không hợp lệ.")
+func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Partner) (any, error) {
+	if len(partners) == 0 || len(partners) > 100 {
+		return nil, accounting.Fail("VALIDATION", "Mỗi lần ghi từ 1 đến 100 đối tượng.")
+	}
+	for _, p := range partners {
+		p.Code = strings.ToUpper(strings.TrimSpace(p.Code))
+		p.Name = strings.TrimSpace(p.Name)
+		if !accounting.ID(p.ID) || !accounting.ID(p.Code) || p.Name == "" || len(p.Name) > 300 || len(p.Email) > 254 || len(p.Phone) > 40 || !strings.Contains("|customer|supplier|both|", "|"+p.Role+"|") {
+			return nil, accounting.Fail("VALIDATION", "Thông tin đối tượng không hợp lệ.")
 		}
-		var old Account
-		err := tx.QueryRowContext(ctx, "SELECT code,name,account_group,requires_partner FROM accounts WHERE id=?", a.ID).Scan(&old.Code, &old.Name, &old.Group, &old.RequiresPartner)
+		var old Partner
+		err := tx.QueryRowContext(ctx, "SELECT code,name,role FROM partners WHERE id=?", p.ID).Scan(&old.Code, &old.Name, &old.Role)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err
 		}
 		if err == nil {
-			var n int
-			if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM document_lines WHERE account_id=?", a.ID).Scan(&n); err != nil {
+			var count int
+			if err = tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM document_lines WHERE partner_id=?)+(SELECT count(*) FROM documents WHERE partner_id=?)", p.ID, p.ID).Scan(&count); err != nil {
 				return nil, err
 			}
-			if old.Code != a.Code || n > 0 && (old.Name != a.Name || old.Group != a.Group || old.RequiresPartner != a.RequiresPartner) {
-				return nil, accounting.Fail("HISTORY_LOCKED", "Không đổi tài khoản đã có lịch sử. Có thể ngừng sử dụng.")
+			if old.Code != p.Code || count > 0 && (old.Name != p.Name || old.Role != p.Role) {
+				return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã và thông tin đã được chứng từ tham chiếu.")
 			}
 		}
-		var bankReferences int
-		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM bank_accounts WHERE account_id=?", a.ID).Scan(&bankReferences); err != nil {
-			return nil, err
-		}
-		if bankReferences > 0 && a.Group != "cash" {
-			return nil, accounting.Fail("HISTORY_LOCKED", "Tài khoản kế toán đang gắn ngân hàng phải giữ nhóm tiền.")
-		}
 		var duplicate int
-		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM accounts WHERE code=? AND id<>?", a.Code, a.ID).Scan(&duplicate); err != nil {
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM partners WHERE code=? AND id<>?", p.Code, p.ID).Scan(&duplicate); err != nil {
 			return nil, err
 		}
 		if duplicate > 0 {
-			return nil, accounting.Fail("DUPLICATE_CODE", "Mã tài khoản đã tồn tại.")
+			return nil, accounting.Fail("DUPLICATE_CODE", "Mã đối tượng bị trùng.")
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,account_group=excluded.account_group,requires_partner=excluded.requires_partner,active=excluded.active", a.ID, a.Code, a.Name, a.Group, a.RequiresPartner, a.Active)
-		return a, err
+		if _, err = tx.ExecContext(ctx, "INSERT INTO partners VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,role=excluded.role,email=excluded.email,phone=excluded.phone,active=excluded.active", p.ID, p.Code, p.Name, p.Role, p.Email, p.Phone, p.Active); err != nil {
+			return nil, err
+		}
+	}
+	return partners, nil
+}
+func (s *Service) SaveAccount(ctx context.Context, cmd Command, a Account) (json.RawMessage, error) {
+	return s.Write(ctx, cmd, "admin.account.save", a, func(tx *sql.Tx) (any, error) {
+		return s.SaveAccountTx(ctx, tx, a)
 	})
+}
+func (s *Service) SaveAccountTx(ctx context.Context, tx *sql.Tx, a Account) (any, error) {
+	if !accounting.ID(a.ID) || !accounting.ID(a.Code) || strings.TrimSpace(a.Name) == "" || !strings.Contains("|cash|receivable|payable|revenue|expense|inventory|capital|asset|tax|liability|wip|", "|"+a.Group+"|") {
+		return nil, accounting.Fail("VALIDATION", "Thông tin tài khoản không hợp lệ.")
+	}
+	var old Account
+	err := tx.QueryRowContext(ctx, "SELECT code,name,account_group,requires_partner FROM accounts WHERE id=?", a.ID).Scan(&old.Code, &old.Name, &old.Group, &old.RequiresPartner)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if err == nil {
+		var n int
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM document_lines WHERE account_id=?", a.ID).Scan(&n); err != nil {
+			return nil, err
+		}
+		if old.Code != a.Code || n > 0 && (old.Name != a.Name || old.Group != a.Group || old.RequiresPartner != a.RequiresPartner) {
+			return nil, accounting.Fail("HISTORY_LOCKED", "Không đổi tài khoản đã có lịch sử. Có thể ngừng sử dụng.")
+		}
+	}
+	var bankReferences int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM bank_accounts WHERE account_id=?", a.ID).Scan(&bankReferences); err != nil {
+		return nil, err
+	}
+	if bankReferences > 0 && a.Group != "cash" {
+		return nil, accounting.Fail("HISTORY_LOCKED", "Tài khoản kế toán đang gắn ngân hàng phải giữ nhóm tiền.")
+	}
+	var duplicate int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM accounts WHERE code=? AND id<>?", a.Code, a.ID).Scan(&duplicate); err != nil {
+		return nil, err
+	}
+	if duplicate > 0 {
+		return nil, accounting.Fail("DUPLICATE_CODE", "Mã tài khoản đã tồn tại.")
+	}
+	_, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,account_group=excluded.account_group,requires_partner=excluded.requires_partner,active=excluded.active", a.ID, a.Code, a.Name, a.Group, a.RequiresPartner, a.Active)
+	return a, err
 }
 func (s *Service) SavePeriod(ctx context.Context, cmd Command, p Period) (json.RawMessage, error) {
 	return s.Write(ctx, cmd, "admin.period.save", p, func(tx *sql.Tx) (any, error) {

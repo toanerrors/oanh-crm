@@ -28,22 +28,8 @@ func (s *Service) Write(ctx context.Context, cmd Command, operation string, payl
 		return nil, err
 	}
 	defer tx.Rollback()
-	var epoch, role string
-	if err = tx.QueryRowContext(ctx, "SELECT epoch FROM meta WHERE id=1").Scan(&epoch); err != nil {
+	if err = s.CheckWriteScopeTx(ctx, tx, cmd, operation); err != nil {
 		return nil, err
-	}
-	if epoch != cmd.Epoch {
-		return nil, accounting.Fail("DATASET_CHANGED", "Phiên dữ liệu đã thay đổi. Tải lại ứng dụng trước khi tiếp tục.")
-	}
-	err = tx.QueryRowContext(ctx, "SELECT role FROM users WHERE id=? AND active=1", cmd.Actor).Scan(&role)
-	if err == sql.ErrNoRows {
-		return nil, accounting.Fail("FORBIDDEN", "Người dùng không có quyền thao tác.")
-	}
-	if err != nil {
-		return nil, err
-	}
-	if role == "viewer" || ((strings.HasPrefix(operation, "admin.") || operation == "operation.closing") && role != "owner") {
-		return nil, accounting.Fail("FORBIDDEN", "Không đủ quyền thực hiện thao tác.")
 	}
 	var oldHash, result string
 	err = tx.QueryRowContext(ctx, "SELECT payload_hash,result FROM commands WHERE actor_id=? AND operation=? AND key=?", cmd.Actor, operation, cmd.Key).Scan(&oldHash, &result)
@@ -78,6 +64,27 @@ func (s *Service) Write(ctx context.Context, cmd Command, operation string, payl
 	}
 	return json.RawMessage(b), nil
 }
+func (s *Service) CheckWriteScopeTx(ctx context.Context, tx *sql.Tx, cmd Command, operation string) error {
+	var epoch, role string
+	if err := tx.QueryRowContext(ctx, "SELECT epoch FROM meta WHERE id=1").Scan(&epoch); err != nil {
+		return err
+	}
+	if epoch != cmd.Epoch {
+		return accounting.Fail("DATASET_CHANGED", "Phiên dữ liệu đã thay đổi. Tải lại ứng dụng trước khi tiếp tục.")
+	}
+	err := tx.QueryRowContext(ctx, "SELECT role FROM users WHERE id=? AND active=1", cmd.Actor).Scan(&role)
+	if err == sql.ErrNoRows {
+		return accounting.Fail("FORBIDDEN", "Người dùng không có quyền thao tác.")
+	}
+	if err != nil {
+		return err
+	}
+	if role == "viewer" || ((strings.HasPrefix(operation, "admin.") || operation == "operation.closing") && role != "owner") {
+		return accounting.Fail("FORBIDDEN", "Không đủ quyền thực hiện thao tác.")
+	}
+	return nil
+}
+
 func reservedSource(source string) bool {
 	return source != "" && strings.Contains("|opening|closing|closing_reversal|reversal|payroll|asset|depreciation|costing|corporate_tax|transfer|treasury_reversal|", "|"+source+"|")
 }

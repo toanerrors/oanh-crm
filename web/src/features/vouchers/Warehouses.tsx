@@ -9,6 +9,7 @@ import { workspaceKey } from '../../shared/data/workspace';
 import { formatMoney, formatQuantity } from '../../shared/accounting/money';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import { Icon } from '../../shared/ui/Icon';
+import { ImportExcelButton } from '../imports/ExcelImport';
 import { searchOptions } from '../../shared/ui/search';
 
 export function WarehouseSelect({ value, onChange, label, disabled }: { value?: string; onChange?: (value: string) => void; label: string; disabled?: boolean }) {
@@ -32,7 +33,7 @@ function WarehouseDirectory({ open, onClose, onSelected }: { open: boolean; onCl
   return <><Modal open={open} onCancel={onClose} title={`Danh mục và tồn theo kho · Revision ${query.data?.revision ?? data?.revision ?? '—'}`} width={1000} footer={<Button onClick={onClose}>Đóng</Button>}>
     {query.error && <Alert type="error" title={query.error.message} />}
     <p>Tồn hiện tại theo từng kho; giá xuất kho tính độc lập cho mỗi mặt hàng trong mỗi kho. Dữ liệu trước khi bổ sung nhiều kho thuộc Kho mặc định.</p>
-    {canWrite && <Button type="primary" onClick={() => edit()}>Thêm kho</Button>}
+    {canWrite && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><ImportExcelButton kind="warehouses" /><ToolbarButton label="Thêm kho" icon="plus" onClick={() => edit()} /></div>}
     <Table<Warehouse> rowKey="id" dataSource={query.data?.warehouses} pagination={{ pageSize: 10 }} columns={[{ title: 'Mã kho', dataIndex: 'code' }, { title: 'Tên kho', dataIndex: 'name' }, { title: 'Trạng thái', dataIndex: 'active', render: active => active ? 'Đang sử dụng' : 'Ngừng sử dụng' }, { render: (_, w) => <>{canWrite && <Button type="text" onClick={() => edit(w)}>Sửa</Button>}{onSelected && w.active && <Button type="link" onClick={() => onSelected(w.id)}>Chọn</Button>}</> }]} />
     <Table rowKey={row => `${row.warehouseId}:${row.itemId}:${row.scale}`} dataSource={query.data?.stock} scroll={{ x: 700 }} pagination={{ pageSize: 10 }} columns={[{ title: 'Kho', dataIndex: 'warehouseId', render: id => query.data?.warehouses.find(w => w.id === id)?.name ?? id }, { title: 'Hàng hóa', dataIndex: 'itemId', render: id => items.data?.items.find(i => i.id === id)?.name ?? id }, { title: 'Số lượng', align: 'right', render: (_, row) => formatQuantity(row.quantity, row.scale) }, { title: 'Giá trị', align: 'right', dataIndex: 'value', render: value => formatMoney(value) }]} />
   </Modal><Modal open={Boolean(editing)} onCancel={() => setEditing(null)} title="Kho hàng" footer={null}><Form<Warehouse> form={form} layout="vertical" onFinish={values => mutation.mutate({ ...editing!, ...values })}>

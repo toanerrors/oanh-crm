@@ -186,57 +186,60 @@ func openingElapsed(start, cutoff string) int {
 }
 func (s *Service) SaveOpening(ctx context.Context, cmd ledger.Command, in OpeningInput) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "admin.opening.save", in, func(tx *sql.Tx) (any, error) {
-		if in.Lines == nil {
-			in.Lines = []OpeningLine{}
-		}
-		if in.Stocks == nil {
-			in.Stocks = []OpeningStock{}
-		}
-		if in.Assets == nil {
-			in.Assets = []Asset{}
-		}
-		state, err := openingAt(ctx, tx)
-		if err != nil {
-			return nil, err
-		}
-		if state.Document != nil && (state.Document.Status == "posted" || state.Document.ID != in.ID) {
-			return nil, accounting.Fail("OPENING_LOCKED", "Số dư đầu kỳ đã xác nhận hoặc đã có bản nhập khác. Mở lại bản hiện tại.")
-		}
-		if state.PostedCount > 0 {
-			return nil, accounting.Fail("OPENING_HISTORY_EXISTS", "Chỉ khởi tạo số dư trước lần ghi sổ đầu tiên để tránh cộng trùng lịch sử.")
-		}
-		if state.Document == nil {
-			var exists int
-			if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE id=?", in.ID).Scan(&exists); err != nil {
-				return nil, err
-			}
-			if exists > 0 {
-				return nil, accounting.Fail("DUPLICATE_SOURCE", "Mã bản nhập đã thuộc chứng từ khác.")
-			}
-		}
-		doc, _, err := s.openingDocument(ctx, tx, in)
-		if err != nil {
-			return nil, err
-		}
-		doc, err = s.Ledger.SaveTx(ctx, tx, doc)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = tx.ExecContext(ctx, "UPDATE documents SET policy_id=? WHERE id=?", doc.PolicyID, doc.ID); err != nil {
-			return nil, err
-		}
-		in.Version = doc.Version
-		raw, err := json.Marshal(in)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO opening_balances VALUES(1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET cutoff=excluded.cutoff,source=excluded.source,payload=excluded.payload", doc.ID, in.Cutoff, in.Source, string(raw)); err != nil {
-			return nil, err
-		}
-		state, err = openingAt(ctx, tx)
-		state.Revision++
-		return state, err
+		return s.saveOpeningTx(ctx, tx, in)
 	})
+}
+func (s *Service) saveOpeningTx(ctx context.Context, tx *sql.Tx, in OpeningInput) (any, error) {
+	if in.Lines == nil {
+		in.Lines = []OpeningLine{}
+	}
+	if in.Stocks == nil {
+		in.Stocks = []OpeningStock{}
+	}
+	if in.Assets == nil {
+		in.Assets = []Asset{}
+	}
+	state, err := openingAt(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	if state.Document != nil && (state.Document.Status == "posted" || state.Document.ID != in.ID) {
+		return nil, accounting.Fail("OPENING_LOCKED", "Số dư đầu kỳ đã xác nhận hoặc đã có bản nhập khác. Mở lại bản hiện tại.")
+	}
+	if state.PostedCount > 0 {
+		return nil, accounting.Fail("OPENING_HISTORY_EXISTS", "Chỉ khởi tạo số dư trước lần ghi sổ đầu tiên để tránh cộng trùng lịch sử.")
+	}
+	if state.Document == nil {
+		var exists int
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE id=?", in.ID).Scan(&exists); err != nil {
+			return nil, err
+		}
+		if exists > 0 {
+			return nil, accounting.Fail("DUPLICATE_SOURCE", "Mã bản nhập đã thuộc chứng từ khác.")
+		}
+	}
+	doc, _, err := s.openingDocument(ctx, tx, in)
+	if err != nil {
+		return nil, err
+	}
+	doc, err = s.Ledger.SaveTx(ctx, tx, doc)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, "UPDATE documents SET policy_id=? WHERE id=?", doc.PolicyID, doc.ID); err != nil {
+		return nil, err
+	}
+	in.Version = doc.Version
+	raw, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO opening_balances VALUES(1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET cutoff=excluded.cutoff,source=excluded.source,payload=excluded.payload", doc.ID, in.Cutoff, in.Source, string(raw)); err != nil {
+		return nil, err
+	}
+	state, err = openingAt(ctx, tx)
+	state.Revision++
+	return state, err
 }
 func (s *Service) PostOpening(ctx context.Context, cmd ledger.Command, in ledger.Post) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "admin.opening.post", in, func(tx *sql.Tx) (any, error) {

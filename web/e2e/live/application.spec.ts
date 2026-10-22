@@ -266,7 +266,7 @@ test('tài khoản chỉ xem không có thao tác ghi hoặc cơ sở tính lư�
   await expect(page.getByRole('button', { name: 'Tạo chứng từ', exact: true })).toHaveCount(0);
   await page.goto('/documents');
   await expect(page.getByRole('button', { name: 'Tạo chứng từ', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Nhập chứng từ CSV', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Nhập từ Excel', exact: true })).toHaveCount(0);
   const response = await page.request.post('/api/v1/periods', { data: { period: '2026-12', closed: false }, headers: { 'X-Dataset-Epoch': epoch, 'Idempotency-Key': 'viewer-blocked' } });
   expect(response.status()).toBe(403);
   expect((await page.request.get('/api/v1/automation')).status()).toBe(403);
@@ -315,4 +315,32 @@ test('tab phân hệ giữ nguyên khi mở danh mục, công nợ và các báo
     await expect(reportTools.getByRole('button', { name: 'In báo cáo', exact: true })).toBeVisible();
     await expect(reportTools.getByRole('button', { name: 'Xuất CSV', exact: true })).toBeVisible();
   }
+});
+
+
+test('nhập Excel ghép cột, chặn lỗi và lưu nháp đúng một lần', async ({ page }) => {
+  await login(page);
+  await page.goto('/imports');
+  const file = (account: string) => Buffer.from(`Mã chứng từ nguồn,Ngày hạch toán,Diễn giải,TK Nợ,TK Có,Số tiền\nE2E-EXCEL-1,21/10/2026,Nhập tiền lớn,${account},411,9007199254740993\n`);
+  await page.locator('input[type="file"]').setInputFiles({ name: 'invalid.csv', mimeType: 'text/csv', buffer: file('SAI') });
+  await expect(page.getByText('invalid.csv', { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Tiếp tục', exact: true }).first().click();
+  await expect(page.getByLabel('Ghép cột TK Có', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Kiểm tra dữ liệu', exact: true }).click();
+  await expect(page.getByText('Có 1 lỗi cần sửa · chưa nhập dữ liệu', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nhập dữ liệu', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await page.locator('input[type="file"]').setInputFiles({ name: 'valid.csv', mimeType: 'text/csv', buffer: file('111') });
+  await expect(page.getByText('valid.csv', { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Tiếp tục', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Kiểm tra dữ liệu', exact: true }).click();
+  await expect(page.getByText('Dữ liệu hợp lệ · sẵn sàng nhập', { exact: true })).toBeVisible();
+  await expect(page.getByText('9.007.199.254.740.993', { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Nhập dữ liệu', exact: true }).click();
+  await expect(page.getByText('Đã nhập 1 bản ghi', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Đã nhập', { exact: true })).toBeVisible();
+  const documents = await (await page.request.get(`/api/v1/documents?${new URLSearchParams({ period: '2026-10', query: 'Nhập tiền lớn' })}`)).json();
+  expect(documents.documents.filter((doc: { sourceId: string }) => doc.sourceId === 'E2E-EXCEL-1')).toHaveLength(1);
 });

@@ -1,6 +1,6 @@
 # Release bằng Docker trên máy chủ
 
-Bản phát hành: `0.5.11`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
+Bản phát hành: `0.6.0`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
 
 ## Build và chạy
 
@@ -12,7 +12,7 @@ docker compose up -d --wait --wait-timeout 90
 docker compose ps
 ```
 
-Image: `oanh-crm:0.5.11`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
+Image: `oanh-crm:0.6.0`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
 
 Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Mã nguồn dùng remote `origin` tại [toanerrors/oanh-crm](https://github.com/toanerrors/oanh-crm). Sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker → healthcheck. Image hiện được lưu local trên server, chưa cấu hình registry. Không force-push hoặc thay đổi tag đã phát hành; không in thông tin xác thực trong output Git.
 
@@ -66,3 +66,7 @@ Thêm bảng bản nháp BCTC và index; không thay tài khoản/bút toán/ch�
 ### Migration4 của 0.5.0
 
 Release thêm số dư đầu kỳ, không tạo/chỉnh số dư thật trong lúc deploy. Backup nguội toàn bộ dữ liệu trước release và kiểm tra schema/integrity/FK/đối soát trước khi nâng. Image0.4.x không đọc schema4; giữ image theo commit và bản dữ liệu trước release. Khôi phục hoặc thay dataset phải theo runbook, không hạ schema trực tiếp trên volume hiện tại.
+
+## Migration nhập Excel — schema5 (0.6.0)
+
+Thêm vùng chờ nhập Excel, không thay số liệu kế toán đã có. Tạo backup nguội toàn bộ volume, kiểm tra schema/integrity/FK/đối soát trên bản sao trước khi khởi động image mới. Giữ volume hiện tại và image theo commit. Image0.5.x không đọc schema5; không rollback binary cũ trực tiếp trên volume đã nâng. Backup schema1–4 vẫn được chuẩn bị/nâng trên vùng staging bởi bản0.6.0.

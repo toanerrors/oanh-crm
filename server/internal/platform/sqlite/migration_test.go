@@ -44,7 +44,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 	defer upgraded.Close()
 	var version int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 4 {
+	if version != 5 {
 		t.Fatal(version)
 	}
 	var name string
@@ -74,7 +74,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 		t.Fatal(after, err)
 	}
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 4 {
+	if version != 5 {
 		t.Fatal(version)
 	}
 	if err = Check(ctx, upgraded.Read); err != nil {
@@ -186,7 +186,7 @@ func TestOpeningMigrationFromVersionThree(t *testing.T) {
 	defer upgraded.Close()
 	var version, count int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 4 {
+	if version != 5 {
 		t.Fatal(version)
 	}
 	if err = upgraded.Read.QueryRow("SELECT count(*) FROM financial_reports WHERE id='report' AND version=1").Scan(&count); err != nil || count != 1 {
@@ -200,6 +200,65 @@ func TestOpeningMigrationFromVersionThree(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = Check(ctx, upgraded.Read); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestExcelMigrationPreservesVersionFourAndReopens(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dataset := filepath.Join(root, "datasets", "version-four")
+	if err := os.MkdirAll(filepath.Join(dataset, "attachments"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := Connect(ctx, filepath.Join(dataset, "accounting.sqlite"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL) STRICT"); err != nil {
+		t.Fatal(err)
+	}
+	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema} {
+		if _, err = db.Exec(source); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Exec("INSERT INTO schema_migrations VALUES(?,?)", i+1, migrationChecksum(i+1, source)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = db.Exec("INSERT INTO meta VALUES(1,'company','Giả lập','before-imports',7,'VND','test')"); err != nil {
+		t.Fatal(err)
+	}
+	before := schemaHash(4)
+	if err = Check(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	if err = WriteFile(filepath.Join(root, "active-dataset.json"), []byte(`{"dataset":"version-four"}`)); err != nil {
+		t.Fatal(err)
+	}
+	upgraded, err := Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var version, revision int
+	var epoch string
+	if err = upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 5 {
+		t.Fatal(version, err)
+	}
+	if err = upgraded.Read.QueryRow("SELECT revision,epoch FROM meta").Scan(&revision, &epoch); err != nil || revision != 7 || epoch != "before-imports" || before != schemaHash(4) {
+		t.Fatal(revision, epoch, err)
+	}
+	if err = Check(ctx, upgraded.Read); err != nil {
+		t.Fatal(err)
+	}
+	upgraded.Close()
+	reopened, err := Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if err = Check(ctx, reopened.Read); err != nil {
 		t.Fatal(err)
 	}
 }

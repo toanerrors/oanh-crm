@@ -30,27 +30,30 @@ type WarehouseList struct {
 
 func (s *Service) SaveWarehouse(ctx context.Context, cmd ledger.Command, w Warehouse) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "warehouse.save", w, func(tx *sql.Tx) (any, error) {
-		if !accounting.ID(w.ID) || !accounting.ID(w.Code) || strings.TrimSpace(w.Name) == "" || len(w.Name) > 200 {
-			return nil, accounting.Fail("VALIDATION", "Nhập mã và tên kho hợp lệ.")
-		}
-		var old Warehouse
-		e := tx.QueryRowContext(ctx, "SELECT code,name FROM warehouses WHERE id=?", w.ID).Scan(&old.Code, &old.Name)
-		if e != nil && e != sql.ErrNoRows {
-			return nil, e
-		}
-		if e == nil && (old.Code != w.Code || old.Name != w.Name) {
-			return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã và tên kho đã tạo; có thể ngừng sử dụng.")
-		}
-		var count int
-		if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM warehouses WHERE code=? COLLATE NOCASE AND id<>?", w.Code, w.ID).Scan(&count); e != nil {
-			return nil, e
-		}
-		if count > 0 {
-			return nil, accounting.Fail("DUPLICATE_CODE", "Mã kho đã tồn tại.")
-		}
-		_, e = tx.ExecContext(ctx, "INSERT INTO warehouses VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET active=excluded.active", w.ID, w.Code, w.Name, w.Active)
-		return w, e
+		return s.saveWarehouseTx(ctx, tx, w)
 	})
+}
+func (s *Service) saveWarehouseTx(ctx context.Context, tx *sql.Tx, w Warehouse) (any, error) {
+	if !accounting.ID(w.ID) || !accounting.ID(w.Code) || strings.TrimSpace(w.Name) == "" || len(w.Name) > 200 {
+		return nil, accounting.Fail("VALIDATION", "Nhập mã và tên kho hợp lệ.")
+	}
+	var old Warehouse
+	e := tx.QueryRowContext(ctx, "SELECT code,name FROM warehouses WHERE id=?", w.ID).Scan(&old.Code, &old.Name)
+	if e != nil && e != sql.ErrNoRows {
+		return nil, e
+	}
+	if e == nil && (old.Code != w.Code || old.Name != w.Name) {
+		return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã và tên kho đã tạo; có thể ngừng sử dụng.")
+	}
+	var count int
+	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM warehouses WHERE code=? COLLATE NOCASE AND id<>?", w.Code, w.ID).Scan(&count); e != nil {
+		return nil, e
+	}
+	if count > 0 {
+		return nil, accounting.Fail("DUPLICATE_CODE", "Mã kho đã tồn tại.")
+	}
+	_, e = tx.ExecContext(ctx, "INSERT INTO warehouses VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET active=excluded.active", w.ID, w.Code, w.Name, w.Active)
+	return w, e
 }
 func (s *Service) Warehouses(ctx context.Context) (WarehouseList, error) {
 	result := WarehouseList{Warehouses: []Warehouse{}, Stock: []WarehouseStock{}}

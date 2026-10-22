@@ -110,3 +110,9 @@ Backup bao gồm bảng `financial_reports` với input/version/ngày/người c
 ### Schema4 — số dư đầu kỳ
 
 Thêm metadata chuyển đổi và lịch sử phân bổ tài sản trước chuyển đổi. Backup/Check đối chiếu số dư với ledger, chi tiết ngân hàng, stock movement và tài sản; chặn lịch sử giao nhau với mốc. Giữ nguyên hash/checksum migration1–3, nhận gói1/2/3/4 và chỉ nâng bản chuẩn bị. Đã kiểm tra migration/backup/restore từ schema3 có BCTC cũ, số dư đã xác nhận và lô tồn/tài sản sau phát sinh. Image trước0.5.0 không đọc schema4; không rollback binary cũ trực tiếp trên volume đã nâng.
+
+## Schema5 — vùng chờ nhập Excel
+
+Backup chứa bảng `excel_imports`: dữ liệu đã đọc từ tệp, cấu hình ghép cột, hash, actor và kết quả nhập. Không cần file tạm của upload để phục hồi. Tệp riêng theo actor; owner bị hạ quyền không đọc lại tệp đã tải với quyền owner. Sau restore, tệp chờ của epoch cũ bị chặn và phải tải lại; lịch sử đã nhập vẫn đọc theo phiên/epoch hiện hành, không cho nhập lại. Không lưu tệp tài chính vào Git hoặc trình duyệt.
+
+Ứng dụng đọc/chuẩn bị nâng backup schema1–4 và nhận schema5; checksum/schema fingerprint lịch sử giữ nguyên. Image0.5.x không đọc schema5. Release0.6.0 phải có backup nguội toàn bộ volume và kiểm tra trên bản sao trước migration; không hạ schema hoặc chạy binary cũ trên volume đã nâng. Kiểm thử backup/restore/reopen xác minh số tiền lớn và nguồn nhập vẫn được giữ nguyên.

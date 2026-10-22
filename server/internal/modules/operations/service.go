@@ -132,53 +132,59 @@ func PolicyAt(ctx context.Context, q ledger.Queryer, date string) (Policy, error
 }
 func (s *Service) SaveItem(ctx context.Context, cmd ledger.Command, item Item) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "item.save", item, func(tx *sql.Tx) (any, error) {
-		if !accounting.ID(item.ID) || !accounting.ID(item.Code) || strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.Unit) == "" {
-			return nil, accounting.Fail("VALIDATION", "Nhập mã, tên và đơn vị hàng hóa/dịch vụ.")
-		}
-		var code, unit string
-		var tracked bool
-		err := tx.QueryRowContext(ctx, "SELECT code,tracked,unit FROM items WHERE id=?", item.ID).Scan(&code, &tracked, &unit)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, err
-		}
-		if err == nil && (code != item.Code || tracked != item.Tracked || unit != item.Unit) {
-			return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã, đơn vị và loại hàng hóa đã tạo.")
-		}
-		var duplicate int
-		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM items WHERE code=? COLLATE NOCASE AND id<>?", item.Code, item.ID).Scan(&duplicate); err != nil {
-			return nil, err
-		}
-		if duplicate > 0 {
-			return nil, accounting.Fail("DUPLICATE_CODE", "Mã hàng hóa/dịch vụ đã tồn tại.")
-		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO items VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,unit=excluded.unit,active=excluded.active", item.ID, item.Code, item.Name, item.Unit, item.Tracked, item.Active)
-		return item, err
+		return s.saveItemTx(ctx, tx, item)
 	})
+}
+func (s *Service) saveItemTx(ctx context.Context, tx *sql.Tx, item Item) (any, error) {
+	if !accounting.ID(item.ID) || !accounting.ID(item.Code) || strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.Unit) == "" {
+		return nil, accounting.Fail("VALIDATION", "Nhập mã, tên và đơn vị hàng hóa/dịch vụ.")
+	}
+	var code, unit string
+	var tracked bool
+	err := tx.QueryRowContext(ctx, "SELECT code,tracked,unit FROM items WHERE id=?", item.ID).Scan(&code, &tracked, &unit)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if err == nil && (code != item.Code || tracked != item.Tracked || unit != item.Unit) {
+		return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã, đơn vị và loại hàng hóa đã tạo.")
+	}
+	var duplicate int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM items WHERE code=? COLLATE NOCASE AND id<>?", item.Code, item.ID).Scan(&duplicate); err != nil {
+		return nil, err
+	}
+	if duplicate > 0 {
+		return nil, accounting.Fail("DUPLICATE_CODE", "Mã hàng hóa/dịch vụ đã tồn tại.")
+	}
+	_, err = tx.ExecContext(ctx, "INSERT INTO items VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,unit=excluded.unit,active=excluded.active", item.ID, item.Code, item.Name, item.Unit, item.Tracked, item.Active)
+	return item, err
 }
 func (s *Service) SaveEmployee(ctx context.Context, cmd ledger.Command, e Employee) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "admin.employee.save", e, func(tx *sql.Tx) (any, error) {
-		base, err := accounting.Money(e.BaseSalary)
-		if err != nil {
-			return nil, err
-		}
-		insurance, err := accounting.Money(e.InsuranceBase)
-		if err != nil {
-			return nil, err
-		}
-		if !accounting.ID(e.ID) || !accounting.ID(e.Code) || strings.TrimSpace(e.Name) == "" || e.Dependents < 0 || e.Dependents > 100 {
-			return nil, accounting.Fail("VALIDATION", "Thông tin nhân viên không hợp lệ.")
-		}
-		var code string
-		err = tx.QueryRowContext(ctx, "SELECT code FROM employees WHERE id=?", e.ID).Scan(&code)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, err
-		}
-		if err == nil && code != e.Code {
-			return nil, accounting.Fail("HISTORY_LOCKED", "Giữ nguyên mã nhân viên.")
-		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO employees VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,base_salary=excluded.base_salary,insurance_base=excluded.insurance_base,dependents=excluded.dependents,active=excluded.active", e.ID, e.Code, e.Name, base, insurance, e.Dependents, e.Active)
-		return e, err
+		return s.saveEmployeeTx(ctx, tx, e)
 	})
+}
+func (s *Service) saveEmployeeTx(ctx context.Context, tx *sql.Tx, e Employee) (any, error) {
+	base, err := accounting.Money(e.BaseSalary)
+	if err != nil {
+		return nil, err
+	}
+	insurance, err := accounting.Money(e.InsuranceBase)
+	if err != nil {
+		return nil, err
+	}
+	if !accounting.ID(e.ID) || !accounting.ID(e.Code) || strings.TrimSpace(e.Name) == "" || e.Dependents < 0 || e.Dependents > 100 {
+		return nil, accounting.Fail("VALIDATION", "Thông tin nhân viên không hợp lệ.")
+	}
+	var code string
+	err = tx.QueryRowContext(ctx, "SELECT code FROM employees WHERE id=?", e.ID).Scan(&code)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if err == nil && code != e.Code {
+		return nil, accounting.Fail("HISTORY_LOCKED", "Giữ nguyên mã nhân viên.")
+	}
+	_, err = tx.ExecContext(ctx, "INSERT INTO employees VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,base_salary=excluded.base_salary,insurance_base=excluded.insurance_base,dependents=excluded.dependents,active=excluded.active", e.ID, e.Code, e.Name, base, insurance, e.Dependents, e.Active)
+	return e, err
 }
 func (s *Service) Data(ctx context.Context) (Data, error) {
 	d := Data{Policies: []Policy{}, Items: []Item{}, Employees: []Employee{}, Assets: []Asset{}}

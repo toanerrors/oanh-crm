@@ -10,6 +10,7 @@ import { saveDemoPartners, workspaceKey } from '../../shared/data/workspace';
 import type { Account, Partner } from '../../shared/data/types';
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { Icon } from '../../shared/ui/Icon';
+import { ImportExcelButton } from '../imports/ExcelImport';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import styles from '../../app/App.module.css';
 import { api, apiScope, command, isDemo } from '../../shared/api/client';
@@ -52,7 +53,7 @@ export function Component() {
     downloadCsv(`danh-muc-${isDemo ? 'mau-' : ''}${tab}.csv`, tab === 'partners' ? [[isDemo ? 'DỮ LIỆU MẪU · Phiên bản' : `${data!.companyName} · Phiên bản`, String(data!.revision)], ['Mã', 'Tên', 'Vai trò', 'Email', 'Điện thoại', 'Trạng thái'], ...partners.map(item => [item.code, item.name, roles[item.role], item.email, `'${item.phone}`, item.active ? 'Đang sử dụng' : 'Ngừng sử dụng'])] : [[isDemo ? 'DỮ LIỆU MẪU' : data!.companyName ?? 'Danh mục doanh nghiệp'], ['Mã tài khoản', 'Tên tài khoản', 'Yêu cầu đối tượng'], ...accounts.map(item => [item.code, item.name, item.requiresPartner ? 'Có' : 'Không'])]);
   }
 
-  const pageActions = <><ToolbarButton onClick={exportData} label="Xuất CSV" icon="download" />{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <ToolbarButton type="primary" onClick={() => editAccount()} label="Thêm tài khoản" icon="plus" />}{tab === 'partners' && canEdit && <ToolbarButton type="primary" onClick={() => edit(null)} label="Thêm đối tượng" icon="plus" />}</>;
+  const pageActions = <>{(tab === 'partners' || tab === 'accounts' && apiScope().permissions === 'owner') && <ImportExcelButton kind={tab === 'partners' ? 'partners' : 'accounts'} />}<ToolbarButton onClick={exportData} label="Xuất CSV" icon="download" />{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <ToolbarButton type="primary" onClick={() => editAccount()} label="Thêm tài khoản" icon="plus" />}{tab === 'partners' && canEdit && <ToolbarButton type="primary" onClick={() => edit(null)} label="Thêm đối tượng" icon="plus" />}</>;
 
   return <DataBoundary>
     <PageHeading title={moduleRole === 'supplier' ? 'Nhà cung cấp' : moduleRole === 'customer' ? 'Khách hàng' : 'Danh mục'} description="Sắp xếp dữ liệu nền tảng để mỗi lần nhập liệu đều thuận tiện hơn." />

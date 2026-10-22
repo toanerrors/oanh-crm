@@ -235,3 +235,9 @@ Mẫu năm dương lịch TT99 cho hoạt động liên tục; chỉ tiêu nhậ
 ### Số dư đầu kỳ (0.5.0)
 
 `operations/opening.go` điều phối nháp và xác nhận khởi tạo qua ledger.Write/SaveTx/PostTx, tái sử dụng giá kho và tài sản hiện có. Schema4 thêm singleton opening_balances (mốc, nguồn, payload, liên kết document) và opening_assets (số kỳ/lũy kế trước chuyển đổi); không tạo bản sao bảng số dư. Trigger bảo vệ nguồn đã xác nhận và chặn ghi sổ trước mốc; số dư luôn là các dòng nguồnopening trong cùng ledger. Báo cáo phân biệt opening với movement theo nguồn. Backup kiểm tra lại payload→ledger/ngân hàng/kho/tài sản; hash/checksum schema1–3 giữ nguyên, chỉ nâng bản chuẩn bị khi restore.
+
+## Nhập XLSX/CSV — schema5 (0.6.0)
+
+`platform/spreadsheet` đọc/chuẩn hóa raw XLSX bằng Excelize2.11.0 và CSV bằng thư viện chuẩn; không phụ thuộc HTTP/DB. `operations/excel_*` sở hữu schema cột, ghép dữ liệu, điều phối catalog/voucher/opening qua serviceTx hiện có. Ledger công khai lookup mã/nguồn và validator trong cùng transaction; không có bộ ghi sổ riêng cho Excel. Handler multipart parse ngoài write transaction. Không thêm thư viện Excel phía trình duyệt.
+
+`excel_imports` lưu actor/epoch, SHA256 tệp, workbook đã đọc, thiết lập, trạng thái và kết quả. Bản sao raw đã đọc giữ trong DB/backup; không chạy macro/công thức. Preview dùng transaction rollback, commit dùng Ledger.Write cùng kiểm tra revision/idempotency và từng validator nghiệp vụ. Schema1–4/checksum cũ giữ nguyên; schema5 thêm một bảng và hai index. Xem [phạm vi/giới hạn import](excel-import.md).

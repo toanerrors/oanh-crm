@@ -191,3 +191,9 @@ Mẫu `tt99-2026-v1` đối chiếu Phụ lụcIV Mục1, B01 năm hoạt độn
 ## 14. Nhập chứng từ theo cặp Nợ/Có (0.5.1)
 
 Form chứng từ khác có cặp TK/đối tượng Nợ và Có riêng, số tiền/diễn giải dùng chung một lần nhập. Tác động đúng hai dòng nguồn của cặp, giữ chuỗi tiền chính xác và thứ tự nguồn. Đây là cách nhập một cặp, không phải tự bù chênh lệch cho chứng từ nhiều đối ứng. Nháp nhiều Nợ/Có, khác số tiền hoặc khác diễn giải giữa hai bên giữ chế độ chi tiết một bên mỗi dòng; chỉ chuyển sang cặp khi số tiền/diễn giải từng cặp trùng chính xác. Dòng không có diễn giải dùng diễn giải chứng từ khi đọc sổ. Không đổi dữ liệu chứng từ đã ghi sổ, API, schema hoặc bước kiểm tra ghi sổ phía server.
+
+## 15. Nhập Excel (0.6.0)
+
+Invariant: upload/configuration không tạo bút toán; preview rollback toàn bộ; commit hoặc ghi toàn bộ danh mục/nháp+kết quả+audit/idempotency hoặc không ghi dòng nào. Không tự ghi sổ/xác nhận số dư. Dòng cùng nguồn phải nhất quán; cùng sự kiện nguồn không được nhập lại qua kiểu cặp/nhiều dòng/CSV/nhập tay. Cột bỏ qua phải được người dùng xác nhận. Danh mục cập nhật giữ cột tùy chọn chưa ghép, không tự đổi lịch sử. Số dư chỉ bổ sung chi tiết chưa có; không net công nợ hai bên.
+
+Parser giữ raw string, kiểm tra tiền/decimal exact, định dạng số tường minh, ngày1900/1904; từ chối công thức ở cột ghép, lỗi ô và địa chỉ XML trùng/sai thứ tự. Kiểm thử SQLite thật bao phủ tiền trên2^53, lỗi một phần/trigger lỗi cuối transaction, retry và cạnh tranh commit, stale revision/epoch, quyền, tham chiếu phân bổ công nợ/chi phí mua hàng, backup/restore/reopen. Chi tiết và giới hạn tại [excel-import.md](excel-import.md).

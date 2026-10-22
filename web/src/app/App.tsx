@@ -28,6 +28,7 @@ const navigation: SidebarItem[] = [
   ...(!isDemo ? [{ path: '/automation', label: 'Nghiệp vụ tự động', icon: 'spark' as const }] : []),
   { path: '/reports', label: 'Sổ sách & báo cáo', icon: 'chart', group: 'QUẢN LÝ' },
   { path: '/catalog', label: 'Danh mục', icon: 'folder' },
+  ...(!isDemo ? [{ path: '/imports', label: 'Nhập từ Excel', icon: 'upload' as const }] : []),
 ];
 
 export function AppShell() {

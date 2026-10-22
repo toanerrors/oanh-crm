@@ -77,3 +77,13 @@ Preview không ghi; save dùng version/idempotency/epoch và transaction chung, 
 `GET /opening-balances` đọc metadata và bản nhập cùng snapshot. `POST /opening-balances` lưu nháp `OpeningInput`; `/opening-balances/confirm` và `/opening-balances/discard` nhận `{id,version}`. Cả ba POST dành cho chủ sở hữu, có epoch/idempotency/version/audit. `input` và `document` null khi chưa có bộ chuyển đổi; `postedCount` đếm chứng từ khácopening đã ghi sổ. Context bổ sung `conversionDate` khi đã xác nhận.
 
 Mốc đầu tháng và nguồn đối chiếu bắt buộc. `lines` gồm accountId, partnerId, debit/credit chuỗi VND và bankAccountId nếu tiền gửi; không nhập tài khoản kho/tài sản hoặc tài khoản kết quả ở đây. `stocks` gồm itemId/warehouseId/quantity/value cho156; `assets` theo Asset với allocated bắt buộc cho211/214/242. Nháp chưa ảnh hưởng số liệu. Confirm chỉ trước lần ghi sổ đầu tiên, kỳ mở, cân đối và đủ chiều; tất cả biến động commit cùng ledger. Bộ đã xác nhận khóa, không sửa/xóa/đảo thủ công. Chưa hỗ trợ điều chỉnh số dư đã xác nhận hoặc hóa đơn công nợ chuyển đổi. Xem quy tắc tại accounting-correctness.md §13.
+
+## Nhập XLSX/CSV (0.6.0)
+
+- `GET /excel-imports/schemas`: loại/cột/alias/default/quyền/mẫu version1. `GET /excel-imports/template?kind=...&advanced=true|false`: XLSX Text với sheet DuLieu/HuongDan.
+- `POST /excel-imports/files`: multipart trường file, tối đa20MB, epoch/idempotency; trả ExcelBatch vùng chờ, không lưu giao dịch. Body multipart có1MB overhead; parse ngoài transaction. Tệp và limits tại [hướng dẫn](../docs/excel-import.md).
+- `GET /excel-imports`: 50tệp gần nhất của actor; `GET /excel-imports/{id}?sheet=...&headerRow=1`: sheet/header,10dòng mẫu với số dòng gốc, populatedColumns toàn sheet. Cả hai cần X-Dataset-Epoch.
+- `POST /excel-imports/{id}/configuration`: lưu thiết lập để tiếp tục, có epoch/key. `/preview`: ExcelConfiguration, epoch, transaction rollback, trả rows/issues/revision/fingerprint. `/errors`: cùng payload, trả XLSX tối đa1.000lỗi. Cả hai không cần key và không lưu giao dịch.
+- `POST /excel-imports/{id}/commit`: configuration/expectedRevision/fingerprint, epoch/key; tính lại và nhập cả gói atomic, chứng từ/số dư chỉ nháp. `/discard`: JSON{}, epoch/key, chỉ xóa tệp chờ của actor.
+
+Mapping là object fieldKey→columnIndex từ0; headerRow từ1. dateFormat=dmy|iso, numberFormat=plain|vi|en, mode=add|update, ignoreUnmapped boolean; opening thêm cutoff/source. Kết quả đếm records và rows riêng, tiền là chuỗi. Tệp staged gắn epoch; actor khác/viewer không được đọc. Owner-only kinds: accounts/employees/opening. API CSV `/imports/preview` và `/imports` giữ tương thích.

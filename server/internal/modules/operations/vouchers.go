@@ -58,46 +58,49 @@ func validateVoucher(in Input) error {
 
 func (s *Service) SaveVoucher(ctx context.Context, cmd ledger.Command, in Input) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "voucher.save", in, func(tx *sql.Tx) (any, error) {
-		if !voucherKind(in.Kind) {
-			return nil, accounting.Fail("VALIDATION", "Loại chứng từ không hỗ trợ lưu nháp nghiệp vụ.")
-		}
-		if err := normalizeBanks(ctx, tx, &in); err != nil {
-			return nil, err
-		}
-		if _, err := tx.ExecContext(ctx, "SAVEPOINT voucher_preview"); err != nil {
-			return nil, err
-		}
-		result, err := s.run(ctx, tx, in)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = tx.ExecContext(ctx, "ROLLBACK TO voucher_preview"); err != nil {
-			return nil, err
-		}
-		if _, err = tx.ExecContext(ctx, "RELEASE voucher_preview"); err != nil {
-			return nil, err
-		}
-		doc := result.Document
-		doc.Version = in.DraftVersion
-		doc.Reference = "NHAP-" + strings.ToUpper(doc.ID[:8])
-		doc.Status = "draft"
-		doc, err = s.Ledger.SaveTx(ctx, tx, doc)
-		if err != nil {
-			return nil, err
-		}
-		in.DraftID, in.DraftVersion = doc.ID, doc.Version
-		in.ExpectedRevision = nil
-		in.ExpectedPolicyID = ""
-		payload, err := json.Marshal(in)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO voucher_inputs VALUES(?,?) ON CONFLICT(document_id) DO UPDATE SET payload=excluded.payload", doc.ID, string(payload)); err != nil {
-			return nil, err
-		}
-		doc.Voucher = true
-		return Voucher{Input: in, Document: doc}, nil
+		return s.saveVoucherTx(ctx, tx, in)
 	})
+}
+func (s *Service) saveVoucherTx(ctx context.Context, tx *sql.Tx, in Input) (any, error) {
+	if !voucherKind(in.Kind) {
+		return nil, accounting.Fail("VALIDATION", "Loại chứng từ không hỗ trợ lưu nháp nghiệp vụ.")
+	}
+	if err := normalizeBanks(ctx, tx, &in); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, "SAVEPOINT voucher_preview"); err != nil {
+		return nil, err
+	}
+	result, err := s.run(ctx, tx, in)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, "ROLLBACK TO voucher_preview"); err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, "RELEASE voucher_preview"); err != nil {
+		return nil, err
+	}
+	doc := result.Document
+	doc.Version = in.DraftVersion
+	doc.Reference = "NHAP-" + strings.ToUpper(doc.ID[:8])
+	doc.Status = "draft"
+	doc, err = s.Ledger.SaveTx(ctx, tx, doc)
+	if err != nil {
+		return nil, err
+	}
+	in.DraftID, in.DraftVersion = doc.ID, doc.Version
+	in.ExpectedRevision = nil
+	in.ExpectedPolicyID = ""
+	payload, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO voucher_inputs VALUES(?,?) ON CONFLICT(document_id) DO UPDATE SET payload=excluded.payload", doc.ID, string(payload)); err != nil {
+		return nil, err
+	}
+	doc.Voucher = true
+	return Voucher{Input: in, Document: doc}, nil
 }
 
 func (s *Service) Voucher(ctx context.Context, id string) (Voucher, error) {
