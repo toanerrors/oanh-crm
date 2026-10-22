@@ -119,6 +119,15 @@ func (s *Service) costing(ctx context.Context, tx *sql.Tx, in Input, doc *ledger
 	return nil
 }
 func (s *Service) closing(ctx context.Context, tx *sql.Tx, in Input, doc *ledger.Document, result *Result) error {
+	sources, e := costSources(ctx, tx, in.Date)
+	if e != nil {
+		return e
+	}
+	for _, source := range sources {
+		if source.Remaining != "0" {
+			return accounting.Fail("UNALLOCATED_PURCHASE_COST", "Còn chi phí mua hàng chưa phân bổ hết; hoàn tất phân bổ trước khi kết chuyển.")
+		}
+	}
 	month, _ := time.Parse("2006-01", in.Date[:7])
 	if in.Date != month.AddDate(0, 1, -1).Format("2006-01-02") {
 		return accounting.Fail("INVALID_PERIOD", "Kết chuyển kết quả kinh doanh phải dùng ngày cuối kỳ.")
@@ -161,11 +170,11 @@ func (s *Service) closing(ctx context.Context, tx *sql.Tx, in Input, doc *ledger
 			if n == -9223372036854775808 {
 				return accounting.Fail("AMOUNT_OVERFLOW", "Số kết chuyển vượt giới hạn.")
 			}
-			addLine(doc, id, "", "Kết chuyển "+groups[id], -n, 0)
+			addLine(doc, id, "", "Kết chuyển "+map[string]string{"revenue": "doanh thu", "expense": "chi phí"}[groups[id]], -n, 0)
 			addLine(doc, "911", "", "Xác định kết quả", 0, -n)
 		} else {
 			addLine(doc, "911", "", "Xác định kết quả", n, 0)
-			addLine(doc, id, "", "Kết chuyển "+groups[id], 0, n)
+			addLine(doc, id, "", "Kết chuyển "+map[string]string{"revenue": "doanh thu", "expense": "chi phí"}[groups[id]], 0, n)
 		}
 		profit.Sub(profit, value)
 	}

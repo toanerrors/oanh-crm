@@ -341,3 +341,60 @@
   .documentEditor .formGrid { padding: 12px 12px 0; }
   .draftActions { gap: 8px; }
 }
+
+/* Chứng từ: danh sách và chi tiết cùng màn hình. */
+.moduleNavigation { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: -12px -16px 12px; padding: 6px 16px; background: #eef0ef; border-bottom: 1px solid #cdd5d0; }
+.moduleNavigation :global(.ant-btn) { border-radius: 0; font-weight: 400; }
+.moduleNavigation .moduleActive { background: #fff; color: #31825c; border-bottom: 2px solid #43996b; font-weight: 600; }
+.voucherListHeading > div { align-items: center; margin-bottom: 12px; }
+.voucherListHeading h1 { font-size: 18px; }
+.voucherListHeading p { display: none; }
+.documentList { border: 1px solid #d4dbd7; box-shadow: none; }
+.documentList :global(.ant-table-thead > tr > th), .documentLines :global(.ant-table-thead > tr > th) { background: #dce8e2; color: #23372d; border-bottom: 1px solid #b8c9c0; padding: 9px 12px; }
+.documentList :global(.ant-table-tbody > tr > td), .documentLines :global(.ant-table-tbody > tr > td) { border-bottom: 1px solid #d5d9d6 !important; border-right: 1px dotted #d1d8d3; }
+.documentList :global(.ant-table-tbody > .selectedDocument > td) { background: #e0f0e8 !important; }
+.documentList :global(.ant-table-tbody > .selectedDocument > td:first-child) { box-shadow: inset 3px 0 #4a9b70; }
+.documentLines { margin-top: 10px; border: 1px solid #d4dbd7; box-shadow: none; overflow: hidden; }
+.documentLines .panelHeader { padding: 4px 12px; }
+.documentLines .panelHeader h2 { font-size: 13px; }
+.sidebar { background: #202329; border-color: #202329; }
+.companySwitch { background: #30353d; border-color: #4a505a; }
+.companyIcon { background: #39473d; }
+.navLink:hover { background: #30363b; }
+.activeNav { background: #47986a; box-shadow: none; }
+.activeNav svg { color: #fff; }
+.helpCard { display: none; }
+.main { background: #e9ecea; max-width: none; }
+@media (max-width: 640px) { .moduleNavigation { margin: -12px -12px 12px; padding-inline: 8px; gap: 0; } }
+.visuallyHidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.denseWorkspace { position: relative; }
+.denseWorkspace .contextBar { position: absolute; right: 16px; top: 5px; margin: 0; z-index: 2; }
+.denseWorkspace .contextBar > span { display: none; }
+.denseWorkspace .moduleNavigation { padding-right: 240px; min-height: 44px; }
+.denseWorkspace .accountCard { padding: 7px 16px; min-height: 56px; border-left: 2px solid #539b70; }
+.denseWorkspace .accountCard strong { font-size: 16px; }
+.denseWorkspace .accountCard > div > span { margin-bottom: 1px; }
+.documentList .tableToolbar { padding: 7px 12px; gap: 8px; flex-wrap: wrap; }
+.documentList .filterSearch { width: 220px; max-width: 260px; flex: 1 1 180px; }
+.documentList .tableToolbar > div { flex-wrap: wrap; margin-left: auto; }
+@media (min-width: 761px) { .documentList :global(.ant-table-body) { height: max(200px, calc(100vh - 520px)); } }
+@media (max-width: 760px) { .denseWorkspace .contextBar { position: static; margin-bottom: 8px; } .denseWorkspace .moduleNavigation { padding-right: 8px; } .denseWorkspace .accountCards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } .denseWorkspace .accountCard { padding: 8px; } .documentList .tableToolbar > div { margin-left: 0; width: 100%; } .documentList .filterSearch { max-width: none; } }
+.denseWorkspace .moduleNavigation { min-height: 40px; margin-bottom: 8px; }
+.denseWorkspace .accountCard { min-height: 48px; padding-top: 5px; padding-bottom: 5px; }
+
+.documentEditor :global(.ant-drawer-body) { background: #e7e9e8; }
+.documentEditor :global(.ant-drawer-body > .ant-form) { min-height: calc(100dvh - 90px); display: flex; flex-direction: column; }
+.manualHeader { display: grid; grid-template-columns: minmax(0,3fr) minmax(220px,.72fr) minmax(180px,1.25fr); gap: 16px; margin-bottom: 12px; }
+.manualParty { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2fr); gap: 0 16px; }
+.manualDates { padding-left: 16px; border-left: 1px solid #cfd5d1; }
+.manualTotal { text-align: right; }
+.manualTotal strong { display: block; font-size: 26px; }
+.manualTotal small { color: #56665d; }
+.documentEditor .sectionTitle { background: #fff; padding: 12px 16px; margin: 0; border-radius: 8px 8px 0 0; }
+.documentEditor .editTable :global(.ant-table-thead > tr > th) { background: #dce8e2; }
+.documentEditor .editTable :global(.ant-table-cell .ant-select), .documentEditor .editTable :global(.ant-table-cell .ant-input), .documentEditor .editTable :global(.ant-table-cell .ant-input-number) { border-color: transparent; background: transparent; }
+.documentEditor .draftActions { margin-top: auto; margin-bottom: -16px; padding: 10px 16px; }
+@media(max-width:1000px) { .manualHeader { grid-template-columns: minmax(0,1fr) 220px; } .manualTotal { grid-column: 1 / -1; } }
+@media(max-width:640px) { .manualHeader,.manualParty { grid-template-columns: minmax(0,1fr); } .manualDates { padding-left: 0; border-left: 0; } }
+
+.tableLink { white-space: nowrap; }

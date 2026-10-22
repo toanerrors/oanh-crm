@@ -96,7 +96,16 @@ func (s *Service) Save(ctx context.Context, cmd Command, doc Document) (json.Raw
 		return nil, err
 	}
 	doc.SourceType = source
-	return s.Write(ctx, cmd, "document.save", doc, func(tx *sql.Tx) (any, error) { return s.SaveTx(ctx, tx, doc) })
+	return s.Write(ctx, cmd, "document.save", doc, func(tx *sql.Tx) (any, error) {
+		var count int
+		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM voucher_inputs WHERE document_id=?", doc.ID).Scan(&count); err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			return nil, accounting.Fail("SUBLEDGER_REQUIRED", "Mở biểu mẫu nghiệp vụ để sửa nháp và tính lại dữ liệu.")
+		}
+		return s.SaveTx(ctx, tx, doc)
+	})
 }
 func (s *Service) SaveTx(ctx context.Context, tx *sql.Tx, doc Document) (Document, error) {
 	if !accounting.ID(doc.ID) || !accounting.Date(doc.Date) || strings.TrimSpace(doc.Description) == "" || len(doc.Description) > 1000 || len(doc.Lines) > 200 || len(doc.Lines) == 0 {
@@ -196,7 +205,16 @@ func (s *Service) SaveTx(ctx context.Context, tx *sql.Tx, doc Document) (Documen
 	return doc, nil
 }
 func (s *Service) Post(ctx context.Context, cmd Command, input Post) (json.RawMessage, error) {
-	return s.Write(ctx, cmd, "document.post", input, func(tx *sql.Tx) (any, error) { return s.PostTx(ctx, tx, input) })
+	return s.Write(ctx, cmd, "document.post", input, func(tx *sql.Tx) (any, error) {
+		var count int
+		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM voucher_inputs WHERE document_id=?", input.ID).Scan(&count); err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			return nil, accounting.Fail("SUBLEDGER_REQUIRED", "Mở biểu mẫu nghiệp vụ, tính lại và ghi nhận cùng phân hệ.")
+		}
+		return s.PostTx(ctx, tx, input)
+	})
 }
 func (s *Service) PostTx(ctx context.Context, tx *sql.Tx, input Post) (Document, error) {
 	doc, err := ReadDocument(ctx, tx, input.ID)

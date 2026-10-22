@@ -1,6 +1,6 @@
 # Trạng thái dự án
 
-Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
+Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
 
 ## Phạm vi đã chốt
 
@@ -19,6 +19,17 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Runbook: [deployment.md](deployment.md).
 
 ## Đã triển khai
+
+### Biểu mẫu tham chiếu AMIS ngày 22/10/2026 — release 0.3.0
+
+- Đã khảo sát 15 URL trong Edge, gồm các liên kết GL trong ảnh. Bố cục danh sách có toolbar/tổng/chi tiết dưới, biểu mẫu toàn màn hình có đối tượng/ngày/tổng, bảng nhiều dòng, vùng đính kèm và thanh thao tác cuối. Thương hiệu Oanh, Inter tự lưu trữ có OFL; Ant Design Form/Table hiện có.
+- Phiếu thu/chi dùng chung, thu/chi ngân hàng dùng chung, chuyển nội bộ, mua/bán hàng hoặc dịch vụ; thông tin hóa đơn/metadata, nháp nghiệp vụ có version, xem trước/ghi sổ, bản đã post chỉ xem, in snapshot. Mua/bán thanh toán ngay tạo phiếu tiền liên kết atomic. Dữ liệu đang nhập giữ trong phiên, không persist trình duyệt.
+- Bộ tham chiếu 184 tài khoản từ Google Sheet, có phiên bản/hash/dòng nguồn/cha con chuẩn hóa. Chỉ thêm mã thiếu, giữ tài khoản lịch sử; 1121 cũ vẫn dùng được. 621/622/623/627 chờ tập hợp, không tự kết chuyển vào911.
+- Chiết khấu theo dòng/% hóa đơn/tổng tiền; chi phí mua hàng liên kết dòng dịch vụ đã ghi sổ, phân bổ theo lượng/giá trị/% tự nhập/giá trị tự nhập, chặn vượt hoặc trùng nguồn. Công khai quy tắc phần dư đồng; không suy đoán đó là thuật toán nội bộ AMIS.
+- Danh mục ngân hàng/số dư riêng và nhiều kho; giá vốn FIFO/bình quân theo hàng–kho, lịch sử kho cũ vào Kho mặc định. Schema2 có kiểm tra migration/checksum/fingerprint; đọc backup schema1, migration bản chuẩn bị trước đổi pointer; đối chiếu chiều kho/ngân hàng/chi phí khi mở hoặc phục hồi.
+- Validation: Go race/vet cho operations/ledger/identity/sqlite/httpserver; TypeScript strict/production build và15 test Node. Edge đã kiểm tra nháp, reload, tiền trên2^53/in, chuyển cùngTK112, bán dịch vụ CK/thu ngay, mua phân bổ phí, kết chuyển/khóa kỳ; kiểm tra bố cục trong design-qa.md. Bộ test mới có rollback, stale version, retry, reopen, backup/restore schema1→2, CK/làm tròn/phần dư và tách giá vốn hai kho. Không chạy lại Playwright CLI khi đang kiểm tra bằng Edge.
+- Không tuyên bố đã sao chép đầy đủ mọi tính năng AMIS. Phạm vi và phần chưa triển khai được ghi rõ tại [ma trận 15 màn hình](reference/misa-screen-map.md); còn các nghiệp vụ trả lại/giảm giá sau hóa đơn, kho điều chỉnh/điều chuyển, nhập khẩu/ngoại tệ, tích hợp ngân hàng/HĐĐT và biểu mẫu pháp định. Chi phí nguồn chưa phân bổ hết chặn kết chuyển; chưa hỗ trợ phân bổ hồi tố sau xuất kho.
+
 
 ### Cải thiện UI/UX ngày 21/10/2026
 
@@ -66,7 +77,7 @@ Cập nhật: 21/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 | Khôi phục | VACUUM INTO snapshot, ZIP/manifest/checksum, schema fingerprint/integrity/FK/cân đối/khớp kho/tài sản; staging xác minh, backup trước restore, giữ dataset cũ, atomic pointer, epoch mới, thu hồi phiên, nhật ký ngoài dataset |
 | UI/UX | Giao diện desktop/mobile, lazy route, trạng thái tải/lỗi/rỗng, form nháp giữ khi chuyển trang, cảnh báo trước thoát, tiền lớn chính xác; API thật mặc định, mẫu chỉ khi bật env tường minh |
 
-Tài khoản tự động hiện dùng danh mục khởi tạo cố định. Khai báo chế độ kế toán trong policy không tự đổi chart/mẫu báo cáo. Thông số thuế/bảo hiểm là dữ liệu doanh nghiệp xác nhận, không phải bộ tham số pháp định đã được hệ thống cập nhật tự động. Không dùng kết quả lỗi hoặc tham số năm 2022 từ workbook làm chuẩn.
+Tài khoản tự động dùng các vai trò hiện có và tài khoản tương thích trong bộ tham chiếu; chưa có mapping nghiệp vụ/báo cáo có phiên bản cho mọi chế độ. Khai báo chế độ kế toán trong policy không tự đổi chart/mẫu báo cáo. Thông số thuế/bảo hiểm là dữ liệu doanh nghiệp xác nhận, không phải bộ tham số pháp định đã được hệ thống cập nhật tự động. Không dùng kết quả lỗi hoặc tham số năm 2022 từ workbook làm chuẩn.
 
 ## Validation đã chạy
 
@@ -81,8 +92,8 @@ Tài khoản tự động hiện dùng danh mục khởi tạo cố định. Kha
 
 ## Chưa hoàn tất
 
-- Chưa bao phủ toàn bộ nghiệp vụ của 84 sheet. Chưa có nhập số dư chuyển đổi có mốc/cutoff riêng, chart cha/con có phiên bản, nhiều kho/đơn vị quy đổi, kiểm kê/điều chuyển/trả lại/điều chỉnh giá hồi tố hoặc đảo nghiệp vụ phân hệ tổng quát.
-- Đã có thu/chi và phân bổ thanh toán theo chứng từ; còn thiếu gắn phân bổ cho chứng từ tiền thủ công cũ, tuổi nợ theo nhóm/tổng hợp, ứng trước/bù trừ/chiết khấu, đối soát sao kê ngân hàng hoặc tích hợp hóa đơn điện tử. Tiền gửi hiện gộp TK1121, chưa có chiều số tài khoản/ngân hàng.
+- Chưa bao phủ toàn bộ nghiệp vụ của 84 sheet. Chưa có nhập số dư chuyển đổi có mốc/cutoff riêng, chart cha/con có phiên bản, quy đổi đơn vị giữa kho, kiểm kê/điều chuyển/trả lại/điều chỉnh giá hồi tố hoặc đảo nghiệp vụ phân hệ tổng quát.
+- Đã có thu/chi và phân bổ thanh toán theo chứng từ; còn thiếu gắn phân bổ cho chứng từ tiền thủ công cũ, tuổi nợ theo nhóm/tổng hợp, ứng trước/bù trừ/chiết khấu sau hóa đơn, đối soát sao kê ngân hàng hoặc tích hợp hóa đơn điện tử. Đã có chiều số tài khoản/ngân hàng cho giao dịch mới; dữ liệu tiền cũ chưa gắn số tài khoản vẫn cần đối soát riêng.
 - Lương nhận ngày công tổng hợp; chưa có bảng chấm công theo ngày, trần/điều kiện BH tự động, quy tắc miễn làm thêm theo từng đối tượng hoặc quyết toán TNCN năm. Chưa có thanh lý/điều chỉnh tài sản hay phân bổ giá thành nhiều dịch vụ theo tiêu thức.
 - Chưa có bộ BCTC pháp định, lưu chuyển tiền tệ, mẫu tờ khai/XML và gửi cơ quan thuế, phiên bản mapping chế độ/tài khoản/báo cáo đã thẩm định. TNDN hiện là phép tạm tính một khoảng không chồng lấn, chưa xử lý nộp bổ sung/quyết toán và điều chỉnh tự động các khoảng đã ghi nhận.
 - Chưa có parser XLSX, nhập workbook liên kết ngoài, lịch tác vụ định kỳ, lịch/retention backup hoặc dọn staging/blob mồ côi tự động.
@@ -91,7 +102,7 @@ Tài khoản tự động hiện dùng danh mục khởi tạo cố định. Kha
 ## Dữ kiện và vận hành
 
 - Workbook: 84 sheet, 60.135 ô công thức, 7.299 giá trị lỗi lưu sẵn, hai workbook liên kết chưa cung cấp; nhiều sheet là hướng dẫn/ví dụ/nhập tay. Phân tích/hash và ánh xạ tại `reference/`; chưa chạy macro hay tính lại workbook bằng Excel.
-- Mã nguồn được quản lý Git trên nhánh `release/v0.2.0`, tag `v0.2.0`; repository `toanerrors/oanh-crm` qua remote `origin`. Không đưa DB, backup, mật khẩu hoặc dữ liệu tài chính thực vào mã nguồn.
+- Mã nguồn đợt 0.3.0 trên nhánh `codex/misa-voucher-workspace`; mốc trước là tag `v0.2.0`; repository `toanerrors/oanh-crm` qua remote `origin`. Không đưa DB, backup, mật khẩu hoặc dữ liệu tài chính thực vào mã nguồn.
 - Test/E2E dùng thư mục tạm và dữ liệu giả lập. Hướng dẫn chạy, khởi tạo và giới hạn triển khai ở README; chi tiết API ở `api/openapi.yaml`; runbook recovery ở `backup-restore.md`.
 
 ## Bước tiếp theo

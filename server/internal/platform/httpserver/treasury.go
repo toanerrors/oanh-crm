@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"oanh.local/accounting/internal/accounting"
+	"oanh.local/accounting/internal/modules/operations"
 )
 
 func (s *Server) invoices(w http.ResponseWriter, r *http.Request) {
@@ -29,4 +30,108 @@ func (s *Server) invoices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.respond(w, 200, result)
+}
+
+func (s *Server) saveVoucher(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, false)
+	if !ok {
+		return
+	}
+	var input operations.Input
+	if !s.decode(w, r, &input) {
+		return
+	}
+	b, e := s.Operations.SaveVoucher(r.Context(), s.command(r, u), input)
+	s.result(w, r, b, e)
+}
+func (s *Server) voucher(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.user(w, r, false); !ok {
+		return
+	}
+	value, e := s.Operations.Voucher(r.Context(), r.PathValue("id"))
+	if e != nil {
+		s.failure(w, r, e)
+		return
+	}
+	s.respond(w, 200, value)
+}
+
+func (s *Server) referenceChart(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.user(w, r, false); !ok {
+		return
+	}
+	s.respond(w, 200, accounting.ReferenceChart())
+}
+func (s *Server) applyReferenceChart(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, true)
+	if !ok {
+		return
+	}
+	var input struct {
+		Version string `json:"version"`
+	}
+	if !s.decode(w, r, &input) {
+		return
+	}
+	b, e := s.Ledger.ApplyReferenceChart(r.Context(), s.command(r, u), input.Version)
+	s.result(w, r, b, e)
+}
+
+func (s *Server) banks(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.user(w, r, false); !ok {
+		return
+	}
+	value, e := s.Operations.Banks(r.Context(), r.URL.Query().Get("period"))
+	if e != nil {
+		s.failure(w, r, e)
+		return
+	}
+	s.respond(w, 200, value)
+}
+func (s *Server) saveBank(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, false)
+	if !ok {
+		return
+	}
+	var input operations.BankAccount
+	if !s.decode(w, r, &input) {
+		return
+	}
+	b, e := s.Operations.SaveBank(r.Context(), s.command(r, u), input)
+	s.result(w, r, b, e)
+}
+
+func (s *Server) warehouses(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.user(w, r, false); !ok {
+		return
+	}
+	value, e := s.Operations.Warehouses(r.Context())
+	if e != nil {
+		s.failure(w, r, e)
+		return
+	}
+	s.respond(w, 200, value)
+}
+func (s *Server) saveWarehouse(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, false)
+	if !ok {
+		return
+	}
+	var input operations.Warehouse
+	if !s.decode(w, r, &input) {
+		return
+	}
+	b, e := s.Operations.SaveWarehouse(r.Context(), s.command(r, u), input)
+	s.result(w, r, b, e)
+}
+func (s *Server) purchaseCosts(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.user(w, r, false); !ok {
+		return
+	}
+	value, e := s.Operations.PurchaseCostSources(r.Context(), r.URL.Query().Get("asOf"))
+	if e != nil {
+		s.failure(w, r, e)
+		return
+	}
+	s.respond(w, 200, value)
 }

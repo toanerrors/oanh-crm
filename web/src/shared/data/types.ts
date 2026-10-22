@@ -10,6 +10,7 @@ export interface JournalLine {
 }
 
 export interface AccountingDocument {
+  voucher?: boolean;
   datasetEpoch?: string;
   sourceType?: string;
   sourceId?: string;

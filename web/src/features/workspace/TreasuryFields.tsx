@@ -20,7 +20,7 @@ export function TreasuryFields({ kind }: { kind: OperationInput['kind'] }) {
   const [allocate, setAllocate] = useState(Boolean(params.get('invoice')));
   const queryParams = new URLSearchParams({ asOf: date ?? '', kind: kind === 'receipt' ? 'sale' : 'purchase', partner: partner ?? '', pageSize: '100' });
   const invoices = useQuery({ queryKey: [...workspaceKey(), 'invoices', queryParams.toString()], queryFn: ({ signal }) => api<InvoiceList>(`/trade-invoices?${queryParams}`, { signal }), enabled: allocate && Boolean(partner && date) && kind !== 'transfer', retry: false });
-  const moneyOptions = data?.accounts.filter(item => item.active && ['111', '1121'].includes(item.id)).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }));
+  const moneyOptions = data?.accounts.filter(item => item.active && ['111', '1121', '112'].includes(item.id)).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }));
   return <>
     <div className={styles.formGrid}>
       <Form.Item name="moneyAccount" label={kind === 'transfer' ? 'Tài khoản chuyển đi' : 'Tài khoản thu/chi'} rules={[{ required: true }]}><Select showSearch={searchOptions} options={moneyOptions} /></Form.Item>

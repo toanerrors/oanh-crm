@@ -10,7 +10,7 @@ import (
 	"oanh.local/accounting/internal/modules/ledger"
 )
 
-func moneyAccount(id string) bool { return id == "111" || id == "1121" }
+func moneyAccount(id string) bool { return id == "111" || id == "1121" || id == "112" }
 
 func (s *Service) reverseTreasury(ctx context.Context, tx *sql.Tx, in Input, doc *ledger.Document, result *Result) error {
 	original, err := ledger.ReadDocument(ctx, tx, in.OriginalDocumentID)
@@ -51,11 +51,46 @@ func (s *Service) treasury(ctx context.Context, tx *sql.Tx, in Input, doc *ledge
 	if err != nil {
 		return err
 	}
-	if amount == 0 || !moneyAccount(in.MoneyAccount) {
+	if amount == 0 || (!moneyAccount(in.MoneyAccount) && in.BankAccountID == "") {
 		return accounting.Fail("VALIDATION", "Chọn tài khoản tiền và nhập số tiền lớn hơn 0.")
 	}
+	if len(in.TreasuryLines) > 0 {
+		if in.Kind == "transfer" || len(in.Allocations) > 0 || in.CounterAccount != "" || len(in.TreasuryLines) > 100 {
+			return accounting.Fail("VALIDATION", "Không trộn dòng thu/chi với chuyển tiền hoặc phân bổ công nợ.")
+		}
+		var total int64
+		for _, row := range in.TreasuryLines {
+			n, e := accounting.Money(row.Amount)
+			if e != nil {
+				return e
+			}
+			if n == 0 {
+				return accounting.Fail("VALIDATION", "Số tiền mỗi dòng phải lớn hơn 0.")
+			}
+			total, e = accounting.Add(total, n)
+			if e != nil {
+				return e
+			}
+			child := in
+			child.Amount, child.CounterAccount, child.PartnerID, child.Description, child.TreasuryLines = row.Amount, row.CounterAccount, row.PartnerID, row.Description, nil
+			if child.PartnerID == "" {
+				child.PartnerID = in.PartnerID
+			}
+			if child.Description == "" {
+				child.Description = in.Description
+			}
+			if e = s.treasury(ctx, tx, child, doc, &Result{}); e != nil {
+				return e
+			}
+		}
+		if total != amount {
+			return accounting.Fail("AMOUNT_MISMATCH", "Tổng tiền phải bằng tổng các dòng thu/chi.")
+		}
+		result.Amounts = map[string]string{"total": accounting.Text(total)}
+		return nil
+	}
 	if in.Kind == "transfer" {
-		if !moneyAccount(in.DestinationAccount) || in.DestinationAccount == in.MoneyAccount || len(in.Allocations) != 0 || in.PartnerID != "" || in.CounterAccount != "" {
+		if (!moneyAccount(in.DestinationAccount) && in.DestinationBankAccountID == "") || in.DestinationAccount == in.MoneyAccount && (in.BankAccountID == "" || in.DestinationBankAccountID == "" || in.BankAccountID == in.DestinationBankAccountID) || len(in.Allocations) != 0 || in.PartnerID != "" || in.CounterAccount != "" {
 			return accounting.Fail("VALIDATION", "Chọn hai tài khoản tiền khác nhau khi chuyển tiền nội bộ.")
 		}
 		addLine(doc, in.DestinationAccount, "", in.Description, amount, 0)

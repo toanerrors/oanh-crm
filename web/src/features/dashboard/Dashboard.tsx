@@ -34,7 +34,7 @@ export function Component() {
     return { key, label: `Thg ${date.getUTCMonth() + 1}`, revenue: periodMovement(data.documents, data.accounts, key, 'revenue'), expense: periodMovement(data.documents, data.accounts, key, 'expense') };
   });
   const maximum = months.reduce((max, item) => { const largest = item.revenue > item.expense ? item.revenue : item.expense; return largest > max ? largest : max; }, 1n);
-  const bank = data.server ? BigInt(data.server.balances['1121']) : accountBalance(data.documents, ['1121'], period);
+  const bank = data.server ? data.server.bankBalance !== undefined ? BigInt(data.server.bankBalance) : BigInt(data.server.balances['1121']) + BigInt(data.server.balances['112'] ?? '0') : accountBalance(data.documents, ['1121', '112'], period);
   const pocket = data.server ? BigInt(data.server.balances['111']) : accountBalance(data.documents, ['111'], period);
   const canWrite = isDemo || apiScope().permissions !== 'viewer';
   const drafts = documents.filter(item => item.status === 'draft');

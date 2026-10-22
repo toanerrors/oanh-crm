@@ -13,8 +13,8 @@ import (
 
 func (s *Server) filter(w http.ResponseWriter, r *http.Request) (ledger.Filter, bool) {
 	q := r.URL.Query()
-	f := ledger.Filter{Period: q.Get("period"), Kind: q.Get("kind"), Account: q.Get("account"), Status: q.Get("status"), Type: q.Get("type"), Query: q.Get("q"), Sort: q.Get("sort"), Desc: q.Get("direction") != "asc", Page: 1, PageSize: 10}
-	if !accounting.Period(f.Period) || len(f.Query) > 300 {
+	f := ledger.Filter{Period: q.Get("period"), Source: q.Get("source"), BankAccount: q.Get("bank"), Kind: q.Get("kind"), Account: q.Get("account"), Status: q.Get("status"), Type: q.Get("type"), Query: q.Get("q"), Sort: q.Get("sort"), Desc: q.Get("direction") != "asc", Page: 1, PageSize: 10}
+	if !accounting.Period(f.Period) || len(f.Query) > 300 || f.Source != "" && f.Source != "closing" || f.BankAccount != "" && !accounting.ID(f.BankAccount) {
 		s.failure(w, r, accounting.Fail("BAD_REQUEST", "Kỳ hoặc bộ lọc không hợp lệ."))
 		return f, false
 	}

@@ -49,17 +49,14 @@ func checksumFile(path string) (string, int64, error) {
 func reconcile(ctx context.Context, db *sql.DB) (Manifest, error) {
 	var m Manifest
 	m.Format = 1
-	m.SchemaHash = Hash([]byte(schema))
+	var version int
+	if err := db.QueryRowContext(ctx, "SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil {
+		return m, err
+	}
+	m.SchemaHash = schemaHash(version)
 	m.Files = []File{}
 	if err := Check(ctx, db); err != nil {
 		return m, err
-	}
-	var migration string
-	if err := db.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE version=1").Scan(&migration); err != nil {
-		return m, err
-	}
-	if migration != m.SchemaHash {
-		return m, fmt.Errorf("unsupported schema checksum")
 	}
 	if err := db.QueryRowContext(ctx, "SELECT company_id,company_name,epoch,revision FROM meta WHERE id=1").Scan(&m.CompanyID, &m.CompanyName, &m.Epoch, &m.Revision); err != nil {
 		return m, err
@@ -309,7 +306,7 @@ func (s *Store) Stage(ctx context.Context, archivePath string) (Staged, error) {
 		return staged, err
 	}
 	m := staged.Manifest
-	if m.Format != 1 || m.SchemaHash != Hash([]byte(schema)) || len(seen) != len(m.Files)+1 {
+	if m.Format != 1 || (m.SchemaHash != schemaHash(1) && m.SchemaHash != schemaHash(2)) || len(seen) != len(m.Files)+1 {
 		return staged, fmt.Errorf("unsupported backup format or schema")
 	}
 	listed := map[string]bool{}
@@ -328,7 +325,7 @@ func (s *Store) Stage(ctx context.Context, archivePath string) (Staged, error) {
 		return staged, err
 	}
 	actual, err := reconcile(ctx, db)
-	if err == nil && (actual.CompanyID != m.CompanyID || actual.Epoch != m.Epoch || actual.Revision != m.Revision || actual.Documents != m.Documents || actual.Posted != m.Posted || actual.Debit != m.Debit || actual.Credit != m.Credit) {
+	if err == nil && (actual.SchemaHash != m.SchemaHash || actual.CompanyID != m.CompanyID || actual.Epoch != m.Epoch || actual.Revision != m.Revision || actual.Documents != m.Documents || actual.Posted != m.Posted || actual.Debit != m.Debit || actual.Credit != m.Credit) {
 		err = fmt.Errorf("backup reconciliation mismatch")
 	}
 	if err == nil {
@@ -404,6 +401,10 @@ func (s *Store) Activate(ctx context.Context, stageID string, actors ...string) 
 	}
 	db, err := Connect(ctx, filepath.Join(newDir, "accounting.sqlite"), false)
 	if err != nil {
+		return m, err
+	}
+	if err = migrate(ctx, db); err != nil {
+		db.Close()
 		return m, err
 	}
 	tx, err := db.BeginTx(ctx, nil)

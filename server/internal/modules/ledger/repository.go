@@ -18,7 +18,7 @@ type Queryer interface {
 func ReadDocument(ctx context.Context, q Queryer, id string) (Document, error) {
 	var d Document
 	var partner, reversal, policy sql.NullString
-	err := q.QueryRowContext(ctx, "SELECT id,reference,type,date,description,partner_id,status,version,source_type,source_id,reversal_of,policy_id FROM documents WHERE id=?", id).Scan(&d.ID, &d.Reference, &d.Type, &d.Date, &d.Description, &partner, &d.Status, &d.Version, &d.SourceType, &d.SourceID, &reversal, &policy)
+	err := q.QueryRowContext(ctx, "SELECT id,reference,type,date,description,partner_id,status,version,source_type,source_id,reversal_of,policy_id,EXISTS(SELECT 1 FROM voucher_inputs v WHERE v.document_id=documents.id) FROM documents WHERE id=?", id).Scan(&d.ID, &d.Reference, &d.Type, &d.Date, &d.Description, &partner, &d.Status, &d.Version, &d.SourceType, &d.SourceID, &reversal, &policy, &d.Voucher)
 	if err == sql.ErrNoRows {
 		return d, accounting.Fail("NOT_FOUND", "Không tìm thấy chứng từ.")
 	}
@@ -203,6 +203,13 @@ func (s *Service) SaveAccount(ctx context.Context, cmd Command, a Account) (json
 				return nil, accounting.Fail("HISTORY_LOCKED", "Không đổi tài khoản đã có lịch sử. Có thể ngừng sử dụng.")
 			}
 		}
+		var bankReferences int
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM bank_accounts WHERE account_id=?", a.ID).Scan(&bankReferences); err != nil {
+			return nil, err
+		}
+		if bankReferences > 0 && a.Group != "cash" {
+			return nil, accounting.Fail("HISTORY_LOCKED", "Tài khoản kế toán đang gắn ngân hàng phải giữ nhóm tiền.")
+		}
 		var duplicate int
 		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM accounts WHERE code=? AND id<>?", a.Code, a.ID).Scan(&duplicate); err != nil {
 			return nil, err
@@ -260,5 +267,27 @@ func (s *Service) SavePeriod(ctx context.Context, cmd Command, p Period) (json.R
 		}
 		_, err := tx.ExecContext(ctx, "INSERT INTO periods VALUES(?,?) ON CONFLICT(period) DO UPDATE SET closed=excluded.closed", p.Period, p.Closed)
 		return p, err
+	})
+}
+
+func (s *Service) ApplyReferenceChart(ctx context.Context, cmd Command, version string) (json.RawMessage, error) {
+	return s.Write(ctx, cmd, "admin.account.reference", version, func(tx *sql.Tx) (any, error) {
+		chart := accounting.ReferenceChart()
+		if version != chart.Version {
+			return nil, accounting.Fail("VERSION_CONFLICT", "Phiên bản hệ thống tài khoản tham chiếu đã thay đổi.")
+		}
+		added := 0
+		for _, a := range chart.Accounts {
+			result, err := tx.ExecContext(ctx, "INSERT INTO accounts(id,code,name,account_group,requires_partner,active) VALUES(?,?,?,?,?,1) ON CONFLICT(code) DO NOTHING", a.Code, a.Code, a.Name, a.Group, a.RequiresPartner)
+			if err != nil {
+				return nil, err
+			}
+			count, err := result.RowsAffected()
+			if err != nil {
+				return nil, err
+			}
+			added += int(count)
+		}
+		return map[string]any{"version": chart.Version, "added": added}, nil
 	})
 }

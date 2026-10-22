@@ -214,3 +214,13 @@ Giao diện chưa cung cấp lệnh ghi sổ thật; các trạng thái đã ghi
 - [AG Grid: Community và Enterprise](https://www.ag-grid.com/react-data-grid/community-vs-enterprise/).
 
 Tài liệu Vite, TanStack Query và SQLite đã được tra bằng Context7; các chi tiết Go/driver/router và thông báo SQLite được đối chiếu thêm từ tài liệu chính thức. Khi chọn phiên bản cài đặt, tra lại tài liệu đúng phiên bản.
+
+## Biểu mẫu nghiệp vụ và chiều ngân hàng/kho — schema 2
+
+`/vouchers/new` và `/vouchers/:id` dùng Ant Form/Table cho thu/chi, chuyển nội bộ, mua/bán hàng/dịch vụ và kết chuyển. `operations` giữ payload/cơ sở tính; `ledger` tiếp tục là nguồn bút toán duy nhất. Nháp lưu trong `voucher_inputs` và các dòng ledger nháp; service tính kiểm tra qua SAVEPOINT rồi rollback mọi biến động trước khi chỉ lưu nháp. Ghi sổ phải chạy lại qua operations; API nhập tay không được sửa/ghi sổ trực tiếp nháp phân hệ. Trạng thái đang nhập giữ trong WorkspaceProvider theo danh tính/quyền/epoch, không persist trình duyệt.
+
+`bank_accounts` liên kết số tài khoản với tài khoản sổ; `bank_movements` là chi tiết hai chiều, kể cả hai ngân hàng dùng cùng TK112. `warehouses` và hai bảng chiều gắn lô/biến động với kho; migration gắn toàn bộ tồn cũ vào `default`, không thay giá trị. Giá kho tính theo từng item–warehouse; API automation vẫn trả tồn tổng và API warehouses trả tồn chi tiết cùng snapshot. Các biến động đã ghi sổ bất biến; lô còn lại được thay đổi theo phương pháp giá kho đã xác nhận.
+
+Chi phí mua hàng giữ liên kết documentId + chỉ số dòng nguồn bất biến trong payload operations; mỗi lần phân bổ kiểm tra phần còn lại bên trong write transaction. Hàng nhập nhận thêm giá trị, đồng thời ghi Có TK chi phí của nguồn, không ghi VAT/công nợ lần hai. Làm tròn/phân bổ dùng math/big; kết quả từng dòng giữ trong calculation. Kiểm tra backup/khởi động đối chiếu kho theo chiều và tổng giá trị với ledger, chi phí phân bổ với nguồn và ngân hàng với bút toán.
+
+Bộ tài khoản tham chiếu được embed, đóng góp vào checksum migration 2. Chỉ bổ sung mã còn thiếu; chart tham chiếu không tự đổi phân nhóm tài khoản có lịch sử hoặc tạo rollup báo cáo bằng tiền tố. Không chỉnh schema.sql/migration 1 đã phát hành.

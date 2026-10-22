@@ -1,0 +1,89 @@
+package sqlite
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestLegacyMigrationAndBackupRestore(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dataset := filepath.Join(root, "datasets", "legacy")
+	if err := os.MkdirAll(filepath.Join(dataset, "attachments"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := Connect(ctx, filepath.Join(dataset, "accounting.sqlite"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{schema, "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL) STRICT", "INSERT INTO meta VALUES(1,'company','Kiểm thử','legacy-epoch',4,'VND','test')", "INSERT INTO accounts VALUES('111','111','Tên lịch sử','cash',0,1)", "INSERT INTO accounts VALUES('411','411','Vốn lịch sử','capital',0,1)", "INSERT INTO periods VALUES('2026-10',0)", "INSERT INTO documents(id,reference,type,date,description,status,version,source_type,source_id) VALUES('doc','CT-2026-000001','journal','2026-10-01','Giả lập','draft',1,'journal','legacy')", "INSERT INTO document_lines VALUES('doc',0,'111',NULL,'','Tên lịch sử','Thu',9007199254740993,0)", "INSERT INTO document_lines VALUES('doc',1,'411',NULL,'','Vốn lịch sử','Nguồn',0,9007199254740993)", "UPDATE documents SET status='posted' WHERE id='doc'"} {
+		if _, err = db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = db.Exec("INSERT INTO schema_migrations VALUES(1,?)", Hash([]byte(schema))); err != nil {
+		t.Fatal(err)
+	}
+	if err = WriteFile(filepath.Join(root, "active-dataset.json"), []byte(`{"dataset":"legacy"}`)); err != nil {
+		t.Fatal(err)
+	}
+	old := &Store{Root: root, Dataset: dataset, Read: db, Write: db}
+	archive, before, err := old.Backup(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	upgraded, err := Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upgraded.Close()
+	var version int
+	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
+	if version != 2 {
+		t.Fatal(version)
+	}
+	var name string
+	upgraded.Read.QueryRow("SELECT name FROM accounts WHERE code='111'").Scan(&name)
+	if name != "Tên lịch sử" {
+		t.Fatal(name)
+	}
+	var debit int64
+	upgraded.Read.QueryRow("SELECT debit FROM document_lines WHERE document_id='doc' AND position=0").Scan(&debit)
+	if debit != 9007199254740993 {
+		t.Fatal(debit)
+	}
+	var n int
+	upgraded.Read.QueryRow("SELECT count(*) FROM accounts").Scan(&n)
+	if n != 184 {
+		t.Fatal(n)
+	}
+	stage, err := upgraded.Stage(ctx, archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = upgraded.Activate(ctx, stage.ID); err != nil {
+		t.Fatal(err)
+	}
+	after, err := reconcile(ctx, upgraded.Read)
+	if err != nil || after.Debit != before.Debit || after.Credit != before.Credit || after.Posted != before.Posted || after.Epoch == before.Epoch {
+		t.Fatal(after, err)
+	}
+	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
+	if version != 2 {
+		t.Fatal(version)
+	}
+	if err = Check(ctx, upgraded.Read); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = upgraded.Write.Exec("UPDATE schema_migrations SET checksum='tampered' WHERE version=2"); err != nil {
+		t.Fatal(err)
+	}
+	if err = Check(ctx, upgraded.Read); err == nil {
+		t.Fatal("accepted changed migration checksum")
+	}
+}

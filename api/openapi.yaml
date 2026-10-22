@@ -147,6 +147,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       parameters:
+      - {name: source, in: query, schema: {enum: [closing]}}
+      - {name: bank, in: query, schema: {type: string}, description: Lọc chứng từ và số dư theo ID tài khoản ngân hàng}
       - *id001
       - &id003
         name: kind
@@ -268,6 +270,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       parameters:
+      - {name: source, in: query, schema: {enum: [closing]}}
+      - {name: bank, in: query, schema: {type: string}, description: Lọc chứng từ và số dư theo ID tài khoản ngân hàng}
       - *id001
       - *id003
       - *id004
@@ -1122,6 +1126,187 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/ID'
+  /voucher-drafts:
+    post:
+      summary: Tính trong savepoint rồi lưu nháp; chưa thay đổi sổ hoặc phân hệ
+      operationId: post_voucher_drafts
+      description: "Quyền: owner, accountant."
+      parameters:
+      - *id013
+      - *id014
+      responses:
+        "200":
+          description: Thành công.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Voucher"}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/Operation"}
+  /documents/{id}/voucher:
+    get:
+      summary: Đọc biểu mẫu nghiệp vụ đã lưu trong một snapshot
+      operationId: get_documents_id_voucher
+      description: "Quyền: owner, accountant, viewer."
+      parameters:
+      - {name: id, in: path, required: true, schema: {$ref: "#/components/schemas/ID"}}
+      responses:
+        "200":
+          description: Thành công.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Voucher"}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+  /documents/{id}/print:
+    get:
+      summary: Bản in HTML từ snapshot chứng từ và thông tin nguồn
+      operationId: get_documents_id_print
+      description: "Quyền: owner, accountant, viewer."
+      parameters:
+      - {name: id, in: path, required: true, schema: {$ref: "#/components/schemas/ID"}}
+      responses:
+        "200":
+          description: Thành công.
+          content:
+            text/html:
+              schema: {type: string}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+  /accounts/reference:
+    get:
+      summary: Hệ thống 184 tài khoản từ Google Sheet do người dùng chỉ định
+      operationId: get_accounts_reference
+      description: "Quyền: owner, accountant, viewer."
+      responses:
+        "200":
+          description: Thành công.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ChartTemplate"}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+    post:
+      summary: Bổ sung các mã tham chiếu còn thiếu, giữ nguyên tài khoản hiện có
+      operationId: post_accounts_reference
+      description: "Quyền: owner."
+      parameters:
+      - *id013
+      - *id014
+      responses:
+        "200":
+          description: Thành công.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ChartApplied"}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ChartApply"}
+  /bank-accounts:
+    get:
+      summary: Danh mục và số dư ngân hàng theo kỳ trong cùng snapshot
+      operationId: get_bank_accounts
+      description: "Quyền: owner, accountant, viewer."
+      parameters:
+      - {name: period, in: query, required: true, schema: {$ref: "#/components/schemas/Period"}}
+      responses:
+        "200":
+          description: Thành công.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/BankList"}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+    post:
+      summary: Khai báo hoặc ngừng sử dụng tài khoản ngân hàng
+      operationId: post_bank_accounts
+      description: "Quyền: owner, accountant."
+      parameters:
+      - *id013
+      - *id014
+      responses:
+        "200":
+          description: Thành công.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/BankAccount"}
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/BankAccount"}
+  /warehouses:
+    get:
+      summary: Danh mục kho và tồn hiện tại theo từng kho trong cùng snapshot
+      responses:
+        '200':
+          description: Danh mục và tồn hiện tại
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WarehouseList'}
+    post:
+      summary: Tạo kho hoặc ngừng sử dụng; giữ mã và tên lịch sử
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      - {$ref: '#/components/parameters/Epoch'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Warehouse'}
+      responses:
+        '200':
+          description: Kho đã lưu
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Warehouse'}
+  /purchase-costs:
+    get:
+      summary: Các dòng chi phí mua hàng đã ghi sổ và phần còn được phân bổ
+      parameters:
+      - name: asOf
+        in: query
+        required: true
+        schema: {$ref: '#/components/schemas/Date'}
+      responses:
+        '200':
+          description: Chứng từ nguồn và số chi phí chưa phân bổ tại ngày tra cứu
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PurchaseCostSource'}
 components:
   securitySchemes:
     SessionCookie:
@@ -1266,6 +1451,7 @@ components:
     Document:
       type: object
       properties:
+        voucher: {type: boolean, description: Nháp nghiệp vụ phải sửa/ghi qua biểu mẫu nghiệp vụ}
         id: *id002
         reference: *id002
         description: *id002
@@ -1520,6 +1706,13 @@ components:
     TradeLine:
       type: object
       properties:
+        costPercent: {$ref: '#/components/schemas/Decimal'}
+        warehouseId: {type: string, description: Kho nhập/xuất; bỏ trống tương thích kho mặc định}
+        discountRate: {$ref: '#/components/schemas/Decimal'}
+        discountAmount: {$ref: '#/components/schemas/Money'}
+        purchaseCost: {$ref: '#/components/schemas/Money'}
+        description: {type: string, maxLength: 1000}
+        accountId: {type: string, description: Tài khoản doanh thu hoặc chi phí/dở dang phù hợp; hàng theo dõi kho giữ 156}
         itemId:
           $ref: '#/components/schemas/ID'
         quantity:
@@ -1537,6 +1730,28 @@ components:
     Operation:
       type: object
       properties:
+        discount: {$ref: '#/components/schemas/Discount'}
+        costAllocation: {enum: [manual, quantity, value, percent], description: Phân bổ chi phí theo giá trị tiền sau CK trước VAT hoặc số lượng hoặc tỷ lệ tự nhập tổng 100 phần trăm}
+        isPurchaseCost: {type: boolean, description: Chỉ đánh dấu trên chứng từ mua dịch vụ làm nguồn phân bổ}
+        purchaseCosts: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/PurchaseCost'}}
+        draftId: {type: string}
+        draftVersion: {type: integer, minimum: 0}
+        voucher: {$ref: '#/components/schemas/VoucherInfo'}
+        tradeMode: {enum: [goods, service]}
+        paymentAccount: {type: string, description: Tài khoản tiền khi mua/bán thanh toán ngay; phiếu tiền và phân bổ được ghi cùng transaction}
+        bankAccountId: {type: string}
+        destinationBankAccountId: {type: string}
+        treasuryLines:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            properties:
+              counterAccount: {type: string}
+              partnerId: {type: string}
+              description: {type: string, maxLength: 1000}
+              amount: {$ref: '#/components/schemas/Money'}
+            required: [counterAccount, amount]
         kind:
           enum:
           - sale
@@ -1558,10 +1773,12 @@ components:
         description: *id002
         partnerId: *id002
         moneyAccount:
-          enum: ['111', '1121']
+          type: string
+          description: 111, 112, 1121 hoặc tài khoản kế toán được liên kết với bankAccountId hợp lệ
         counterAccount: {type: string}
         destinationAccount:
-          enum: ['111', '1121']
+          type: string
+          description: 111, 112, 1121 hoặc tài khoản kế toán được liên kết với bankAccountId hợp lệ
         originalDocumentId: {type: string}
         allocations:
           type: array
@@ -1637,6 +1854,19 @@ components:
     Calculation:
       type: object
       properties:
+        paymentDocument: {$ref: '#/components/schemas/Document'}
+        lineAmounts:
+          type: array
+          items:
+            type: object
+            properties:
+              discount: {$ref: '#/components/schemas/Money'}
+              purchaseCost: {$ref: '#/components/schemas/Money'}
+              purchaseValue: {$ref: '#/components/schemas/Money'}
+              base: {$ref: '#/components/schemas/Money'}
+              tax: {$ref: '#/components/schemas/Money'}
+              total: {$ref: '#/components/schemas/Money'}
+            required: [base, tax, total]
         revision: *id015
         policyId: *id002
         policyVersion: *id015
@@ -1842,6 +2072,7 @@ components:
                 $ref: '#/components/schemas/Aggregate'
               receivable:
                 $ref: '#/components/schemas/Aggregate'
+              bankBalance: {$ref: '#/components/schemas/Aggregate'}
               balances:
                 type: object
                 additionalProperties:
@@ -1892,3 +2123,134 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Asset'
+
+    VoucherInfo:
+      type: object
+      properties:
+        documentDate: {$ref: '#/components/schemas/Date'}
+        contact: {type: string, maxLength: 1000}
+        address: {type: string, maxLength: 1000}
+        taxCode: {type: string, maxLength: 1000}
+        employee: {type: string, maxLength: 1000}
+        bankNumber: {type: string, maxLength: 1000}
+        bankName: {type: string, maxLength: 1000}
+        destinationBankNumber: {type: string, maxLength: 1000}
+        destinationBankName: {type: string, maxLength: 1000}
+        reference: {type: string, maxLength: 1000}
+        contractNumber: {type: string, maxLength: 1000}
+        notes: {type: string, maxLength: 5000}
+        invoiceLookupCode: {type: string, maxLength: 1000}
+        invoiceLookupUrl: {type: string, maxLength: 1000}
+        originalCount: {type: string, pattern: '^(0|[1-9][0-9]{0,3}|10000)$', description: Số nguyên không quá 10000}
+    Voucher:
+      type: object
+      properties:
+        input: {$ref: '#/components/schemas/Operation'}
+        document: {$ref: '#/components/schemas/Document'}
+        calculation: {$ref: '#/components/schemas/Calculation'}
+        context: {$ref: '#/components/schemas/Context'}
+        debit: {$ref: '#/components/schemas/Aggregate'}
+        credit: {$ref: '#/components/schemas/Aggregate'}
+      required: [input, document]
+    BankAccount:
+      type: object
+      properties:
+        id: {$ref: '#/components/schemas/ID'}
+        number: {type: string, minLength: 1, maxLength: 100}
+        bankName: {type: string, minLength: 1, maxLength: 200}
+        accountId: {$ref: '#/components/schemas/ID'}
+        active: {type: boolean}
+        opening: {$ref: '#/components/schemas/Aggregate', readOnly: true}
+        receipts: {$ref: '#/components/schemas/Aggregate', readOnly: true}
+        payments: {$ref: '#/components/schemas/Aggregate', readOnly: true}
+        closing: {$ref: '#/components/schemas/Aggregate', readOnly: true}
+      required: [id, number, bankName, accountId, active]
+    BankList:
+      allOf:
+      - {$ref: '#/components/schemas/Context'}
+      - type: object
+        properties:
+          accounts: {type: array, items: {$ref: '#/components/schemas/BankAccount'}}
+        required: [accounts]
+    ChartAccount:
+      type: object
+      properties:
+        code: {type: string}
+        name: {type: string}
+        parentCode: {type: string}
+        level: {type: integer, minimum: 1, maximum: 4}
+        group: {type: string}
+        requiresPartner: {type: boolean}
+        sourceRow: {type: integer}
+      required: [code, name, parentCode, level, group, requiresPartner, sourceRow]
+    ChartTemplate:
+      type: object
+      properties:
+        version: {type: string}
+        effectiveFrom: {$ref: '#/components/schemas/Date'}
+        source: {type: string, format: uri}
+        sha256: {type: string}
+        accounts: {type: array, items: {$ref: '#/components/schemas/ChartAccount'}}
+      required: [version, effectiveFrom, source, sha256, accounts]
+    ChartApply:
+      type: object
+      properties:
+        version: {type: string}
+      required: [version]
+    ChartApplied:
+      type: object
+      properties:
+        version: {type: string}
+        added: {type: integer, minimum: 0}
+      required: [version, added]
+
+    Discount:
+      type: object
+      properties:
+        mode: {enum: [none, line, percent, total]}
+        rate: {$ref: '#/components/schemas/Decimal'}
+        amount: {$ref: '#/components/schemas/Money'}
+        allocation: {enum: [value, quantity, manual], description: Phân bổ đủ tổng đồng; phần dư ưu tiên phần lẻ lớn rồi thứ tự dòng}
+      required: [mode]
+    PurchaseCost:
+      type: object
+      properties:
+        documentId: {$ref: '#/components/schemas/ID'}
+        line: {type: integer, minimum: 0, maximum: 99}
+        amount: {$ref: '#/components/schemas/Money'}
+      required: [documentId, line, amount]
+    PurchaseCostSource:
+      allOf:
+      - {$ref: '#/components/schemas/PurchaseCost'}
+      - type: object
+        properties:
+          reference: {type: string}
+          date: {$ref: '#/components/schemas/Date'}
+          description: {type: string}
+          accountId: {type: string}
+          remaining: {$ref: '#/components/schemas/Money'}
+    Warehouse:
+      type: object
+      properties:
+        id: {$ref: '#/components/schemas/ID'}
+        code: {$ref: '#/components/schemas/ID'}
+        name: {type: string, minLength: 1, maxLength: 200}
+        active: {type: boolean}
+      required: [id, code, name, active]
+    WarehouseList:
+      allOf:
+      - {$ref: '#/components/schemas/Context'}
+      - type: object
+        properties:
+          warehouses: {type: array, items: {$ref: '#/components/schemas/Warehouse'}}
+          stock:
+            type: array
+            items:
+              type: object
+              properties:
+                warehouseId: {type: string}
+                itemId: {type: string}
+                quantity: {$ref: '#/components/schemas/Money'}
+                value: {$ref: '#/components/schemas/Money'}
+                scale: {type: integer, minimum: 0, maximum: 6}
+        required: [warehouses, stock]

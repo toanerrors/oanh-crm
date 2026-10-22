@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { WarehousesButton } from '../vouchers/Warehouses';
 import { Alert, App, AutoComplete, Button, Form, Input, InputNumber, Modal, Select, Switch, Table, Tabs } from 'antd';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,7 +30,7 @@ function AutomationPage() {
   const client = useQueryClient();
   const { message, modal } = App.useApp();
   const [params] = useSearchParams();
-  const [tab, setTab] = useState('operation');
+  const [tab, setTab] = useState(params.get('tab') === 'items' ? 'items' : 'operation');
   const [form] = Form.useForm<OperationInput>();
   const [catalogForm] = Form.useForm<Item | Employee>();
   const [catalogType, setCatalogType] = useState<'item' | 'employee' | null>(null);
@@ -72,7 +73,7 @@ function AutomationPage() {
         {kind === 'closing' && <Alert showIcon type="warning" title="Kết chuyển doanh thu, chi phí qua 911 và kết quả sang 421" description="Đối soát đầy đủ và ghi nhận thuế TNDN/điều chỉnh liên quan trước khi thực hiện. Chọn ngày cuối kỳ; Mở lại kỳ sẽ đảo kết chuyển cũ trước khi cho phép điều chỉnh và kết chuyển lại. Kỳ được khóa khi kết chuyển thành công." />}
         <div className={styles.formFooter}><span className={styles.muted}>{policy ? `Chính sách v${policy.version} · Từ ${policy.effectiveFrom}` : 'Chưa có chính sách hiệu lực cho ngày đã chọn'}</span><Button type="primary" htmlType="submit" loading={calculate.isPending} disabled={!policy}>Tính và xem trước</Button></div>
       </Form>}
-      {tab === 'items' && <><p className={styles.muted}>Số lượng và giá trị tồn hiện tại tại thời điểm tải, gồm toàn bộ ngày đã ghi nhận; chọn Sổ cái 156 để xem giá trị theo kỳ.</p><Button type="primary" onClick={() => addCatalog('item')}>Thêm hàng hóa / dịch vụ</Button><Table rowKey="id" dataSource={auto?.items ?? []} pagination={{ pageSize: 10 }} columns={[{ title: 'MÃ', dataIndex: 'code' }, { title: 'TÊN', dataIndex: 'name' }, { title: 'ĐƠN VỊ', dataIndex: 'unit' }, { title: 'THEO DÕI KHO', dataIndex: 'tracked', render: value => value ? 'Có' : 'Dịch vụ' }, { title: 'TỒN HIỆN TẠI', render: (_, item) => item.tracked ? formatQuantity(item.quantity ?? '0', item.scale ?? 0) : 'Không theo dõi' }, { title: 'GIÁ TRỊ TỒN (VND)', dataIndex: 'value', render: (value: string | undefined) => formatMoney(value ?? '0') }, { title: '', render: (_, item) => <Button onClick={() => addCatalog('item', item)}>Sửa</Button> }]} /></>}
+      {tab === 'items' && <><WarehousesButton /><p className={styles.muted}>Số lượng và giá trị tồn hiện tại tại thời điểm tải, gồm toàn bộ ngày đã ghi nhận; chọn Sổ cái 156 để xem giá trị theo kỳ.</p><Button type="primary" onClick={() => addCatalog('item')}>Thêm hàng hóa / dịch vụ</Button><Table rowKey="id" dataSource={auto?.items ?? []} pagination={{ pageSize: 10 }} columns={[{ title: 'MÃ', dataIndex: 'code' }, { title: 'TÊN', dataIndex: 'name' }, { title: 'ĐƠN VỊ', dataIndex: 'unit' }, { title: 'THEO DÕI KHO', dataIndex: 'tracked', render: value => value ? 'Có' : 'Dịch vụ' }, { title: 'TỒN HIỆN TẠI', render: (_, item) => item.tracked ? formatQuantity(item.quantity ?? '0', item.scale ?? 0) : 'Không theo dõi' }, { title: 'GIÁ TRỊ TỒN (VND)', dataIndex: 'value', render: (value: string | undefined) => formatMoney(value ?? '0') }, { title: '', render: (_, item) => <Button onClick={() => addCatalog('item', item)}>Sửa</Button> }]} /></>}
       {tab === 'employees' && <><Button type="primary" onClick={() => addCatalog('employee')}>Thêm nhân viên</Button><Table rowKey="id" dataSource={auto?.employees ?? []} pagination={{ pageSize: 10 }} columns={[{ title: 'MÃ', dataIndex: 'code' }, { title: 'HỌ TÊN', dataIndex: 'name' }, { title: 'LƯƠNG THÁNG', dataIndex: 'baseSalary', render: formatMoney }, { title: 'CƠ SỞ BẢO HIỂM', dataIndex: 'insuranceBase', render: formatMoney }, { title: 'NGƯỜI PHỤ THUỘC', dataIndex: 'dependents' }, { title: '', render: (_, employee) => <Button onClick={() => addCatalog('employee', employee)}>Sửa</Button> }]} /></>}
       {tab === 'assets' && <Table rowKey="id" dataSource={auto?.assets ?? []} pagination={{ pageSize: 10 }} columns={[{ title: 'MÃ', dataIndex: 'code' }, { title: 'TÊN', dataIndex: 'name' }, { title: 'LOẠI', dataIndex: 'kind', render: value => value === 'fixed' ? 'TSCĐ' : 'CCDC / 242' }, { title: 'NGUYÊN GIÁ', dataIndex: 'cost', render: formatMoney }, { title: 'ĐÃ PHÂN BỔ', dataIndex: 'allocated', render: (value: string) => formatMoney(value ?? '0') }, { title: 'SỐ THÁNG', dataIndex: 'months' }, { title: 'BẮT ĐẦU', dataIndex: 'startPeriod' }]} />}
     </div></section>

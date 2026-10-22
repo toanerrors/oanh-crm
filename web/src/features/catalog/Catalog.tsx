@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, Modal, Select, Switch, Table, Tabs, Tag } from 'antd';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert, App, Button, Form, Input, Modal, Select, Switch, Table, Tabs, Tag } from 'antd';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { normalizeSearch } from '../../shared/accounting/money';
 import { downloadCsv } from '../../shared/accounting/csv';
@@ -9,7 +9,7 @@ import type { Account, Partner } from '../../shared/data/types';
 import { DataBoundary, PageHeading, ScopeNote } from '../../shared/ui/Page';
 import { Icon } from '../../shared/ui/Icon';
 import styles from '../../app/App.module.css';
-import { apiScope, command, isDemo } from '../../shared/api/client';
+import { api, apiScope, command, isDemo } from '../../shared/api/client';
 
 const roles = { customer: 'Khách hàng', supplier: 'Nhà cung cấp', both: 'Khách hàng & NCC' };
 
@@ -48,9 +48,9 @@ export function Component() {
   return <DataBoundary>
     <PageHeading title="Danh mục" description="Sắp xếp dữ liệu nền tảng để mỗi lần nhập liệu đều thuận tiện hơn." actions={<><Button icon={<Icon name="download" size={16} />} onClick={exportData}>Xuất CSV</Button>{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <Button type="primary" onClick={() => editAccount()}>Thêm tài khoản</Button>}{tab === 'partners' && canEdit && <Button type="primary" icon={<Icon name="plus" size={17} />} onClick={() => edit(null)}>Thêm đối tượng</Button>}</>} />
     <div className={styles.catalogSummary}>{[{ label: 'Tổng đối tượng', count: data.partners.length, icon: 'users' }, { label: 'Khách hàng', count: data.partners.filter(item => item.role !== 'supplier').length, icon: 'cart' }, { label: 'Nhà cung cấp', count: data.partners.filter(item => item.role !== 'customer').length, icon: 'bag' }, { label: isDemo ? 'Tài khoản mẫu' : 'Tài khoản', count: data.accounts.length, icon: 'book' }].map(item => <div key={item.label}><span>{item.label}</span><strong>{item.count}</strong></div>)}</div>
-    <section className={styles.panel}><div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setTab(value); setSearch(''); }} items={[{ key: 'partners', label: 'Khách hàng & nhà cung cấp' }, { key: 'accounts', label: isDemo ? 'Hệ thống tài khoản mẫu' : 'Hệ thống tài khoản' }]} /></div>
+    <section className={styles.panel}><div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setTab(value); setSearch(''); }} items={[{ key: 'partners', label: 'Khách hàng & nhà cung cấp' }, { key: 'accounts', label: isDemo ? 'Hệ thống tài khoản mẫu' : 'Hệ thống tài khoản' }, ...(!isDemo ? [{ key: 'reference', label: 'Tài khoản từ Google Sheet' }] : [])]} /></div>
       <div className={styles.tableToolbar}><Input prefix={<Icon name="search" size={17} />} aria-label="Tìm trong danh mục" placeholder={tab === 'partners' ? 'Tìm mã, tên hoặc thông tin liên hệ…' : 'Tìm mã hoặc tên tài khoản…'} value={search} allowClear onChange={event => setSearch(event.target.value)} className={styles.filterSearch} />{tab === 'partners' && <Select aria-label="Lọc vai trò đối tượng" value={role} onChange={setRole} style={{ minWidth: 180 }} options={[{ value: 'all', label: 'Tất cả vai trò' }, { value: 'customer', label: 'Khách hàng' }, { value: 'supplier', label: 'Nhà cung cấp' }]} />}</div>
-      {tab === 'partners' ? <Table<Partner> rowKey="id" dataSource={partners} pagination={{ pageSize: 8, hideOnSinglePage: true }} scroll={{ x: 850 }} columns={[
+      {tab === 'reference' ? <ReferenceChart /> : tab === 'partners' ? <Table<Partner> rowKey="id" dataSource={partners} pagination={{ pageSize: 8, hideOnSinglePage: true }} scroll={{ x: 850 }} columns={[
         { title: 'MÃ ĐỐI TƯỢNG', dataIndex: 'code', width: 130, render: (code: string, item) => canEdit ? <button className={styles.tableLink} onClick={() => edit(item)}>{code}</button> : <strong>{code}</strong> },
         { title: 'TÊN ĐỐI TƯỢNG', dataIndex: 'name', render: (name: string, item) => <div className={styles.partnerCell}><span className={styles.partnerAvatar}>{name.replace(/^Công ty (TNHH|CP) /, '').slice(0, 1)}</span><span><strong>{name}</strong><small className={styles.cellSub}>{item.email || 'Chưa có email'}</small></span></div> },
         { title: 'VAI TRÒ', dataIndex: 'role', width: 150, render: (value: Partner['role']) => <Tag color={value === 'supplier' ? 'blue' : 'cyan'} variant="filled">{roles[value]}</Tag> },
@@ -70,4 +70,28 @@ export function Component() {
       </Form>
     </Modal>
   </DataBoundary>;
+}
+
+interface ChartAccount { code: string; name: string; parentCode: string; level: number; group: Account['group']; requiresPartner: boolean; sourceRow: number }
+interface ChartTemplate { version: string; effectiveFrom: string; source: string; sha256: string; accounts: ChartAccount[] }
+function ReferenceChart() {
+ const { data } = useWorkspace();
+ const { message, modal } = App.useApp();
+ const client = useQueryClient();
+ const [search, setSearch] = useState('');
+ const query = useQuery({ queryKey: [...workspaceKey(), 'account-reference'], queryFn: ({ signal }) => api<ChartTemplate>('/accounts/reference', { signal }), staleTime: Infinity, retry: false });
+ const apply = useMutation({ retry: false, mutationFn: () => command<{ added: number }>('/accounts/reference', { version: query.data!.version }), onSuccess: async result => { void message.success(`Đã bổ sung ${result.added} mã tài khoản; tài khoản hiện có được giữ nguyên.`); await client.invalidateQueries({ queryKey: workspaceKey() }); }, onError: error => void message.error(error.message) });
+ if (query.error) return <Alert type="error" title={query.error.message} />;
+ const chart = query.data;
+ const missing = chart?.accounts.filter(a => !data?.accounts.some(current => current.code === a.code)) ?? [];
+ return <div style={{ padding: 16 }}>
+  <Alert type="info" showIcon title={`Hệ thống tài khoản do người dùng cung cấp · ${chart?.accounts.length ?? '…'} mã`} description={<>Phiên bản {chart?.version ?? '…'}. Tên được giữ theo nguồn; quan hệ cha/con đã chuẩn hóa theo mã tại các dòng lệch cột. <a href={chart?.source} target="_blank" rel="noreferrer">Mở Google Sheet nguồn</a>. Nạp danh mục chỉ thêm mã còn thiếu, giữ nguyên tài khoản và số liệu đã có.</>} />
+  <div className={styles.tableToolbar}><Input aria-label="Tìm tài khoản tham chiếu" placeholder="Tìm mã hoặc tên tài khoản…" allowClear value={search} onChange={event => setSearch(event.target.value)} />{apiScope().permissions === 'owner' && <Button type="primary" disabled={!missing.length} loading={apply.isPending} onClick={() => modal.confirm({ title: `Bổ sung ${missing.length} mã tài khoản còn thiếu?`, content: 'Mã, tên và phân loại của tài khoản hiện có được giữ nguyên. Lịch sử chứng từ và chính sách hạch toán tự động không thay đổi.', okText: 'Bổ sung tài khoản', cancelText: 'Đóng', onOk: () => apply.mutateAsync().then(() => undefined) })}>Nạp {missing.length} mã còn thiếu</Button>}</div>
+  <Table<ChartAccount> rowKey="code" loading={query.isPending} dataSource={chart?.accounts.filter(a => normalizeSearch(`${a.code} ${a.name}`).includes(normalizeSearch(search)))} pagination={{ pageSize: 25, showSizeChanger: true }} scroll={{ x: 800 }} columns={[
+   { title: 'Mã tài khoản', dataIndex: 'code', width: 180, render: (value: string, row) => <strong style={{ paddingLeft: (row.level - 1) * 16 }}>{value}</strong> },
+   { title: 'Tên theo nguồn', dataIndex: 'name' }, { title: 'Tài khoản cha', dataIndex: 'parentCode', width: 120, render: value => value || '—' },
+   { title: 'Dòng nguồn', dataIndex: 'sourceRow', width: 100 },
+   { title: 'Trong doanh nghiệp', width: 180, render: (_, row) => { const current = data?.accounts.find(a => a.code === row.code); return current ? current.name === row.name ? 'Đã có' : <span>Đã có · giữ tên hiện tại</span> : <Tag color="blue">Chưa nạp</Tag>; } },
+  ]} />
+ </div>;
 }

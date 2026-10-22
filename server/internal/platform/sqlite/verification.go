@@ -35,21 +35,47 @@ func fingerprint(ctx context.Context, db *sql.DB) (string, error) {
 	return Hash(data), nil
 }
 
-var expectedFingerprint = sync.OnceValues(func() (string, error) {
+var expectedFingerprints = sync.OnceValues(func() ([2]string, error) {
+	var values [2]string
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
-		return "", err
+		return values, err
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	if _, err = db.Exec(schema); err != nil {
-		return "", err
+	for i, source := range []string{schema, vouchersSchema} {
+		if _, err = db.Exec(source); err != nil {
+			return values, err
+		}
+		values[i], err = fingerprint(context.Background(), db)
+		if err != nil {
+			return values, err
+		}
 	}
-	return fingerprint(context.Background(), db)
+	return values, nil
 })
 
 func verifySchema(ctx context.Context, db *sql.DB) error {
-	expected, err := expectedFingerprint()
+	var version, count int
+	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0),count(*) FROM schema_migrations").Scan(&version, &count); err != nil {
+		return err
+	}
+	if version < 1 || version > 2 || count != version {
+		return fmt.Errorf("unsupported migration version")
+	}
+	for i, source := range []string{schema, vouchersSchema} {
+		if i >= version {
+			break
+		}
+		var checksum string
+		if err := db.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE version=?", i+1).Scan(&checksum); err != nil {
+			return err
+		}
+		if checksum != migrationChecksum(i+1, source) {
+			return fmt.Errorf("migration checksum mismatch")
+		}
+	}
+	expected, err := expectedFingerprints()
 	if err != nil {
 		return err
 	}
@@ -57,15 +83,8 @@ func verifySchema(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	if expected != actual {
+	if expected[version-1] != actual {
 		return fmt.Errorf("database schema fingerprint differs from application migration")
-	}
-	var version, count int
-	if err = db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0),count(*) FROM schema_migrations").Scan(&version, &count); err != nil {
-		return err
-	}
-	if version != 1 || count != 1 {
-		return fmt.Errorf("unsupported migration version")
 	}
 	return nil
 }
@@ -82,6 +101,7 @@ func verifySettlements(ctx context.Context, db *sql.DB) error {
 		Amount     string `json:"amount"`
 	}
 	type payment struct {
+		BankAccountID                             string       `json:"bankAccountId"`
 		MoneyAccount                              string       `json:"moneyAccount"`
 		Amount                                    string       `json:"amount"`
 		Allocations                               []allocation `json:"allocations"`
@@ -113,7 +133,7 @@ func verifySettlements(ctx context.Context, db *sql.DB) error {
 		if err != nil || amount == 0 || len(p.Allocations) > 100 {
 			return fmt.Errorf("invalid settlement amount")
 		}
-		if p.MoneyAccount != "111" && p.MoneyAccount != "1121" {
+		if p.MoneyAccount != "111" && p.MoneyAccount != "1121" && p.MoneyAccount != "112" && p.BankAccountID == "" {
 			return fmt.Errorf("invalid settlement money account")
 		}
 		counter := "131"
@@ -224,35 +244,56 @@ func verifySettlements(ctx context.Context, db *sql.DB) error {
 }
 
 type stockTotal struct{ quantity, value *big.Int }
+type stockKey struct{ item, warehouse string }
 
-func stocks(ctx context.Context, db *sql.DB, table string) (map[string]stockTotal, error) {
+func stocks(ctx context.Context, db *sql.DB, table string) (map[stockKey]stockTotal, error) {
 	if table != "stock_lots" && table != "stock_movements" {
 		return nil, fmt.Errorf("unsupported stock source")
 	}
-	rows, err := db.QueryContext(ctx, "SELECT item_id,quantity,value,scale FROM "+table)
+	var hasWarehouses int
+	if e := db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_schema WHERE name='warehouses' AND type='table'").Scan(&hasWarehouses); e != nil {
+		return nil, e
+	}
+	query := "SELECT item_id,quantity,value,scale,'default' FROM " + table
+	if hasWarehouses > 0 {
+		dimension, key := "stock_lot_warehouses", "lot_id"
+		if table == "stock_movements" {
+			dimension, key = "stock_movement_warehouses", "movement_id"
+		}
+		var missing int
+		if e := db.QueryRowContext(ctx, "SELECT count(*) FROM "+table+" s LEFT JOIN "+dimension+" w ON w."+key+"=s.id WHERE w.warehouse_id IS NULL").Scan(&missing); e != nil {
+			return nil, e
+		}
+		if missing > 0 {
+			return nil, fmt.Errorf("stock warehouse dimension missing")
+		}
+		query = "SELECT s.item_id,s.quantity,s.value,s.scale,w.warehouse_id FROM " + table + " s JOIN " + dimension + " w ON w." + key + "=s.id"
+	}
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	values := map[string]stockTotal{}
+	values := map[stockKey]stockTotal{}
 	for rows.Next() {
-		var id string
+		var id, warehouse string
 		var quantity, value int64
 		var scale int
-		if err = rows.Scan(&id, &quantity, &value, &scale); err != nil {
+		if err = rows.Scan(&id, &quantity, &value, &scale, &warehouse); err != nil {
 			return nil, err
 		}
 		if scale < 0 || scale > 6 {
 			return nil, fmt.Errorf("invalid quantity scale")
 		}
-		total, exists := values[id]
+		key := stockKey{id, warehouse}
+		total, exists := values[key]
 		if !exists {
 			total = stockTotal{new(big.Int), new(big.Int)}
 		}
 		factor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(6-scale)), nil)
 		total.quantity.Add(total.quantity, new(big.Int).Mul(big.NewInt(quantity), factor))
 		total.value.Add(total.value, big.NewInt(value))
-		values[id] = total
+		values[key] = total
 	}
 	return values, rows.Err()
 }

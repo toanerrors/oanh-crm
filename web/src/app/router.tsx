@@ -16,6 +16,8 @@ export const router = createBrowserRouter([{
     { index: true, lazy: () => import('../features/dashboard/Dashboard') },
     ...['documents', 'sales', 'purchases', 'cash', 'bank', 'inventory'].map(path => ({ path, lazy: () => import('../features/documents/Documents') })),
     { path: 'settlements', lazy: () => import('../features/documents/Settlements') },
+    { path: 'vouchers/new', lazy: () => import('../features/vouchers/VoucherForm') },
+    { path: 'vouchers/:id', lazy: () => import('../features/vouchers/VoucherForm') },
     { path: 'automation', lazy: () => import('../features/workspace/Automation') },
     { path: 'catalog', lazy: () => import('../features/catalog/Catalog') },
     ...['reports', 'receivables'].map(path => ({ path, lazy: () => import('../features/reports/Reports') })),

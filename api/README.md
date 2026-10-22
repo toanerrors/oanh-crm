@@ -51,3 +51,16 @@ Chuyển tiền nhận `moneyAccount` và `destinationAccount` khác nhau. Đả
 `GET /trade-invoices?asOf=YYYY-MM-DD&kind=sale|purchase&partner=&page=1&pageSize=10` trả công nợ từ chứng từ mua/bán và ghi tăng tài sản có 331. Số đã phân bổ chỉ gồm phân bổ đến ngày tra cứu chưa bị đảo tại ngày đó. Có thanh toán sau ngày tra cứu hoặc bút toán giảm công nợ ngoài luồng sẽ đánh dấu `unallocated` và chặn thanh toán tự động; số còn lại của dòng này chưa phải số dư công nợ đã đối soát. Công nợ từ chứng từ khác vẫn xem bằng báo cáo theo đối tượng. Tổng toàn bộ tập lọc dùng số nguyên lớn; giới hạn tập 100.000 chứng từ.
 
 Mua/bán nhận thông tin hóa đơn tùy chọn: `invoiceNumber`, `invoiceSeries`, `invoiceDate`, `dueDate`. Nhập số hóa đơn phải có ngày; hạn thanh toán không trước ngày hóa đơn. Kiểm tra trùng theo bên phát hành + ký hiệu + số trong các nghiệp vụ tự động đã lưu, lỗi `DUPLICATE_INVOICE` trả 409. Chưa xác minh hóa đơn với nhà cung cấp dịch vụ bên ngoài, không thay cho khóa định danh hóa đơn điện tử pháp định đầy đủ.
+
+## Biểu mẫu, danh mục tham chiếu và chiều ngân hàng/kho (0.3.0)
+
+- `POST /voucher-drafts`, `GET /documents/{id}/voucher` lưu/đọc toàn bộ input thu/chi/chuyển nội bộ/mua/bán. Nháp có draftId/draftVersion, được server tính kiểm tra rồi rollback biến động trước khi lưu. Post bằng operations, không post nháp này qua API thủ công. Kết chuyển có biểu mẫu xem/ghi sổ riêng, không lưu nháp nghiệp vụ.
+- `GET /documents/{id}/print` in snapshot chứng từ, tên tài khoản lúc lưu và cơ sở tính; không dùng tổng cộng riêng trang frontend. Metadata voucher nhận ngày chứng từ, người liên hệ, địa chỉ, nhân viên, tham chiếu, hóa đơn và ghi chú.
+- `GET/POST /accounts/reference`: đọc bộ 184 tài khoản người dùng chỉ định, hoặc chủ sở hữu áp dụng đúng version để thêm mã thiếu. Không sửa tên/nhóm tài khoản đã có.
+- `GET /bank-accounts?period=YYYY-MM`, `POST /bank-accounts`: danh mục và dư đầu/thu/chi/dư cuối từng ngân hàng, số tài khoản/tên/TK kế toán bất biến. Biến động mới dùng bankAccountId; TK tiền được suy ra/kiểm tra. Cho chuyển giữa hai ngân hàng khác ID cùng TK112. Bộ lọc documents hỗ trợ bank; bank không tự gán cho dữ liệu cũ.
+- `GET/POST /warehouses`: danh mục và tồn hiện tại theo từng kho; dòng hàng nhận warehouseId, bỏ trống tương thích Kho mặc định. Giữ mã/tên kho đã tạo.
+- Mua/bán nhận discount (none/line/percent/total), tỷ lệ hoặc tiền CK từng dòng, tiêu thức quantity/value/manual. Giá/VAT và phần dư tính trên server; kết quả lineAmounts có base/tax/total/discount/purchaseCost/purchaseValue.
+- `GET /purchase-costs?asOf=YYYY-MM-DD`: các dòng dịch vụ đã đánh dấu isPurchaseCost và phần chưa phân bổ. Mua nhập kho nhận purchaseCosts[{documentId,line,amount}], costAllocation (manual/quantity/value/percent), purchaseCost hoặc costPercent từng dòng tương ứng. Chặn vượt nguồn, sai ngày, lặp nguồn, lệch tổng và tỷ lệ không đủ100%; chặn kết chuyển khi còn phí chưa phân bổ.
+- Thanh toán ngay nhận paymentAccount và bankAccountId nếu qua ngân hàng; chứng từ mua/bán, kho, phiếu tiền và phân bổ công nợ commit hoặc rollback cùng nhau. Kết quả trả paymentDocument để truy phiếu liên kết.
+
+47 method/path đã được mô tả trong OpenAPI. Dữ liệu tài chính vẫn là chuỗi; không thêm production dependency. Giới hạn nghiệp vụ và nguồn AMIS ở [ma trận màn hình](../docs/reference/misa-screen-map.md).

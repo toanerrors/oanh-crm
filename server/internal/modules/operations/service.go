@@ -320,6 +320,12 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 	if !accounting.Date(input.Date) || !accounting.ID(input.SourceID) || strings.TrimSpace(input.Description) == "" {
 		return r, accounting.Fail("VALIDATION", "Nhập ngày, mã nguồn nghiệp vụ và diễn giải.")
 	}
+	if err := normalizeBanks(ctx, tx, &input); err != nil {
+		return r, err
+	}
+	if err := validateVoucher(input); err != nil {
+		return r, err
+	}
 	p, err := PolicyAt(ctx, tx, input.Date)
 	if err != nil {
 		return r, err
@@ -335,6 +341,27 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 	r.PolicyID = p.ID
 	r.PolicyVersion = p.Version
 	doc := ledger.Document{ID: sqlite.ID(), Type: "journal", Date: input.Date, Description: input.Description, PartnerID: input.PartnerID, SourceType: input.Kind, SourceID: input.SourceID, PolicyID: p.ID, Lines: []ledger.Line{}}
+	if input.DraftID != "" {
+		saved, e := ledger.ReadDocument(ctx, tx, input.DraftID)
+		if e != nil {
+			return r, e
+		}
+		var original string
+		if e = tx.QueryRowContext(ctx, "SELECT payload FROM voucher_inputs WHERE document_id=?", input.DraftID).Scan(&original); e != nil {
+			return r, accounting.Fail("INVALID_SOURCE", "Không tìm thấy nháp nghiệp vụ.")
+		}
+		var previous Input
+		if e = json.Unmarshal([]byte(original), &previous); e != nil {
+			return r, e
+		}
+		if saved.Status != "draft" || saved.Version != input.DraftVersion {
+			return r, accounting.Fail("VERSION_CONFLICT", "Nháp đã thay đổi hoặc đã ghi sổ. Tải lại trước khi tiếp tục.")
+		}
+		if previous.Kind != input.Kind {
+			return r, accounting.Fail("INVALID_SOURCE", "Không đổi loại nghiệp vụ của nháp đã lưu.")
+		}
+		doc.ID, doc.Version = saved.ID, saved.Version
+	}
 	switch input.Kind {
 	case "treasury_reversal":
 		doc.SourceID = input.OriginalDocumentID
@@ -369,6 +396,9 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 	if err != nil {
 		return r, err
 	}
+	if err = recordBankMovements(ctx, tx, input, doc); err != nil {
+		return r, err
+	}
 	doc, err = s.Ledger.SaveTx(ctx, tx, doc)
 	if err != nil {
 		return r, err
@@ -379,6 +409,15 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 		residual, _ := accounting.Money(a.Residual)
 		if _, err = tx.ExecContext(ctx, "INSERT INTO assets VALUES(?,?,?,?,?,?,?,?,?,0)", a.ID, a.Code, a.Name, a.Kind, cost, residual, a.Months, a.StartPeriod, doc.ID); err != nil {
 			return r, err
+		}
+	}
+	if input.DraftID != "" {
+		b, e := json.Marshal(input)
+		if e != nil {
+			return r, e
+		}
+		if _, e = tx.ExecContext(ctx, "UPDATE voucher_inputs SET payload=? WHERE document_id=?", string(b), doc.ID); e != nil {
+			return r, e
 		}
 	}
 	r.Document, err = s.Ledger.PostTx(ctx, tx, ledger.Post{ID: doc.ID, Version: doc.Version})
@@ -399,6 +438,25 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 		return r, err
 	}
 	_, err = tx.ExecContext(ctx, "INSERT INTO operations VALUES(?,?,?,?,?,?,?,?)", sqlite.ID(), input.Kind, doc.SourceID, input.Date, doc.ID, p.ID, string(payload), string(calculation))
+	if err != nil {
+		return r, err
+	}
+	if (input.Kind == "sale" || input.Kind == "purchase") && input.PaymentAccount != "" {
+		kind := "receipt"
+		if input.Kind == "purchase" {
+			kind = "payment"
+		}
+		payment, e := s.run(ctx, tx, Input{BankAccountID: input.BankAccountID, Kind: kind, SourceID: "settlement:" + doc.ID, Date: input.Date, Description: input.Description, PartnerID: input.PartnerID, MoneyAccount: input.PaymentAccount, Amount: r.Amounts["total"], Allocations: []Allocation{{DocumentID: doc.ID, Amount: r.Amounts["total"]}}, Voucher: input.Voucher})
+		if e != nil {
+			return r, e
+		}
+		r.PaymentDocument = &payment.Document
+		calculation, e = json.Marshal(r)
+		if e != nil {
+			return r, e
+		}
+		_, err = tx.ExecContext(ctx, "UPDATE operations SET calculation=? WHERE document_id=?", string(calculation), doc.ID)
+	}
 	return r, err
 }
 func addLine(doc *ledger.Document, account, partner, description string, debit, credit int64) {

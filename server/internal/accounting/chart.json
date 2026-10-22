@@ -1,0 +1,1664 @@
+{
+  "version": "user-sheet-2026-10-22",
+  "effectiveFrom": "2026-01-01",
+  "source": "https://docs.google.com/spreadsheets/d/1SGGiB8oowT89Pi0GPwvNoo-NDT_E4fl_B7gx__VW-ds/edit?gid=0#gid=0",
+  "sha256": "3b2153aae50e681c467674287a0920c753d470ffc3a85ec70d781ccd6eddf0cf",
+  "accounts": [
+    {
+      "code": "111",
+      "name": "Tiền mặt",
+      "parentCode": "",
+      "level": 1,
+      "group": "cash",
+      "requiresPartner": false,
+      "sourceRow": 6
+    },
+    {
+      "code": "112",
+      "name": "Tiền gửi không kỳ hạn",
+      "parentCode": "",
+      "level": 1,
+      "group": "cash",
+      "requiresPartner": false,
+      "sourceRow": 7
+    },
+    {
+      "code": "113",
+      "name": "Tiền đang chuyển",
+      "parentCode": "",
+      "level": 1,
+      "group": "cash",
+      "requiresPartner": false,
+      "sourceRow": 8
+    },
+    {
+      "code": "121",
+      "name": "Chứng khoán kinh doanh",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 9
+    },
+    {
+      "code": "128",
+      "name": "Đầu tư nắm giữ đến ngày đáo hạn",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 10
+    },
+    {
+      "code": "1281",
+      "name": "Tiền gửi có kỳ hạn",
+      "parentCode": "128",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 11
+    },
+    {
+      "code": "1282",
+      "name": "Trái phiều",
+      "parentCode": "128",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 12
+    },
+    {
+      "code": "1283",
+      "name": "Cho vay",
+      "parentCode": "128",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 13
+    },
+    {
+      "code": "1288",
+      "name": "Các khoản đầu tư khác nắm giữ đến ngày đáo hạn",
+      "parentCode": "128",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 14
+    },
+    {
+      "code": "131",
+      "name": "Phải thu của khách hàng",
+      "parentCode": "",
+      "level": 1,
+      "group": "receivable",
+      "requiresPartner": true,
+      "sourceRow": 15
+    },
+    {
+      "code": "133",
+      "name": "Thuế GTGT được khấu trừ",
+      "parentCode": "",
+      "level": 1,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 16
+    },
+    {
+      "code": "1331",
+      "name": "Thuế GTGT được khẩu trừ của hàng hóa, dịch vụ",
+      "parentCode": "133",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 17
+    },
+    {
+      "code": "1332",
+      "name": "Thuế GTGT được khấu trừ của TSCĐ",
+      "parentCode": "133",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 18
+    },
+    {
+      "code": "136",
+      "name": "Phải thu nội bộ",
+      "parentCode": "",
+      "level": 1,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 19
+    },
+    {
+      "code": "1361",
+      "name": "Vốn kinh doanh ở đơn vị trực thuộc",
+      "parentCode": "136",
+      "level": 2,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 20
+    },
+    {
+      "code": "1362",
+      "name": "Phải thu nội bộ về chênh lệch tỷ giá",
+      "parentCode": "136",
+      "level": 2,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 21
+    },
+    {
+      "code": "1363",
+      "name": "Phải thu nội bộ về chi phí đi vay đủ điều kiện được vốn hoá",
+      "parentCode": "136",
+      "level": 2,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 22
+    },
+    {
+      "code": "1368",
+      "name": "Phải thu nội bộ khác",
+      "parentCode": "136",
+      "level": 2,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 23
+    },
+    {
+      "code": "138",
+      "name": "Phải thu khác",
+      "parentCode": "",
+      "level": 1,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 24
+    },
+    {
+      "code": "1381",
+      "name": "Tài sản thiếu chờ xử lý",
+      "parentCode": "138",
+      "level": 2,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 25
+    },
+    {
+      "code": "1383",
+      "name": "Thuế TTĐB của hàng nhập khẩu",
+      "parentCode": "138",
+      "level": 2,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 26
+    },
+    {
+      "code": "1388",
+      "name": "Phải thu khác",
+      "parentCode": "138",
+      "level": 2,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 27
+    },
+    {
+      "code": "141",
+      "name": "Tạm ứng",
+      "parentCode": "",
+      "level": 1,
+      "group": "receivable",
+      "requiresPartner": false,
+      "sourceRow": 28
+    },
+    {
+      "code": "151",
+      "name": "Hàng mua đang đi đường",
+      "parentCode": "",
+      "level": 1,
+      "group": "inventory",
+      "requiresPartner": false,
+      "sourceRow": 29
+    },
+    {
+      "code": "152",
+      "name": "Nguyên liệu, vật liệu",
+      "parentCode": "",
+      "level": 1,
+      "group": "inventory",
+      "requiresPartner": false,
+      "sourceRow": 30
+    },
+    {
+      "code": "153",
+      "name": "Công cụ, dụng cụ",
+      "parentCode": "",
+      "level": 1,
+      "group": "inventory",
+      "requiresPartner": false,
+      "sourceRow": 31
+    },
+    {
+      "code": "154",
+      "name": "Chỉ phí sản xuất, kinh doanh dờ dang",
+      "parentCode": "",
+      "level": 1,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 32
+    },
+    {
+      "code": "155",
+      "name": "Sản phẩm",
+      "parentCode": "",
+      "level": 1,
+      "group": "inventory",
+      "requiresPartner": false,
+      "sourceRow": 33
+    },
+    {
+      "code": "156",
+      "name": "Hàng hoá",
+      "parentCode": "",
+      "level": 1,
+      "group": "inventory",
+      "requiresPartner": false,
+      "sourceRow": 34
+    },
+    {
+      "code": "157",
+      "name": "Hàng gửi đi bán",
+      "parentCode": "",
+      "level": 1,
+      "group": "inventory",
+      "requiresPartner": false,
+      "sourceRow": 35
+    },
+    {
+      "code": "158",
+      "name": "Nguyên liệu, vật tư tại kho bảo thuế",
+      "parentCode": "",
+      "level": 1,
+      "group": "inventory",
+      "requiresPartner": false,
+      "sourceRow": 36
+    },
+    {
+      "code": "171",
+      "name": "Giao dịch mua, bán lại trái phiếu chính phủ",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 37
+    },
+    {
+      "code": "211",
+      "name": "Tài sản cố định hữu hình",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 38
+    },
+    {
+      "code": "212",
+      "name": "Tài sản cố định thuê tài chính",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 39
+    },
+    {
+      "code": "213",
+      "name": "Tài sản cố định vô hình",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 40
+    },
+    {
+      "code": "214",
+      "name": "Hao mòn tài sản cố định",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 41
+    },
+    {
+      "code": "2141",
+      "name": "Hao mòn TSCĐ hữu hình",
+      "parentCode": "214",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 42
+    },
+    {
+      "code": "2142",
+      "name": "Hao mòn TSCĐ thuê tài chính",
+      "parentCode": "214",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 43
+    },
+    {
+      "code": "2143",
+      "name": "Hao mòn TSCĐ vô hình",
+      "parentCode": "214",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 44
+    },
+    {
+      "code": "2147",
+      "name": "Hao mòn BĐSĐT",
+      "parentCode": "214",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 45
+    },
+    {
+      "code": "215",
+      "name": "Tài sản sinh học",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 46
+    },
+    {
+      "code": "2151",
+      "name": "Súc vật nuôi cho sản phẩm định kỳ",
+      "parentCode": "215",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 47
+    },
+    {
+      "code": "21511",
+      "name": "Súc vật nuôi cho sản phẩm định kỳ chưa đạt đến giai đoạn trưởng thành",
+      "parentCode": "2151",
+      "level": 3,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 48
+    },
+    {
+      "code": "21512",
+      "name": "Súc vật nuôi cho sản phẩm định kỳ đạt đến giai đoạn trưởng thành",
+      "parentCode": "2151",
+      "level": 3,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 49
+    },
+    {
+      "code": "215121",
+      "name": "Nguyên giá",
+      "parentCode": "21512",
+      "level": 4,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 50
+    },
+    {
+      "code": "215122",
+      "name": "Giá trị khẩu hao lũy kế",
+      "parentCode": "21512",
+      "level": 4,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 51
+    },
+    {
+      "code": "2152",
+      "name": "Súc vật nuôi lấy sản phẩm một lần",
+      "parentCode": "215",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 52
+    },
+    {
+      "code": "2153",
+      "name": "Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần",
+      "parentCode": "215",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 53
+    },
+    {
+      "code": "217",
+      "name": "Bất động sản đầu tư",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 54
+    },
+    {
+      "code": "221",
+      "name": "Đầu tư vào công ty con",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 55
+    },
+    {
+      "code": "222",
+      "name": "Đầu tư vào công ty liên doanh, liên kết",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 56
+    },
+    {
+      "code": "228",
+      "name": "Đầu tư khác",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 57
+    },
+    {
+      "code": "2281",
+      "name": "Đầu tư góp vốn vào đơn vị khác",
+      "parentCode": "228",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 58
+    },
+    {
+      "code": "2288",
+      "name": "Đầu tư khác",
+      "parentCode": "228",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 59
+    },
+    {
+      "code": "229",
+      "name": "Dự phòng tổn thất tài sản",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 60
+    },
+    {
+      "code": "2291",
+      "name": "Dự phòng giảm giá chứng khoán kinh doanh",
+      "parentCode": "229",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 61
+    },
+    {
+      "code": "2292",
+      "name": "Dự phòng tổn thất đầu tư vào đơn vị khác",
+      "parentCode": "229",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 62
+    },
+    {
+      "code": "2293",
+      "name": "Dự phòng phải thu khó đòi",
+      "parentCode": "229",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 63
+    },
+    {
+      "code": "2294",
+      "name": "Dự phòng giảm giá hàng tồn kho",
+      "parentCode": "229",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 64
+    },
+    {
+      "code": "2295",
+      "name": "Dự phòng tổn thất tài sản sinh học",
+      "parentCode": "229",
+      "level": 2,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 65
+    },
+    {
+      "code": "241",
+      "name": "Xây dựng cơ bản đỡ dang",
+      "parentCode": "",
+      "level": 1,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 66
+    },
+    {
+      "code": "2411",
+      "name": "Mua sắm TSCĐ",
+      "parentCode": "241",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 67
+    },
+    {
+      "code": "2412",
+      "name": "Xây dựng cơ bản",
+      "parentCode": "241",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 68
+    },
+    {
+      "code": "2413",
+      "name": "Sửa chữa, bảo dưỡng định kỳ TSCĐ",
+      "parentCode": "241",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 69
+    },
+    {
+      "code": "2414",
+      "name": "Nâng cấp, cải tạo TSCĐ",
+      "parentCode": "241",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 70
+    },
+    {
+      "code": "242",
+      "name": "Chi phí chờ phân bổ",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 71
+    },
+    {
+      "code": "243",
+      "name": "Tài sản thuế thu nhập hoãn lại",
+      "parentCode": "",
+      "level": 1,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 72
+    },
+    {
+      "code": "244",
+      "name": "Ký quỹ, ký cược",
+      "parentCode": "",
+      "level": 1,
+      "group": "asset",
+      "requiresPartner": false,
+      "sourceRow": 73
+    },
+    {
+      "code": "331",
+      "name": "Phải trả cho người bán",
+      "parentCode": "",
+      "level": 1,
+      "group": "payable",
+      "requiresPartner": true,
+      "sourceRow": 75
+    },
+    {
+      "code": "332",
+      "name": "Phải trả cổ tức, lợi nhuận",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 76
+    },
+    {
+      "code": "333",
+      "name": "Thuế và các khoản phải nộp Nhà nước",
+      "parentCode": "",
+      "level": 1,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 77
+    },
+    {
+      "code": "3331",
+      "name": "Thuế giá trị gia tăng phải nộp",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 78
+    },
+    {
+      "code": "33311",
+      "name": "Thuế GTGT đầu ra",
+      "parentCode": "3331",
+      "level": 3,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 79
+    },
+    {
+      "code": "33312",
+      "name": "Thuế GTGT hàng nhập khẩu",
+      "parentCode": "3331",
+      "level": 3,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 80
+    },
+    {
+      "code": "3332",
+      "name": "Thuế tiêu thụ đặc biệt",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 81
+    },
+    {
+      "code": "3333",
+      "name": "Thuế xuất, nhập khẩu",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 82
+    },
+    {
+      "code": "3334",
+      "name": "Thuế thu nhập doanh nghiệp",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 83
+    },
+    {
+      "code": "3335",
+      "name": "Thuế thu nhập cá nhân",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 84
+    },
+    {
+      "code": "3336",
+      "name": "Thuế tài nguyên",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 85
+    },
+    {
+      "code": "3337",
+      "name": "Thuế nhà đất, tiền thuê đất",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 86
+    },
+    {
+      "code": "3338",
+      "name": "Thuế bảo vệ môi trường và các loại thuế khác",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 87
+    },
+    {
+      "code": "33381",
+      "name": "Thuế bảo vệ môi trường",
+      "parentCode": "3338",
+      "level": 3,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 88
+    },
+    {
+      "code": "33382",
+      "name": "Các loại thuế khác",
+      "parentCode": "3338",
+      "level": 3,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 89
+    },
+    {
+      "code": "3339",
+      "name": "Phí, lệ phí và các khoản phải nộp khác",
+      "parentCode": "333",
+      "level": 2,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 90
+    },
+    {
+      "code": "334",
+      "name": "Phải trả người lao động",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 91
+    },
+    {
+      "code": "335",
+      "name": "Chi phí phải trả",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 92
+    },
+    {
+      "code": "336",
+      "name": "Phải trả nội bộ",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 93
+    },
+    {
+      "code": "3361",
+      "name": "Phải trả nội bộ về vốn kinh doanh",
+      "parentCode": "336",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 94
+    },
+    {
+      "code": "3362",
+      "name": "Phải trả nội bộ về chênh lệch tỷ giá",
+      "parentCode": "336",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 95
+    },
+    {
+      "code": "3363",
+      "name": "Phải trả nội bộ về chi phí đi vay đủ điều kiện được vốn hoá",
+      "parentCode": "336",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 96
+    },
+    {
+      "code": "3368",
+      "name": "Phải trả nội bộ khác",
+      "parentCode": "336",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 97
+    },
+    {
+      "code": "337",
+      "name": "Thanh toán theo tiến độ hợp đồng xây dựng",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 98
+    },
+    {
+      "code": "338",
+      "name": "Phải trả, phải nộp khác",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 99
+    },
+    {
+      "code": "3381",
+      "name": "Tài sản thừa chờ giải quyết",
+      "parentCode": "338",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 100
+    },
+    {
+      "code": "3382",
+      "name": "Kinh phí công đoàn",
+      "parentCode": "338",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 101
+    },
+    {
+      "code": "3383",
+      "name": "Bảo hiểm xã hội",
+      "parentCode": "338",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 102
+    },
+    {
+      "code": "3384",
+      "name": "Bảo hiểm y tế",
+      "parentCode": "338",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 103
+    },
+    {
+      "code": "3386",
+      "name": "Bảo hiểm thất nghiệp",
+      "parentCode": "338",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 104
+    },
+    {
+      "code": "3387",
+      "name": "Doanh thu chờ phân bổ",
+      "parentCode": "338",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 105
+    },
+    {
+      "code": "3388",
+      "name": "Phải trả, phải nộp khác",
+      "parentCode": "338",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 106
+    },
+    {
+      "code": "341",
+      "name": "Vay và nợ thuê tài chính",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 107
+    },
+    {
+      "code": "3411",
+      "name": "Các khoản đi vay",
+      "parentCode": "341",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 108
+    },
+    {
+      "code": "3412",
+      "name": "Nợ thuê tài chính",
+      "parentCode": "341",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 109
+    },
+    {
+      "code": "343",
+      "name": "Trái phiếu phát hành",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 110
+    },
+    {
+      "code": "3431",
+      "name": "Trái phiếu thường",
+      "parentCode": "343",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 111
+    },
+    {
+      "code": "3432",
+      "name": "Trái phiếu chuyển đổi",
+      "parentCode": "343",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 112
+    },
+    {
+      "code": "344",
+      "name": "Nhận ký quỹ, ký cược",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 113
+    },
+    {
+      "code": "347",
+      "name": "Thuế thu nhập hoãn lại phải trả",
+      "parentCode": "",
+      "level": 1,
+      "group": "tax",
+      "requiresPartner": false,
+      "sourceRow": 114
+    },
+    {
+      "code": "352",
+      "name": "Dự phòng phải trả",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 115
+    },
+    {
+      "code": "3521",
+      "name": "Dự phòng bảo hành sản phẩm, hàng hóa",
+      "parentCode": "352",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 116
+    },
+    {
+      "code": "3522",
+      "name": "Dự phòng bảo hành công trình xây dựng",
+      "parentCode": "352",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 117
+    },
+    {
+      "code": "3523",
+      "name": "Dự phòng tái cơ cấu doanh nghiệp",
+      "parentCode": "352",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 118
+    },
+    {
+      "code": "3525",
+      "name": "Dự phòng phải trả khác",
+      "parentCode": "352",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 119
+    },
+    {
+      "code": "353",
+      "name": "Quỹ khen thưởng, phúc lợi",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 120
+    },
+    {
+      "code": "3531",
+      "name": "Quỹ khen thưởng",
+      "parentCode": "353",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 121
+    },
+    {
+      "code": "3532",
+      "name": "Quỹ phúc lợi",
+      "parentCode": "353",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 122
+    },
+    {
+      "code": "3533",
+      "name": "Quỹ phúc lợi đã hình thành TSCD",
+      "parentCode": "353",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 123
+    },
+    {
+      "code": "3534",
+      "name": "Quỹ thưởng ban quản lý điều hành công ty",
+      "parentCode": "353",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 124
+    },
+    {
+      "code": "356",
+      "name": "Quỹ phát triển khoa học và công nghệ",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 125
+    },
+    {
+      "code": "3561",
+      "name": "Quỹ phát triển khoa học và công nghệ",
+      "parentCode": "356",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 126
+    },
+    {
+      "code": "3562",
+      "name": "Quỹ phát triển khoa học và công nghệ đã hình thành tài sån",
+      "parentCode": "356",
+      "level": 2,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 127
+    },
+    {
+      "code": "357",
+      "name": "Quỹ bình ổn giá",
+      "parentCode": "",
+      "level": 1,
+      "group": "liability",
+      "requiresPartner": false,
+      "sourceRow": 128
+    },
+    {
+      "code": "411",
+      "name": "Vốn đầu tư của chủ sở hữu",
+      "parentCode": "",
+      "level": 1,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 130
+    },
+    {
+      "code": "4111",
+      "name": "Vốn góp của chủ sở hữu",
+      "parentCode": "411",
+      "level": 2,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 131
+    },
+    {
+      "code": "41111",
+      "name": "Cổ phiều phổ thông có quyền biểu quyết",
+      "parentCode": "4111",
+      "level": 3,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 132
+    },
+    {
+      "code": "41112",
+      "name": "Cổ phiếu ưu đãi",
+      "parentCode": "4111",
+      "level": 3,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 133
+    },
+    {
+      "code": "4112",
+      "name": "Thặng dư vốn",
+      "parentCode": "411",
+      "level": 2,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 134
+    },
+    {
+      "code": "4113",
+      "name": "Quyền chọn chuyển đổi trái phiếu",
+      "parentCode": "411",
+      "level": 2,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 135
+    },
+    {
+      "code": "4118",
+      "name": "Vốn khác",
+      "parentCode": "411",
+      "level": 2,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 136
+    },
+    {
+      "code": "412",
+      "name": "Chênh lệch đánh giá lại tài sản",
+      "parentCode": "",
+      "level": 1,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 137
+    },
+    {
+      "code": "413",
+      "name": "Chênh lệch tỷ giá hối đoái",
+      "parentCode": "",
+      "level": 1,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 138
+    },
+    {
+      "code": "414",
+      "name": "Quỹ đầu tư phát triễn",
+      "parentCode": "",
+      "level": 1,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 139
+    },
+    {
+      "code": "418",
+      "name": "Các quỹ khác thuộc vốn chủ sở hữu",
+      "parentCode": "",
+      "level": 1,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 140
+    },
+    {
+      "code": "419",
+      "name": "Cổ phiếu mua lại của chính mình",
+      "parentCode": "",
+      "level": 1,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 141
+    },
+    {
+      "code": "421",
+      "name": "Lợi nhuận sau thuế chưa phân phối",
+      "parentCode": "",
+      "level": 1,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 142
+    },
+    {
+      "code": "4211",
+      "name": "Lợi nhuận sau thuế chưa phân phối lũy kế đến cuối năm trước",
+      "parentCode": "421",
+      "level": 2,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 143
+    },
+    {
+      "code": "4212",
+      "name": "Lợi nhuận sau thuế chưa phân phối năm nay",
+      "parentCode": "421",
+      "level": 2,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 144
+    },
+    {
+      "code": "511",
+      "name": "Doanh thu bán hàng và cung cấp dịch vụ",
+      "parentCode": "",
+      "level": 1,
+      "group": "revenue",
+      "requiresPartner": false,
+      "sourceRow": 146
+    },
+    {
+      "code": "515",
+      "name": "Doanh thu hoạt động tài chính",
+      "parentCode": "",
+      "level": 1,
+      "group": "revenue",
+      "requiresPartner": false,
+      "sourceRow": 147
+    },
+    {
+      "code": "521",
+      "name": "Các khoản giảm trừ doanh thu",
+      "parentCode": "",
+      "level": 1,
+      "group": "revenue",
+      "requiresPartner": false,
+      "sourceRow": 148
+    },
+    {
+      "code": "621",
+      "name": "Chi phí nguyên liệu, vật liệu trực tiếp",
+      "parentCode": "",
+      "level": 1,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 150
+    },
+    {
+      "code": "622",
+      "name": "Chi phí nhân công trực tiếp",
+      "parentCode": "",
+      "level": 1,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 151
+    },
+    {
+      "code": "623",
+      "name": "Chi phí sử dụng máy thi công",
+      "parentCode": "",
+      "level": 1,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 152
+    },
+    {
+      "code": "6231",
+      "name": "Chi phí nhân công",
+      "parentCode": "623",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 153
+    },
+    {
+      "code": "6232",
+      "name": "Chi phí vật liệu",
+      "parentCode": "623",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 154
+    },
+    {
+      "code": "6233",
+      "name": "Chi phí dụng cụ sản xuất",
+      "parentCode": "623",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 155
+    },
+    {
+      "code": "6234",
+      "name": "Chi phí khẩu hao máy thi công",
+      "parentCode": "623",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 156
+    },
+    {
+      "code": "6237",
+      "name": "Chi phí địch vụ mua ngoài",
+      "parentCode": "623",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 157
+    },
+    {
+      "code": "6238",
+      "name": "Chi phí bằng tiền khác",
+      "parentCode": "623",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 158
+    },
+    {
+      "code": "627",
+      "name": "Chi phí sản xuất chung",
+      "parentCode": "",
+      "level": 1,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 159
+    },
+    {
+      "code": "6271",
+      "name": "Chi phí nhân viên phân xưởng",
+      "parentCode": "627",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 160
+    },
+    {
+      "code": "6272",
+      "name": "Chi phí vật liệu",
+      "parentCode": "627",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 161
+    },
+    {
+      "code": "6273",
+      "name": "Chi phí dụng cụ sản xuất",
+      "parentCode": "627",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 162
+    },
+    {
+      "code": "6274",
+      "name": "Chi phí khâu hao TSCĐ",
+      "parentCode": "627",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 163
+    },
+    {
+      "code": "6275",
+      "name": "Thuế, phí, lệ phí",
+      "parentCode": "627",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 164
+    },
+    {
+      "code": "6277",
+      "name": "Chi phí dịch vụ mua ngoài",
+      "parentCode": "627",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 165
+    },
+    {
+      "code": "6278",
+      "name": "Chi phí bằng tiền khác",
+      "parentCode": "627",
+      "level": 2,
+      "group": "wip",
+      "requiresPartner": false,
+      "sourceRow": 166
+    },
+    {
+      "code": "632",
+      "name": "Giá vốn hàng bán",
+      "parentCode": "",
+      "level": 1,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 167
+    },
+    {
+      "code": "635",
+      "name": "Chi phí tài chính",
+      "parentCode": "",
+      "level": 1,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 168
+    },
+    {
+      "code": "641",
+      "name": "Chi phí bán hàng",
+      "parentCode": "",
+      "level": 1,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 169
+    },
+    {
+      "code": "6411",
+      "name": "Chi phí nhân viên",
+      "parentCode": "641",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 170
+    },
+    {
+      "code": "6412",
+      "name": "Chi phí vật liệu, bao bì",
+      "parentCode": "641",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 171
+    },
+    {
+      "code": "6413",
+      "name": "Chi phí dụng cụ, đồ dùng",
+      "parentCode": "641",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 172
+    },
+    {
+      "code": "6414",
+      "name": "Chi phí khấu hao TSCĐ",
+      "parentCode": "641",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 173
+    },
+    {
+      "code": "6415",
+      "name": "Thuế, phí, lệ phí",
+      "parentCode": "641",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 174
+    },
+    {
+      "code": "6417",
+      "name": "Chi phí dịch vụ mua ngoài",
+      "parentCode": "641",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 175
+    },
+    {
+      "code": "6418",
+      "name": "Chi phí bằng tiền khác",
+      "parentCode": "641",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 176
+    },
+    {
+      "code": "642",
+      "name": "Chi phí quản lý doanh nghiệp",
+      "parentCode": "",
+      "level": 1,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 177
+    },
+    {
+      "code": "6421",
+      "name": "Chi phí nhân viên quản lý",
+      "parentCode": "642",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 178
+    },
+    {
+      "code": "6422",
+      "name": "Chi phí vật liệu quản lý",
+      "parentCode": "642",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 179
+    },
+    {
+      "code": "6423",
+      "name": "Chi phí đồ dùng văn phòng",
+      "parentCode": "642",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 180
+    },
+    {
+      "code": "6424",
+      "name": "Chi phí khẩu hao TSCĐ",
+      "parentCode": "642",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 181
+    },
+    {
+      "code": "6425",
+      "name": "Thuế, phí và lệ phí",
+      "parentCode": "642",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 182
+    },
+    {
+      "code": "6426",
+      "name": "Chi phí dự phòng",
+      "parentCode": "642",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 183
+    },
+    {
+      "code": "6427",
+      "name": "Chi phí dịch vụ mua ngoài",
+      "parentCode": "642",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 184
+    },
+    {
+      "code": "6428",
+      "name": "Chi phí bằng tiền khác",
+      "parentCode": "642",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 185
+    },
+    {
+      "code": "711",
+      "name": "Thu nhập khác",
+      "parentCode": "",
+      "level": 1,
+      "group": "revenue",
+      "requiresPartner": false,
+      "sourceRow": 187
+    },
+    {
+      "code": "811",
+      "name": "Chi phí khác",
+      "parentCode": "",
+      "level": 1,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 189
+    },
+    {
+      "code": "821",
+      "name": "Chi phí thuế thu nhập doanh nghiệp",
+      "parentCode": "",
+      "level": 1,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 190
+    },
+    {
+      "code": "8211",
+      "name": "Chi phí thuế TNDN hiện hành",
+      "parentCode": "821",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 191
+    },
+    {
+      "code": "82111",
+      "name": "Chi phí thuế thu nhập doanh nghiệp hiện hành theo quy định của Luật thuế thu nhập doanh nghiệp",
+      "parentCode": "8211",
+      "level": 3,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 192
+    },
+    {
+      "code": "82112",
+      "name": "Chi phị thuế thu nhập doanh nghiệp bổ sung theo quy định về thuế tối thiểu toàn cầu",
+      "parentCode": "8211",
+      "level": 3,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 193
+    },
+    {
+      "code": "8212",
+      "name": "Chi phí thuế TNDN hoãn lại",
+      "parentCode": "821",
+      "level": 2,
+      "group": "expense",
+      "requiresPartner": false,
+      "sourceRow": 194
+    },
+    {
+      "code": "911",
+      "name": "Xác định kết quả kinh doanh",
+      "parentCode": "",
+      "level": 1,
+      "group": "capital",
+      "requiresPartner": false,
+      "sourceRow": 196
+    }
+  ]
+}

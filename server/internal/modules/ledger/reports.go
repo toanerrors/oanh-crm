@@ -16,6 +16,7 @@ import (
 )
 
 type Metrics struct {
+	BankBalance   string            `json:"bankBalance"`
 	Revenue       string            `json:"revenue"`
 	Expense       string            `json:"expense"`
 	Receivable    string            `json:"receivable"`
@@ -58,10 +59,10 @@ type Report struct {
 	AccountBalance *Row   `json:"accountBalance,omitempty"`
 }
 type Filter struct {
-	Period, Kind, Account, Status, Type, Query, Sort string
-	Page, PageSize                                   int
-	Desc                                             bool
-	Revision                                         *int64
+	Period, Kind, Account, Status, Type, Query, Sort, Source, BankAccount string
+	Page, PageSize                                                        int
+	Desc                                                                  bool
+	Revision                                                              *int64
 }
 type DocumentList struct {
 	Context
@@ -182,6 +183,27 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 	for id, n := range balances {
 		m.Balances[id] = n.String()
 	}
+	bankTotal := new(big.Int)
+	bankRows, e := q.QueryContext(ctx, "SELECT account_id FROM bank_accounts UNION SELECT id FROM accounts WHERE id IN ('112','1121')")
+	if e != nil {
+		return nil, e
+	}
+	for bankRows.Next() {
+		var id string
+		if e = bankRows.Scan(&id); e != nil {
+			bankRows.Close()
+			return nil, e
+		}
+		if balances[id] != nil {
+			bankTotal.Add(bankTotal, balances[id])
+		}
+	}
+	e = bankRows.Err()
+	bankRows.Close()
+	if e != nil {
+		return nil, e
+	}
+	m.BankBalance = bankTotal.String()
 	receivable := new(big.Int)
 	for _, n := range partners {
 		if n.Sign() > 0 {
@@ -213,8 +235,44 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 	if f.Revision != nil && *f.Revision != result.Revision {
 		return result, accounting.Fail("VERSION_CONFLICT", "Danh sách đã thay đổi. Tải lại dữ liệu trước khi tiếp tục.")
 	}
-	if f.Account == "111" || f.Account == "1121" {
-		result.Money, err = moneySummary(ctx, tx, f.Account, f.Period)
+	bankDocuments := map[string]bool{}
+	if f.BankAccount != "" {
+		var count int
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM bank_accounts WHERE id=?", f.BankAccount).Scan(&count); err != nil {
+			return result, err
+		}
+		if count != 1 {
+			return result, accounting.Fail("INVALID_BANK", "Không tìm thấy tài khoản ngân hàng.")
+		}
+		bankRows, e := tx.QueryContext(ctx, "SELECT DISTINCT document_id FROM bank_movements WHERE bank_id=?", f.BankAccount)
+		if e != nil {
+			return result, e
+		}
+		for bankRows.Next() {
+			var id string
+			if e = bankRows.Scan(&id); e != nil {
+				bankRows.Close()
+				return result, e
+			}
+			bankDocuments[id] = true
+		}
+		e = bankRows.Err()
+		bankRows.Close()
+		if e != nil {
+			return result, e
+		}
+	}
+	moneyAccounts := strings.Split(f.Account, ",")
+	allMoney := len(moneyAccounts) > 0 && len(moneyAccounts) <= 100
+	for _, id := range moneyAccounts {
+		var group string
+		if e := tx.QueryRowContext(ctx, "SELECT account_group FROM accounts WHERE id=?", id).Scan(&group); e != nil || group != "cash" {
+			allMoney = false
+			break
+		}
+	}
+	if allMoney || f.BankAccount != "" {
+		result.Money, err = moneySummary(ctx, tx, f.Account, f.Period, f.BankAccount)
 		if err != nil {
 			return result, err
 		}
@@ -250,6 +308,12 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 			if slices.Contains(strings.Split(f.Account, ","), l.AccountID) {
 				matchesAccount = true
 			}
+		}
+		if f.BankAccount != "" && !bankDocuments[d.ID] {
+			continue
+		}
+		if f.Source != "" && d.SourceType != f.Source {
+			continue
 		}
 		if !matchesAccount || f.Type != "" && f.Type != "all" && d.Type != f.Type {
 			continue
@@ -300,13 +364,25 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 	}
 	return result, tx.Commit()
 }
-func moneySummary(ctx context.Context, tx *sql.Tx, account, period string) (*MoneySummary, error) {
+func moneySummary(ctx context.Context, tx *sql.Tx, account, period, bank string) (*MoneySummary, error) {
 	start, err := time.Parse("2006-01", period)
 	if err != nil {
 		return nil, accounting.Fail("BAD_REQUEST", "Kỳ báo cáo tiền không hợp lệ.")
 	}
 	end := start.AddDate(0, 1, 0).Format("2006-01-02")
-	rows, err := tx.QueryContext(ctx, "SELECT d.date,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE d.status='posted' AND l.account_id=? AND d.date<?", account, end)
+	accounts := strings.Split(account, ",")
+	args := make([]any, 0, len(accounts)+1)
+	for _, id := range accounts {
+		args = append(args, id)
+	}
+	args = append(args, end)
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(accounts)), ",")
+	query := "SELECT d.date,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE d.status='posted' AND l.account_id IN (" + placeholders + ") AND d.date<?"
+	if bank != "" {
+		query = "SELECT d.date,m.debit,m.credit FROM bank_movements m JOIN documents d ON d.id=m.document_id WHERE d.status='posted' AND m.bank_id=? AND d.date<?"
+		args = []any{bank, end}
+	}
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

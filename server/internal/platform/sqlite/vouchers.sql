@@ -1,0 +1,23 @@
+CREATE TABLE voucher_inputs (document_id TEXT PRIMARY KEY REFERENCES documents(id), payload TEXT NOT NULL CHECK(json_valid(payload))) STRICT;
+CREATE TRIGGER posted_voucher_update BEFORE UPDATE ON voucher_inputs WHEN (SELECT status FROM documents WHERE id=OLD.document_id)='posted' BEGIN SELECT RAISE(ABORT,'posted voucher is immutable'); END;
+CREATE TRIGGER posted_voucher_delete BEFORE DELETE ON voucher_inputs WHEN (SELECT status FROM documents WHERE id=OLD.document_id)='posted' BEGIN SELECT RAISE(ABORT,'posted voucher is immutable'); END;
+CREATE TRIGGER posted_voucher_insert BEFORE INSERT ON voucher_inputs WHEN (SELECT status FROM documents WHERE id=NEW.document_id)='posted' BEGIN SELECT RAISE(ABORT,'posted voucher is immutable'); END;
+CREATE TABLE bank_accounts (id TEXT PRIMARY KEY, number TEXT NOT NULL UNIQUE CHECK(length(number) BETWEEN 1 AND 100), bank_name TEXT NOT NULL CHECK(length(bank_name) BETWEEN 1 AND 200), account_id TEXT NOT NULL REFERENCES accounts(id), active INTEGER NOT NULL CHECK(active IN (0,1))) STRICT;
+CREATE TABLE bank_movements (document_id TEXT NOT NULL REFERENCES documents(id) DEFERRABLE INITIALLY DEFERRED, position INTEGER NOT NULL CHECK(position>=0), bank_id TEXT NOT NULL REFERENCES bank_accounts(id), debit INTEGER NOT NULL CHECK(debit>=0), credit INTEGER NOT NULL CHECK(credit>=0), CHECK((debit>0 AND credit=0) OR (credit>0 AND debit=0)), PRIMARY KEY(document_id,position)) STRICT;
+CREATE INDEX bank_movement_account ON bank_movements(bank_id,document_id);
+CREATE TRIGGER posted_bank_update BEFORE UPDATE ON bank_movements WHEN (SELECT status FROM documents WHERE id=OLD.document_id)='posted' BEGIN SELECT RAISE(ABORT,'posted bank movement is immutable'); END;
+CREATE TRIGGER posted_bank_delete BEFORE DELETE ON bank_movements WHEN (SELECT status FROM documents WHERE id=OLD.document_id)='posted' BEGIN SELECT RAISE(ABORT,'posted bank movement is immutable'); END;
+CREATE TRIGGER posted_bank_insert BEFORE INSERT ON bank_movements WHEN (SELECT status FROM documents WHERE id=NEW.document_id)='posted' BEGIN SELECT RAISE(ABORT,'posted bank movement is immutable'); END;
+
+CREATE TABLE warehouses (id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 200), active INTEGER NOT NULL CHECK(active IN (0,1))) STRICT;
+INSERT INTO warehouses VALUES('default','KHO_MAC_DINH','Kho mặc định',1);
+CREATE TABLE stock_lot_warehouses (lot_id TEXT PRIMARY KEY REFERENCES stock_lots(id) ON DELETE CASCADE, warehouse_id TEXT NOT NULL REFERENCES warehouses(id)) STRICT;
+CREATE INDEX stock_lot_warehouse ON stock_lot_warehouses(warehouse_id,lot_id);
+CREATE TABLE stock_movement_warehouses (movement_id INTEGER PRIMARY KEY REFERENCES stock_movements(id), warehouse_id TEXT NOT NULL REFERENCES warehouses(id)) STRICT;
+CREATE INDEX stock_movement_warehouse ON stock_movement_warehouses(warehouse_id,movement_id);
+INSERT INTO stock_lot_warehouses SELECT id,'default' FROM stock_lots;
+INSERT INTO stock_movement_warehouses SELECT id,'default' FROM stock_movements;
+CREATE TRIGGER posted_stock_update BEFORE UPDATE ON stock_movements WHEN (SELECT status FROM documents WHERE id=OLD.document_id)='posted' BEGIN SELECT RAISE(ABORT,'posted stock movement is immutable'); END;
+CREATE TRIGGER posted_stock_delete BEFORE DELETE ON stock_movements WHEN (SELECT status FROM documents WHERE id=OLD.document_id)='posted' BEGIN SELECT RAISE(ABORT,'posted stock movement is immutable'); END;
+CREATE TRIGGER posted_stock_warehouse_update BEFORE UPDATE ON stock_movement_warehouses WHEN (SELECT status FROM documents d JOIN stock_movements m ON m.document_id=d.id WHERE m.id=OLD.movement_id)='posted' BEGIN SELECT RAISE(ABORT,'posted stock warehouse is immutable'); END;
+CREATE TRIGGER posted_stock_warehouse_delete BEFORE DELETE ON stock_movement_warehouses WHEN (SELECT status FROM documents d JOIN stock_movements m ON m.document_id=d.id WHERE m.id=OLD.movement_id)='posted' BEGIN SELECT RAISE(ABORT,'posted stock warehouse is immutable'); END;

@@ -4,9 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { workspaceOptions } from '../shared/data/workspace';
 import type { AccountingDocument, DocumentType, Workspace } from '../shared/data/types';
 import { apiScope, isDemo } from '../shared/api/client';
+import type { OperationInput } from '../shared/data/operations';
 import { businessToday } from '../shared/accounting/money';
 
 interface WorkspaceContextValue {
+  voucherDraft: OperationInput | null;
+  setVoucherDraft: (draft: OperationInput | null) => void;
   period: string;
   setPeriod: (period: string) => void;
   data: Workspace | undefined;
@@ -29,6 +32,7 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [period, setPeriod] = useState(() => isDemo ? '2026-10' : businessToday().slice(0, 7));
   const [draft, setDraft] = useState<AccountingDocument | null>(null);
+  const [voucherDraft, setVoucherDraft] = useState<OperationInput | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
   const [detailId, openDocument] = useState<string | null>(null);
   const query = useQuery(workspaceOptions(period));
@@ -49,7 +53,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setDraftOpen(true);
   }
 
-  return <WorkspaceContext.Provider value={{ period, setPeriod, data: query.data, isPending: query.isPending, isFetching: query.isFetching, error: query.error, refresh: () => { void query.refetch(); }, draft, setDraft, draftOpen, setDraftOpen, newDraft, editDraft, detailId, openDocument }}>{children}</WorkspaceContext.Provider>;
+  return <WorkspaceContext.Provider value={{ voucherDraft, setVoucherDraft, period, setPeriod, data: query.data, isPending: query.isPending, isFetching: query.isFetching, error: query.error, refresh: () => { void query.refetch(); }, draft, setDraft, draftOpen, setDraftOpen, newDraft, editDraft, detailId, openDocument }}>{children}</WorkspaceContext.Provider>;
 }
 
 export function useWorkspace() {

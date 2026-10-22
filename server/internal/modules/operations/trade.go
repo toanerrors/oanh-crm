@@ -30,6 +30,12 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 			return accounting.Fail("DUPLICATE_INVOICE", "Hóa đơn cùng bên phát hành, ký hiệu và số đã được ghi nhận. Kiểm tra chứng từ nguồn.")
 		}
 	}
+	if in.TradeMode != "" && in.TradeMode != "goods" && in.TradeMode != "service" {
+		return accounting.Fail("VALIDATION", "Loại hàng hóa/dịch vụ không hợp lệ.")
+	}
+	if in.PaymentAccount != "" && !moneyAccount(in.PaymentAccount) && in.BankAccountID == "" {
+		return accounting.Fail("INVALID_ACCOUNT", "Chọn tài khoản tiền được hỗ trợ khi thanh toán ngay.")
+	}
 	if len(in.Lines) == 0 || len(in.Lines) > 100 || in.PriceMode != "exclusive" && in.PriceMode != "inclusive" {
 		return accounting.Fail("VALIDATION", "Nhập từ 1–100 dòng hàng và chọn giá trước/sau thuế.")
 	}
@@ -41,13 +47,36 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 	if p.VATMethod == "direct" && in.PriceMode != "inclusive" {
 		return accounting.Fail("VALIDATION", "VAT trực tiếp cần nhập giá thanh toán đã gồm thuế.")
 	}
+	discounts, err := tradeDiscounts(in, p)
+	if err != nil {
+		return err
+	}
+	costs, costLines, err := purchaseCosts(ctx, tx, in, p, discounts)
+	if err != nil {
+		return err
+	}
 	doc.Type = in.Kind
-	var sumBase, sumTax, sumGross, sumCost, inputTax int64
+	var sumBase, sumTax, sumGross, sumCost, inputTax, sumDiscount, sumPurchaseCost int64
 	for index, line := range in.Lines {
 		var item Item
 		err := tx.QueryRowContext(ctx, "SELECT id,name,tracked,active FROM items WHERE id=?", line.ItemID).Scan(&item.ID, &item.Name, &item.Tracked, &item.Active)
 		if err != nil || !item.Active {
 			return accounting.Fail("INVALID_ITEM", "Hàng hóa/dịch vụ không tồn tại hoặc đã ngừng sử dụng.")
+		}
+		if in.TradeMode == "service" && item.Tracked || in.TradeMode == "goods" && !item.Tracked {
+			return accounting.Fail("INVALID_ITEM", "Chọn hàng hóa/dịch vụ đúng loại chứng từ.")
+		}
+		description := item.Name
+		if line.Description != "" {
+			description = line.Description
+		}
+		account := line.AccountID
+		if account != "" {
+			var group string
+			var active bool
+			if e := tx.QueryRowContext(ctx, "SELECT account_group,active FROM accounts WHERE id=?", account).Scan(&group, &active); e != nil || !active || in.Kind == "sale" && group != "revenue" || in.Kind == "purchase" && (item.Tracked && account != "156" || !item.Tracked && group != "expense" && group != "wip") {
+				return accounting.Fail("INVALID_ACCOUNT", "Tài khoản hàng tiền không phù hợp loại nghiệp vụ.")
+			}
 		}
 		quantity, err := accounting.Quantity(line.Quantity, p.QuantityScale)
 		if err != nil {
@@ -64,6 +93,20 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 		rate, _ := accounting.Decimal(line.VATRate)
 		rate.Quo(rate, accounting.Rat(100))
 		value := new(big.Rat).Mul(qtyRat, price)
+		beforeDiscount, e := accounting.Round(value, p.Rounding)
+		if e != nil {
+			return e
+		}
+		if discounts[index] > beforeDiscount {
+			return accounting.Fail("DISCOUNT_EXCEEDS_VALUE", "Chiết khấu không được vượt thành tiền của dòng.")
+		}
+		value = accounting.Rat(beforeDiscount - discounts[index])
+		if sumDiscount, err = accounting.Add(sumDiscount, discounts[index]); err != nil {
+			return err
+		}
+		if sumPurchaseCost, err = accounting.Add(sumPurchaseCost, costs[index]); err != nil {
+			return err
+		}
 		var base, tax, gross int64
 		if in.PriceMode == "inclusive" {
 			gross, err = accounting.Round(value, p.Rounding)
@@ -98,12 +141,16 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 		if sumGross, err = accounting.Add(sumGross, gross); err != nil {
 			return err
 		}
+		result.LineAmounts = append(result.LineAmounts, LineAmounts{Base: accounting.Text(base), Tax: accounting.Text(tax), Total: accounting.Text(gross), Discount: accounting.Text(discounts[index]), PurchaseCost: accounting.Text(costs[index])})
 		if in.Kind == "sale" {
-			addLine(doc, "131", in.PartnerID, item.Name, gross, 0)
-			addLine(doc, "511", "", item.Name, 0, base)
+			if account == "" {
+				account = "511"
+			}
+			addLine(doc, "131", in.PartnerID, description, gross, 0)
+			addLine(doc, account, "", description, 0, base)
 			addLine(doc, "33311", "", "Thuế GTGT đầu ra", 0, tax)
 			if item.Tracked {
-				cost, e := s.stock(ctx, tx, doc, item.ID, quantity, 0, p, index, false)
+				cost, e := s.stock(ctx, tx, doc, item.ID, quantity, 0, p, index, false, line.WarehouseID)
 				if e != nil {
 					return e
 				}
@@ -122,14 +169,26 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 			if !eligible {
 				purchaseCost = gross
 			}
-			account := "642"
+			result.LineAmounts[index].PurchaseValue = accounting.Text(purchaseCost)
+			if account == "" {
+				account = "642"
+			}
+			if in.IsPurchaseCost && item.Tracked {
+				return accounting.Fail("INVALID_COST_SOURCE", "Chứng từ chi phí mua hàng chỉ gồm dịch vụ.")
+			}
+			if costs[index] > 0 && !item.Tracked {
+				return accounting.Fail("INVALID_COST_ALLOCATION", "Chi phí mua hàng chỉ phân bổ vào hàng nhập kho.")
+			}
+			if purchaseCost, err = accounting.Add(purchaseCost, costs[index]); err != nil {
+				return err
+			}
 			if item.Tracked {
 				account = "156"
-				if _, err = s.stock(ctx, tx, doc, item.ID, quantity, purchaseCost, p, index, true); err != nil {
+				if _, err = s.stock(ctx, tx, doc, item.ID, quantity, purchaseCost, p, index, true, line.WarehouseID); err != nil {
 					return err
 				}
 			}
-			addLine(doc, account, "", item.Name, purchaseCost, 0)
+			addLine(doc, account, "", description, purchaseCost, 0)
 			if eligible {
 				addLine(doc, "1331", "", "Thuế GTGT đầu vào", tax, 0)
 				inputTax, err = accounting.Add(inputTax, tax)
@@ -137,10 +196,14 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 					return err
 				}
 			}
-			addLine(doc, "331", in.PartnerID, item.Name, 0, gross)
+			addLine(doc, "331", in.PartnerID, description, 0, gross)
 		}
 	}
-	result.Amounts = map[string]string{"base": accounting.Text(sumBase), "tax": accounting.Text(sumTax), "total": accounting.Text(sumGross), "cost": accounting.Text(sumCost), "inputTax": accounting.Text(inputTax)}
+	if sumGross <= 0 {
+		return accounting.Fail("INVALID_AMOUNT", "Tổng tiền thanh toán phải dương; hàng tặng cần nghiệp vụ riêng.")
+	}
+	doc.Lines = append(doc.Lines, costLines...)
+	result.Amounts = map[string]string{"discount": accounting.Text(sumDiscount), "purchaseCost": accounting.Text(sumPurchaseCost), "base": accounting.Text(sumBase), "tax": accounting.Text(sumTax), "total": accounting.Text(sumGross), "cost": accounting.Text(sumCost), "inputTax": accounting.Text(inputTax)}
 	result.Notes = append(result.Notes, "Làm tròn tiền theo từng dòng; tổng chứng từ bằng tổng các dòng đã chốt.")
 	return nil
 }
@@ -151,15 +214,22 @@ type lot struct {
 	scale           int
 }
 
-func (s *Service) stock(ctx context.Context, tx *sql.Tx, doc *ledger.Document, item string, quantity, value int64, p Policy, index int, receipt bool) (int64, error) {
+func (s *Service) stock(ctx context.Context, tx *sql.Tx, doc *ledger.Document, item string, quantity, value int64, p Policy, index int, receipt bool, warehouse string) (int64, error) {
+	if warehouse == "" {
+		warehouse = "default"
+	}
+	var active bool
+	if e := tx.QueryRowContext(ctx, "SELECT active FROM warehouses WHERE id=?", warehouse).Scan(&active); e != nil || !active {
+		return 0, accounting.Fail("INVALID_WAREHOUSE", "Kho không tồn tại hoặc đã ngừng sử dụng.")
+	}
 	var last sql.NullString
-	if err := tx.QueryRowContext(ctx, "SELECT MAX(date) FROM stock_movements WHERE item_id=?", item).Scan(&last); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT MAX(m.date) FROM stock_movements m JOIN stock_movement_warehouses w ON w.movement_id=m.id WHERE m.item_id=? AND w.warehouse_id=?", item, warehouse).Scan(&last); err != nil {
 		return 0, err
 	}
 	if last.Valid && doc.Date < last.String {
 		return 0, accounting.Fail("RETROACTIVE_STOCK", "Chưa hỗ trợ biến động kho lùi trước ngày biến động cuối. Cần nghiệp vụ điều chỉnh riêng.")
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT l.id,l.quantity,l.value,l.scale,COALESCE(p.data,'') FROM stock_lots l LEFT JOIN documents d ON d.id=l.document_id LEFT JOIN policies p ON p.id=d.policy_id WHERE item_id=? AND quantity>0 ORDER BY l.date,COALESCE(d.posted_order,9223372036854775807),l.id", item)
+	rows, err := tx.QueryContext(ctx, "SELECT l.id,l.quantity,l.value,l.scale,COALESCE(p.data,'') FROM stock_lots l LEFT JOIN documents d ON d.id=l.document_id LEFT JOIN policies p ON p.id=d.policy_id JOIN stock_lot_warehouses w ON w.lot_id=l.id WHERE l.item_id=? AND w.warehouse_id=? AND quantity>0 ORDER BY l.date,COALESCE(d.posted_order,9223372036854775807),l.id", item, warehouse)
 	if err != nil {
 		return 0, err
 	}
@@ -215,7 +285,10 @@ func (s *Service) stock(ctx context.Context, tx *sql.Tx, doc *ledger.Document, i
 		if err != nil {
 			return 0, err
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO stock_movements(item_id,document_id,date,quantity,value,scale) VALUES(?,?,?,?,?,?)", item, doc.ID, doc.Date, quantity, value, p.QuantityScale)
+		if _, err = tx.ExecContext(ctx, "INSERT INTO stock_lot_warehouses VALUES(?,?)", fmt.Sprintf("%s-%06d", doc.ID, index), warehouse); err != nil {
+			return 0, err
+		}
+		err = insertStockMovement(ctx, tx, item, doc, quantity, value, p.QuantityScale, warehouse)
 		return value, err
 	}
 	if totalQty < quantity {
@@ -230,11 +303,15 @@ func (s *Service) stock(ctx context.Context, tx *sql.Tx, doc *ledger.Document, i
 		if err != nil {
 			return 0, err
 		}
-		if _, err = tx.ExecContext(ctx, "DELETE FROM stock_lots WHERE item_id=?", item); err != nil {
+		if _, err = tx.ExecContext(ctx, "DELETE FROM stock_lots WHERE item_id=? AND id IN (SELECT lot_id FROM stock_lot_warehouses WHERE warehouse_id=?)", item, warehouse); err != nil {
 			return 0, err
 		}
 		if totalQty > quantity {
-			if _, err = tx.ExecContext(ctx, "INSERT INTO stock_lots VALUES(?,?,?,?,?,?,?)", sqlite.ID(), item, doc.ID, doc.Date, totalQty-quantity, totalValue-cost, p.QuantityScale); err != nil {
+			lotID := sqlite.ID()
+			if _, err = tx.ExecContext(ctx, "INSERT INTO stock_lots VALUES(?,?,?,?,?,?,?)", lotID, item, doc.ID, doc.Date, totalQty-quantity, totalValue-cost, p.QuantityScale); err != nil {
+				return 0, err
+			}
+			if _, err = tx.ExecContext(ctx, "INSERT INTO stock_lot_warehouses VALUES(?,?)", lotID, warehouse); err != nil {
 				return 0, err
 			}
 		}
@@ -262,6 +339,6 @@ func (s *Service) stock(ctx context.Context, tx *sql.Tx, doc *ledger.Document, i
 			remaining -= take
 		}
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO stock_movements(item_id,document_id,date,quantity,value,scale) VALUES(?,?,?,?,?,?)", item, doc.ID, doc.Date, -quantity, -cost, p.QuantityScale)
+	err = insertStockMovement(ctx, tx, item, doc, -quantity, -cost, p.QuantityScale, warehouse)
 	return cost, err
 }

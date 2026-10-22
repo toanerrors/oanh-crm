@@ -104,7 +104,7 @@ func (s *Service) Setup(ctx context.Context, input Setup) error {
 		return err
 	}
 	for _, a := range initialAccounts {
-		if _, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,1)", a[0], a[0], a[1], a[2], a[3] == "1"); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,1) ON CONFLICT(code) DO NOTHING", a[0], a[0], a[1], a[2], a[3] == "1"); err != nil {
 			return err
 		}
 	}

@@ -17,10 +17,28 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
+	"oanh.local/accounting/internal/accounting"
 )
 
 //go:embed schema.sql
 var schema string
+
+//go:embed vouchers.sql
+var vouchersSchema string
+
+func schemaHash(version int) string {
+	if version == 1 {
+		return Hash([]byte(schema))
+	}
+	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash()))
+}
+
+func migrationChecksum(version int, source string) string {
+	if version == 2 {
+		return Hash([]byte(source + accounting.ReferenceChartHash()))
+	}
+	return Hash([]byte(source))
+}
 
 type Store struct {
 	Read, Write                  *sql.DB
@@ -154,45 +172,68 @@ func Connect(ctx context.Context, path string, readOnly bool) (*sql.DB, error) {
 	return db, nil
 }
 func (s *Store) migrate(ctx context.Context) error {
-	if _, err := s.Write.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL) STRICT"); err != nil {
+	return migrate(ctx, s.Write)
+}
+func migrate(ctx context.Context, db *sql.DB) error {
+	if _, err := db.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL) STRICT"); err != nil {
 		return err
 	}
-	var checksum string
 	var maximum int
-	if err := s.Write.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
 		return err
 	}
-	if maximum > 1 {
+	if maximum > 2 {
 		return fmt.Errorf("database schema is newer than this application")
 	}
-	err := s.Write.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE version=1").Scan(&checksum)
-	if err == nil {
-		if checksum != Hash([]byte(schema)) {
-			return fmt.Errorf("migration checksum mismatch")
+	if maximum > 0 {
+		if err := Check(ctx, db); err != nil {
+			return err
 		}
-		return Check(ctx, s.Write)
 	}
-	if err != sql.ErrNoRows {
-		return err
+	for index, source := range []string{schema, vouchersSchema} {
+		version := index + 1
+		if version <= maximum {
+			continue
+		}
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, source); err == nil && version == 1 {
+			_, err = tx.ExecContext(ctx, "INSERT INTO meta VALUES(1,?,'',?,0,'VND','')", ID(), ID())
+		}
+		if err == nil && version == 2 {
+			for _, a := range accounting.ReferenceChart().Accounts {
+				if _, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,1) ON CONFLICT(code) DO NOTHING", a.Code, a.Code, a.Name, a.Group, a.RequiresPartner); err != nil {
+					break
+				}
+			}
+			if err == nil {
+				_, err = tx.ExecContext(ctx, "UPDATE meta SET revision=revision+1 WHERE id=1")
+			}
+		}
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "INSERT INTO schema_migrations VALUES(?,?)", version, migrationChecksum(version, source))
+		}
+		if err == nil {
+			err = tx.Commit()
+		} else {
+			tx.Rollback()
+		}
+		if err != nil {
+			return err
+		}
 	}
-	tx, err := s.Write.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, schema); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO meta VALUES(1,?,'',?,0,'VND','')", ID(), ID()); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO schema_migrations VALUES(1,?)", Hash([]byte(schema))); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return Check(ctx, db)
 }
 func Check(ctx context.Context, db *sql.DB) error {
 	if err := verifySchema(ctx, db); err != nil {
+		return err
+	}
+	if err := verifyBanks(ctx, db); err != nil {
+		return err
+	}
+	if err := verifyPurchaseCosts(ctx, db); err != nil {
 		return err
 	}
 	if err := verifySubledgers(ctx, db); err != nil {

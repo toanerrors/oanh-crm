@@ -93,3 +93,11 @@ Restore ghi đè dữ liệu đang dùng là thao tác cần được ủy quy�
 - Test `integrity_check` và `foreign_key_check` không được thay cho kiểm tra cân đối sổ và khớp phân hệ.
 - Có restore drill định kỳ và sau thay đổi schema/driver quan trọng. Ghi thời gian backup/restore, kích thước, thời điểm bản sao hợp lệ gần nhất và kết quả kiểm tra.
 - RPO/RTO và retention vẫn là quyết định cần xác nhận; chưa có đo đạc thì không tuyên bố đáp ứng mục tiêu khôi phục.
+
+## Tương thích schema 1 và 2
+
+Release 0.3.0 thêm migration 2 có checksum bao gồm SQL và bộ tài khoản tham chiếu. `Check` chấp nhận đúng fingerprint/checksum của schema 1 hoặc 2. Gói backup schema 1 được kiểm tra ở schema gốc; khi activate, bản dataset chuẩn bị được migration lên schema mới **trước** khi đổi pointer. Gói nguồn vẫn nguyên vẹn. Migration giữ tài khoản/bút toán cũ và đưa tồn kho cũ vào Kho mặc định; epoch và phiên đăng nhập được đổi theo quy trình restore hiện có.
+
+Kiểm tra bổ sung: ngân hàng khớp ledger, biến động và lô theo từng hàng–kho, nguồn chi phí không bị phân bổ vượt/trùng/sai ngày và tổng phân bổ bằng tổng nguồn. Nháp chỉ có dòng ledger nháp và payload, không có biến động phân hệ. Chứng từ đã post không được sửa payload nháp hoặc biến động ngân hàng/kho.
+
+Trước nâng production lên schema 2 phải có backup đã xác minh. Có thể dừng container, sao chép toàn bộ `/data` khi writer đã đóng, kiểm tra SQLite bản sao chỉ đọc, đóng gói và checksum. Lưu ngoài repository, quyền riêng tư; không ghi DB/attachments vào Git. Binary 0.2.0 không đọc schema 2; rollback dữ liệu cần runbook và xác nhận, không chép đè volume tùy tiện.

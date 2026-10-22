@@ -10,6 +10,7 @@ type Line struct {
 	AccountName string `json:"accountName,omitempty"`
 }
 type Document struct {
+	Voucher     bool   `json:"voucher,omitempty"`
 	ID          string `json:"id"`
 	Reference   string `json:"reference"`
 	Type        string `json:"type"`
