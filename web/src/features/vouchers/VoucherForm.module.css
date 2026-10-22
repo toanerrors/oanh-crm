@@ -59,13 +59,12 @@
 .references { grid-column: 1 / -1; margin: 0 0 8px; }
 .references summary { color: #50665a; cursor: pointer; padding: 2px 0; }
 .references[open] > div { padding-top: 10px; }
-.bankAccount { display: flex; gap: 6px; }
-.bankAccount > :global(.ant-select) { width: 112px; flex-shrink: 0; }
-.bankAccount > input { min-width: 0; }
+.bankAccount { display: flex; flex-wrap: wrap; gap: 6px; }
+.bankAccount > :global(.ant-select) { width: 112px; flex: 0 0 112px; }
+.bankAccount > :not(:global(.ant-select)) { flex: 1 1 160px; min-width: 0; }
 @media (max-width: 1000px) { .header { grid-template-columns: minmax(0,1fr) 220px; } }
 @media (max-width: 640px) { .header { grid-template-columns: minmax(0,1fr); } .titlebar :global(.ant-select) { min-width: 130px; } .modeSelect :global(.ant-select) { width: 180px; } }
 @media print { .screen, .screen * { visibility: visible; } .screen { position: absolute; inset: 0; display: block; height: auto; } .body { overflow: visible; } .modal :global(.ant-modal-content), .modal :global(.ant-modal-container) { box-shadow: none; } }
-.bankAccount > div { flex: 1; min-width: 0; }
 .body { padding-top: 12px; }
 .header { margin-bottom: 8px; }
 .references { margin-bottom: 0; }

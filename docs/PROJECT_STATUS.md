@@ -20,6 +20,11 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Sửa ô tài khoản chuyển tiền bị co hẹp — 0.7.1
+
+- Cố định chiều rộng ô mã tài khoản đi/đến, loại bỏ quy tắc flex ghi đè làm ô chọn chỉ còn mũi tên. Chỉ hiển thị mã đã chọn; danh sách vẫn có đủ mã và tên tài khoản. Ô tiền mặt/ngân hàng chia phần còn lại và tự xuống dòng khi thiếu chỗ.
+- Đã chạy `pnpm typecheck`, `pnpm build`, `git diff --check`; kiểm tra Edge với dữ liệu giả lập ở 1874/768/390px, đổi tiền mặt/ngân hàng hai chiều, mở danh sách và quản lý/chọn ngân hàng. Mã tài khoản giữ 112px, không có lỗi console. Không lưu/ghi sổ chứng từ thật; không đổi backend/schema/quy tắc số liệu.
+
 ### Tài khoản cha–con và bảng cây — 0.7.0
 
 - Danh mục trước đây chỉ phẳng; parentCode tồn tại trong file tham chiếu, chưa lưu cho tài khoản doanh nghiệp. Schema6 thêm lịch sử quan hệ theo ID/revision, view hiện hành, FK, trigger chống vòng lặp/sửa lịch sử. Seed từ quan hệ nguồn đã có và cặp vận hành1121→112 khai báo tường minh; giữ ID/tên/nhóm/bút toán, tăng dataset revision một lần. Không đoán quan hệ bằng tiền tố; chưa dùng cây để cộng gộp báo cáo theo ngày hiệu lực.
