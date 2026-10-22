@@ -7,7 +7,7 @@ import { documentTypes } from '../../shared/data/types';
 import type { AccountingDocument } from '../../shared/data/types';
 import { Icon } from '../../shared/ui/Icon';
 import type { IconName } from '../../shared/ui/Icon';
-import { DataBoundary, PageHeading, StatusTag } from '../../shared/ui/Page';
+import { DataBoundary, PageHeading, PageToolbar, StatusTag } from '../../shared/ui/Page';
 import styles from '../../app/App.module.css';
 import { apiScope, isDemo } from '../../shared/api/client';
 
@@ -44,8 +44,10 @@ export function Component() {
   const unbalanced = drafts.filter(item => { const total = totals(item.lines); return total.debit !== total.credit; });
   const ratio = chartRatio(bank > 0n ? bank : 0n, (bank > 0n ? bank : 0n) + (pocket > 0n ? pocket : 0n));
 
+  const pageActions = <><Tooltip title="Tải lại dữ liệu trong phiên"><Button icon={<Icon name="refresh" size={16} />} loading={isFetching} onClick={refresh} aria-label="Tải lại tổng quan" /></Tooltip>{canWrite && <Dropdown trigger={['click']} menu={{ items: Object.entries(documentTypes).map(([key, label]) => ({ key, label, onClick: () => newDraft(key as AccountingDocument['type']) })) }}><Button type="primary" icon={<Icon name="plus" size={17} />}>Tạo chứng từ <Icon name="down" size={13} /></Button></Dropdown>}</>;
+
   return <DataBoundary>
-    <PageHeading title="Tổng quan" description="Một góc nhìn rõ ràng về tình hình kinh doanh của bạn." actions={<><Tooltip title="Tải lại dữ liệu trong phiên"><Button icon={<Icon name="refresh" size={16} />} loading={isFetching} onClick={refresh} aria-label="Tải lại tổng quan" /></Tooltip>{canWrite && <Dropdown trigger={['click']} menu={{ items: Object.entries(documentTypes).map(([key, label]) => ({ key, label, onClick: () => newDraft(key as AccountingDocument['type']) })) }}><Button type="primary" icon={<Icon name="plus" size={17} />}>Tạo chứng từ <Icon name="down" size={13} /></Button></Dropdown>}</>} />
+    <PageHeading title="Tổng quan" description="Một góc nhìn rõ ràng về tình hình kinh doanh của bạn." />
     <div className={styles.welcomeStrip}><span className={styles.welcomeSpark}><Icon name="spark" size={19} /></span><p><strong>Chào {isDemo ? 'Minh Anh' : apiScope().name}, chúc một ngày làm việc hiệu quả!</strong><span>Đây là bức tranh tài chính của bạn trong tháng {periodLabel}.</span></p><span className={styles.demoPill}>{isDemo ? 'Dữ liệu mẫu' : 'VND · Sổ đã ghi nhận'}</span></div>
     {canWrite && <section className={styles.quickActions}><span>Thao tác nhanh</span>{([{ title: 'Phiếu thu', type: 'receipt', icon: 'arrowDown' }, { title: 'Phiếu chi', type: 'payment', icon: 'arrowUp' }, { title: 'Bán hàng', type: 'sale', icon: 'cart' }] as const).map(item => <button key={item.type} onClick={() => newDraft(item.type)}><Icon name={item.icon} size={16} />{item.title}<Icon name="plus" size={14} /></button>)}<Link to="/catalog"><Icon name="users" size={16} />Đối tượng<Icon name="plus" size={14} /></Link></section>}
     <section className={styles.metrics} aria-label="Chỉ số tài chính">{metrics.map(metric => { const value = compactMoney(metric.value); return <Tooltip key={metric.label} title={`${formatMoney(metric.value)} VND`} trigger={['hover', 'focus']}><Link to={metric.link} className={`${styles.metricCard} ${styles[metric.color]}`}><div className={styles.metricTop}><span>{metric.label}</span><span className={`${styles.metricIcon} ${styles[metric.color]}`}><Icon name={metric.icon} size={19} /></span></div><div className={styles.metricAmount}><strong>{value.amount}</strong><span>{value.unit}</span></div><div className={styles.metricBottom}><span>{metric.note}</span><Icon name="upRight" size={15} /></div></Link></Tooltip>; })}</section>
@@ -64,7 +66,7 @@ export function Component() {
       </section>
     </div>
     <div className={styles.lowerRow}>
-      <section className={`${styles.panel} ${styles.recentPanel}`}><div className={styles.panelHeader}><div><h2>Chứng từ gần đây <span className={styles.countBadge}>{documentCount}</span></h2><p>Các nghiệp vụ phát sinh trong kỳ</p></div><Link className={styles.textLink} to="/documents">Xem tất cả <Icon name="arrow" size={15} /></Link></div><Table<AccountingDocument> rowKey="id" dataSource={documents.slice(0, 5)} pagination={false} size="small" scroll={{ x: 750 }} locale={{ emptyText: 'Chưa có chứng từ trong kỳ' }} columns={[
+      <section className={`${styles.panel} ${styles.recentPanel}`}><div className={styles.panelHeader}><div><h2>Chứng từ gần đây <span className={styles.countBadge}>{documentCount}</span></h2><p>Các nghiệp vụ phát sinh trong kỳ</p></div><Link className={styles.textLink} to="/documents">Xem tất cả <Icon name="arrow" size={15} /></Link></div><PageToolbar label="Công cụ tổng quan" actions={pageActions} /><Table<AccountingDocument> rowKey="id" dataSource={documents.slice(0, 5)} pagination={false} size="small" scroll={{ x: 750 }} locale={{ emptyText: 'Chưa có chứng từ trong kỳ' }} columns={[
         { title: 'CHỨNG TỪ', dataIndex: 'reference', width: 120, render: (value: string, record) => <button className={styles.tableLink} onClick={() => openDocument(record.id)}>{value}</button> },
         { title: 'DIỄN GIẢI', dataIndex: 'description', ellipsis: true, render: (value: string, record) => <><span>{value}</span><small className={styles.cellSub}>{formatDate(record.date)} · {documentTypes[record.type]}</small></> },
         { title: 'SỐ TIỀN', align: 'right', width: 200, render: (_, record) => <strong className={styles.tableAmount}>{formatMoney(totals(record.lines).debit)}</strong> },

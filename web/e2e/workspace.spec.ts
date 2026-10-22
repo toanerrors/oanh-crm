@@ -13,6 +13,11 @@ test('tổng quan, điều hướng SPA và các màn hình chính hiển thị 
     await expect(page.getByText('Không gian làm việc', { exact: true })).toHaveCount(0);
     await expect(page.getByText(/^Cân đối Nợ\/Có chỉ là một bước kiểm tra\./)).toHaveCount(0);
     await expect(page.getByText(/^(Dữ liệu mẫu|Dữ liệu doanh nghiệp) · Kỳ /)).toHaveCount(0);
+    if (label === 'Danh mục') {
+      const tools = page.getByRole('group', { name: 'Công cụ danh mục', exact: true });
+      await expect(tools.getByRole('textbox', { name: 'Tìm trong danh mục', exact: true })).toBeVisible();
+      await expect(tools.getByRole('button', { name: 'Thêm đối tượng', exact: true })).toBeVisible();
+    }
   }
   expect(errors).toEqual([]);
 });

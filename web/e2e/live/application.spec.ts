@@ -297,5 +297,9 @@ test('tab phân hệ giữ nguyên khi mở danh mục, công nợ và các báo
     await expect(page.getByText(/^Cân đối Nợ\/Có chỉ là một bước kiểm tra\./)).toHaveCount(0);
     await expect(page.getByText(/^Dữ liệu doanh nghiệp · Kỳ /)).toHaveCount(0);
     await expect(page.locator('.ant-pagination')).toBeVisible();
+    const reportTools = page.getByRole('group', { name: 'Công cụ báo cáo', exact: true });
+    await expect(reportTools.getByRole('textbox', { name: 'Tìm trong báo cáo', exact: true })).toBeVisible();
+    await expect(reportTools.getByRole('button', { name: 'In báo cáo', exact: true })).toBeVisible();
+    await expect(reportTools.getByRole('button', { name: 'Xuất CSV', exact: true })).toBeVisible();
   }
 });

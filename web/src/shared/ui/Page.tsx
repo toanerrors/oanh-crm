@@ -3,8 +3,12 @@ import type { ReactNode } from 'react';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import styles from '../../app/App.module.css';
 
-export function PageHeading({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
-  return <div className={styles.pageHeading}><div><h1>{title}</h1><p>{description}</p></div><div className={styles.headingActions}>{actions}</div></div>;
+export function PageHeading({ title, description }: { title: string; description: string }) {
+  return <div className={styles.visuallyHidden}><h1>{title}</h1><p>{description}</p></div>;
+}
+
+export function PageToolbar({ children, actions, label = 'Công cụ bảng' }: { children?: ReactNode; actions?: ReactNode; label?: string }) {
+  return <div className={styles.tableToolbar} role="group" aria-label={label}>{children && <div className={styles.toolbarFilters}>{children}</div>}{actions && <div className={styles.toolbarActions}>{actions}</div>}</div>;
 }
 
 export function DataBoundary({ children }: { children: ReactNode }) {

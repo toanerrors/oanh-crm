@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Thanh công cụ cạnh tìm kiếm, bỏ tiêu đề trang lớn — 0.5.5
+
+- `PageToolbar` dùng chung: bộ lọc/tìm kiếm bên trái, các nút chức năng căn phải. Chuyển thao tác báo cáo/số dư/in/CSV, BCTC, danh mục/đối tượng, công nợ và tài khoản tham chiếu vào hàng tìm kiếm. Các mục hàng hóa/nhân viên/chính sách/người dùng và tổng quan đặt nút ngay trên bảng tương ứng. Danh sách chứng từ giữ thanh công cụ hiện có; mẫu demo cũng đưa nút xuống hàng tìm kiếm.
+- Tiêu đề/mô tả trang dùng chung không chiếm bố cục; giữ heading ngữ nghĩa cho trình đọc màn hình. Bỏ tiêu đề BCTC lặp phía trên bộ lọc. Thanh tab, phân trang, quyền, sự kiện mở form và query/API/số liệu giữ nguyên. Màn hình nhỏ cho nhóm nút xuống dòng và căn phải.
+- Validation:27 test Node và TypeScript strict/production build đạt; bổ sung kiểm tra nhóm tìm kiếm/nút trong E2E hiện có và kiểm tra danh sách test. Edge/dữ liệu giả lập: báo cáo, BCTC, danh mục, công nợ, hàng hóa, chính sách/người dùng, tổng quan; mở đúng form số dư/BCTC/đối tượng, không lưu dữ liệu thử vào production; kiểm tra bố cục390px và khôi phục viewport mặc định. Chưa chạy E2E tự động.
+
 ### Bỏ ghi chú cuối bảng báo cáo — 0.5.4
 
 - Gỡ khối footer có biểu tượng khiên và dòng “Cân đối Nợ/Có chỉ là một bước kiểm tra…” khỏi màn hình sổ/báo cáo, gồm các báo cáo nằm trong phân hệ. Khối ghi chú tương ứng ở công nợ cũng được gỡ. Giữ nguyên phân trang, bộ lọc, tổng số và truy vấn.

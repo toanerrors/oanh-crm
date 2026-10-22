@@ -7,7 +7,7 @@ import { api, apiScope, isDemo } from '../../shared/api/client';
 import { workspaceKey } from '../../shared/data/workspace';
 import type { InvoiceList, TradeInvoice } from '../../shared/data/operations';
 import { businessToday, formatDate, formatMoney } from '../../shared/accounting/money';
-import { DataBoundary, PageHeading } from '../../shared/ui/Page';
+import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { searchOptions } from '../../shared/ui/search';
 import styles from '../../app/App.module.css';
 import { accountingModule } from '../../app/module-navigation';
@@ -31,14 +31,16 @@ function SettlementPage() {
   if (isDemo) return <Alert type="info" title="Công nợ theo chứng từ sử dụng backend và dữ liệu doanh nghiệp." />;
   const result = query.data;
   const pay = (invoice: TradeInvoice) => navigate(`/automation?${new URLSearchParams({ kind: kind === 'sale' ? 'receipt' : 'payment', invoice: invoice.documentId, partner: invoice.partnerId, amount: invoice.remaining })}`);
+  const pageActions = <Link to={module ? `${module.path}/reports?tab=debt&debt=${kind === 'purchase' ? 'payable' : 'receivable'}` : '/receivables'}><Button>Tổng hợp công nợ theo đối tượng</Button></Link>;
+
   return <DataBoundary>
-    <PageHeading title="Công nợ theo chứng từ" description="Giá trị gốc và số đã/chưa phân bổ theo từng chứng từ đến ngày tra cứu." actions={<Link to={module ? `${module.path}/reports?tab=debt&debt=${kind === 'purchase' ? 'payable' : 'receivable'}` : '/receivables'}><Button>Tổng hợp công nợ theo đối tượng</Button></Link>} />
+    <PageHeading title="Công nợ theo chứng từ" description="Giá trị gốc và số đã/chưa phân bổ theo từng chứng từ đến ngày tra cứu." />
     <section className={styles.panel}>
-      <div className={styles.tableToolbar}>
+      <PageToolbar label="Công cụ công nợ" actions={pageActions}>
         <Select disabled={Boolean(module)} aria-label="Loại chứng từ công nợ" value={kind} onChange={value => { setParams({ kind: value }); setPage(1); setPartner(''); }} options={[{ value: 'sale', label: 'Phải thu · Chứng từ bán hàng' }, { value: 'purchase', label: 'Phải trả · Chứng từ mua hàng' }]} />
         <label>Đến ngày <Input type="date" aria-label="Ngày tra cứu công nợ" value={asOf} onChange={event => { setAsOf(event.target.value); setPage(1); }} /></label>
         <Select aria-label="Đối tượng công nợ" showSearch={searchOptions} value={partner} onChange={value => { setPartner(value); setPage(1); }} style={{ minWidth: 220 }} options={[{ value: '', label: 'Tất cả đối tượng' }, ...data?.partners.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` })) ?? []]} />
-      </div>
+      </PageToolbar>
       {query.error && <Alert type="error" title={query.error.message} action={<Button onClick={() => void query.refetch()}>Thử lại</Button>} />}
       <Table<TradeInvoice> rowKey="documentId" loading={query.isFetching} dataSource={result?.invoices ?? []} scroll={{ x: 1100 }} pagination={{ current: page, onChange: setPage, pageSize: 10, total: result?.total ?? 0, showSizeChanger: false, hideOnSinglePage: true }} columns={[
         { title: 'CHỨNG TỪ', dataIndex: 'reference', render: (value: string, row) => <button className={styles.tableLink} onClick={() => openDocument(row.documentId)}>{value}</button> },
