@@ -99,10 +99,10 @@ test('mất phản hồi sau commit rồi retry không tạo hai nháp; ghi sổ
   await page.goto('/documents');
   await page.getByRole('button', { name: 'Tạo chứng từ', exact: true }).click();
   await page.getByLabel('Diễn giải', { exact: true }).fill('Lưu tiền lớn qua API thật');
-  await choose(page, 'Tài khoản dòng 1', '111');
-  await choose(page, 'Tài khoản dòng 2', '411');
+  await choose(page, 'TK Nợ dòng 1', '111');
+  await choose(page, 'TK Có dòng 1', '411');
   await page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true }).fill('9007199254740993');
-  await page.getByRole('spinbutton', { name: 'Số tiền Có dòng 2', exact: true }).fill('9007199254740993');
+  await page.getByRole('spinbutton', { name: 'Số tiền Có dòng 1', exact: true }).fill('9007199254740993');
   await page.route('**/api/v1/documents', async route => {
     if (route.request().method() !== 'POST') { await route.continue(); return; }
     const response = await route.fetch(); expect(response.ok()).toBe(true);

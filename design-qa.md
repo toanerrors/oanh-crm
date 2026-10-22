@@ -46,3 +46,10 @@ Không còn lỗi P0/P1/P2 quan sát được trong các màn hình/luồng trê
 - QA bằng hai dataset giả lập, không dùng dữ liệu production: tiền9007199254740993 giữ qua tab/lưu/reload; doanh thu1000−giảm trừ100=900; bộ số kiểm tra B01 tài sản1500/nguồn1500, B02 trước thuế600/thuế100/sau thuế500; B03 gián tiếp600−100+đầu kỳ1000=cuối1500; EPS−0,25 giữ chính xác. Kiểm tra backend độc lập các phép tính, thiếu dữ liệu và retry/concurrency/rollback/recovery.
 - Màn hình1440×900 và390×844: bảng cuộn ngang riêng, footer đủ nút, nội dung modal cuộn dọc; rút mô tả vào hướng dẫn mở rộng. Source sổ toàn năm đọc snapshot, giữ hai bên đối tượng. Bản in HTML chứa dấu nháp, phiên bản và mục còn thiếu; script in cùng origin phù hợp CSP.
 - Ảnh QA ngoài Git: `bctc-desktop-final.jpg`, `bctc-mobile-final.jpg` trong thư mục visualization của chat. Chưa benchmark tập BCTC lớn hoặc nghiệm thu biểu mẫu pháp định; không gắn nhãn hoàn tất B09/XML.
+
+
+## Chứng từ khác Nợ/Có —22/10/2026
+
+- Vấn đề trong ảnh: cột tài khoản/đối tượng dùng chung trên các dòng đơn khiến người nhập khó nhận ra bên Có. Đổi bảng thành hai nhóm có cùng TK/đối tượng/diễn giải/số tiền, mỗi hàng hiển thị một dòng của mỗi bên. Bên thiếu ở chứng từ không đều giữ dấu gạch, không tự sinh tiền hoặc tài khoản.
+- Kiểm tra Edge/backend thật trên dataset giả lập: Nợ111/khách hàng và Có411/nhà cung cấp với diễn giải khác nhau, tiền9007199254740993 giữ đủ sau API save; thêm cặp rồi xóa từng bên không đổi dòng đầu. Nháp cũ thứ tự331(C40),111(N100),411(C50),338(C10) mở và lưu lại giữ đúng thứ tự, tiền, đối tượng, diễn giải.
+- Bảng rộng1349px; ở1440px hiển thị đủ hai nhóm, ở390px bảng cuộn riêng (client341px), root không tràn ngang và nút Lưu nháp hiển thị. Trạng thái đầu0/0 ghi Chưa nhập số tiền. Ảnh kiểm thử ngoài Git trong thư mục visualization của chat.

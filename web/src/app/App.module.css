@@ -398,3 +398,5 @@
 @media(max-width:640px) { .manualHeader,.manualParty { grid-template-columns: minmax(0,1fr); } .manualDates { padding-left: 0; border-left: 0; } }
 
 .tableLink { white-space: nowrap; }
+
+.journalAddActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }

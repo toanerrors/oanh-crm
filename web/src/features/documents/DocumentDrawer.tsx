@@ -8,6 +8,8 @@ import { useWorkspace } from '../../app/WorkspaceProvider';
 import { saveDemoDraft, workspaceKey } from '../../shared/data/workspace';
 import { documentTypes } from '../../shared/data/types';
 import type { AccountingDocument, JournalLine } from '../../shared/data/types';
+import { journalEntryRows, journalEntrySides } from '../../shared/accounting/journal-entry';
+import type { JournalSide } from '../../shared/accounting/journal-entry';
 import { totals } from '../../shared/accounting/ledger';
 import { formatDate, formatMoney, isMoney } from '../../shared/accounting/money';
 import { Icon } from '../../shared/ui/Icon';
@@ -29,6 +31,7 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
   const { data, setDraft, setDraftOpen, openDocument } = useWorkspace();
   const { message, modal } = App.useApp();
   const [form] = Form.useForm<AccountingDocument>();
+  const [sides, setSides] = useState(() => journalEntrySides(initial.lines));
   const client = useQueryClient();
   const lines = Form.useWatch('lines', form) as JournalLine[] | undefined;
   const validLines = (lines ?? initial.lines).map(line => ({ ...line, debit: line.debit || '0', credit: line.credit || '0' }));
@@ -73,21 +76,38 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
         <div className={styles.manualTotal}><span>Tổng Nợ</span><strong>{total ? formatMoney(total.debit) : '—'}</strong><small>VND</small></div>
       </div>
       <h3 className={styles.sectionTitle}>Chi tiết hạch toán <span>VND · Số nguyên đến đồng</span></h3>
-      <Form.List name="lines">{(fields, { add, remove }) => <>
-        <div className={styles.editTable}>
-          <Table pagination={false} size="small" rowKey="key" dataSource={fields} scroll={{ x: 900 }} columns={[
-            { title: '#', width: 40, render: (_, __, index) => index + 1 },
-            { title: 'Tài khoản', width: 190, render: (_, field) => <Form.Item name={[field.name, 'accountId']} rules={[{ required: true, message: 'Chọn tài khoản' }]}><Select aria-label={`Tài khoản dòng ${field.name + 1}`} showSearch={searchOptions} options={accountOptions} placeholder="Chọn tài khoản" /></Form.Item> },
-            { title: 'Đối tượng', width: 195, render: (_, field) => <Form.Item name={[field.name, 'partnerId']}><Select aria-label={`Đối tượng dòng ${field.name + 1}`} allowClear showSearch={searchOptions} options={partnerOptions} placeholder="Chọn đối tượng" /></Form.Item> },
-            { title: 'Diễn giải dòng', width: 170, render: (_, field) => <Form.Item name={[field.name, 'description']}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input aria-label={`Diễn giải dòng ${field.name + 1}`} placeholder="Nhập hoặc chọn diễn giải" /></AutoComplete></Form.Item> },
-            { title: 'Số tiền Nợ', width: 145, render: (_, field) => <Form.Item name={[field.name, 'debit']} rules={[{ validator: async (_, value: unknown) => { if (value !== undefined && !isMoney(value)) throw new Error('Nhập số nguyên không âm hợp lệ'); } }]}><MoneyInput label={`Số tiền Nợ dòng ${field.name + 1}`} /></Form.Item> },
-            { title: 'Số tiền Có', width: 145, render: (_, field) => <Form.Item name={[field.name, 'credit']} rules={[{ validator: async (_, value: unknown) => { if (value !== undefined && !isMoney(value)) throw new Error('Nhập số nguyên không âm hợp lệ'); } }]}><MoneyInput label={`Số tiền Có dòng ${field.name + 1}`} /></Form.Item> },
-            { width: 40, render: (_, field) => <Button type="text" danger aria-label={`Xóa dòng ${field.name + 1}`} icon={<Icon name="trash" size={16} />} onClick={() => remove(field.name)} /> },
-          ]} />
-        </div>
-        <Button type="dashed" icon={<Icon name="plus" size={16} />} onClick={() => add({ accountId: '', description: '', debit: '0', credit: '0' })} className={styles.addRow}>Thêm dòng hạch toán</Button>
-      </>}</Form.List>
-      <div className={styles.formTotals}><span>Tổng Nợ<strong>{total ? formatMoney(total.debit) : 'Không hợp lệ'}</strong></span><span>Tổng Có<strong>{total ? formatMoney(total.credit) : 'Không hợp lệ'}</strong></span><span className={total && total.debit === total.credit ? styles.positive : styles.warning}>{total && total.debit === total.credit ? <><Icon name="check" size={16} /> Cân đối Nợ / Có</> : <>Chênh lệch: {total ? formatMoney(total.debit - total.credit) : '—'}</>}</span></div>
+      <p className={styles.muted}>Nhập tài khoản và đối tượng riêng cho từng bên. Các dòng Nợ/Có được giữ độc lập khi lưu chứng từ.</p>
+      <Form.List name="lines">{(fields, { add, remove }) => {
+        type Field = (typeof fields)[number];
+        type EntryRow = { key: number; debit?: Field; credit?: Field };
+        const addLine = (side: JournalSide) => { setSides(current => [...current, side]); add({ accountId: '', description: '', debit: '0', credit: '0' }); };
+        const removeLine = (field: Field) => { setSides(current => current.filter((_, index) => index !== field.name)); remove(field.name); };
+        const columns = (side: JournalSide) => {
+          const title = side === 'debit' ? 'Nợ' : 'Có';
+          return [
+            { title: `TK ${title}`, width: 160, render: (_: unknown, row: EntryRow) => row[side] ? <Form.Item name={[row[side]!.name, 'accountId']} rules={[{ required: true, message: `Chọn TK ${title}` }]}><Select aria-label={`TK ${title} dòng ${row.key + 1}`} showSearch={searchOptions} options={accountOptions} placeholder={`Chọn TK ${title}`} /></Form.Item> : '—' },
+            { title: `Đối tượng ${title}`, width: 160, render: (_: unknown, row: EntryRow) => row[side] ? <Form.Item name={[row[side]!.name, 'partnerId']}><Select aria-label={`Đối tượng ${title} dòng ${row.key + 1}`} allowClear showSearch={searchOptions} options={partnerOptions} placeholder={`Chọn đối tượng ${title}`} /></Form.Item> : '—' },
+            { title: `Diễn giải ${title}`, width: 130, render: (_: unknown, row: EntryRow) => row[side] ? <Form.Item name={[row[side]!.name, 'description']}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input aria-label={`Diễn giải ${title} dòng ${row.key + 1}`} placeholder="Nhập hoặc chọn diễn giải" /></AutoComplete></Form.Item> : '—' },
+            { title: `Số tiền ${title}`, width: 170, render: (_: unknown, row: EntryRow) => row[side] ? <Form.Item name={[row[side]!.name, side]} rules={[{ validator: async (_, value: unknown) => { if (!isMoney(value) || value === '0') throw new Error('Nhập số tiền nguyên dương hợp lệ'); } }]}><MoneyInput label={`Số tiền ${title} dòng ${row.key + 1}`} /></Form.Item> : '—' },
+            { width: 32, render: (_: unknown, row: EntryRow) => row[side] ? <Button type="text" danger aria-label={`Xóa dòng ${title} ${row.key + 1}`} icon={<Icon name="trash" size={16} />} onClick={() => removeLine(row[side]!)} /> : null },
+          ];
+        };
+        return <>
+          <div className={styles.editTable}>
+            <Table<EntryRow> pagination={false} size="small" rowKey="key" dataSource={journalEntryRows(fields, sides)} scroll={{ x: 1349 }} columns={[
+              { title: '#', width: 45, render: (_, row) => row.key + 1 },
+              { title: 'BÊN NỢ', children: columns('debit') },
+              { title: 'BÊN CÓ', children: columns('credit') },
+            ]} />
+          </div>
+          <div className={styles.journalAddActions}>
+            <Button type="dashed" icon={<Icon name="plus" size={16} />} onClick={() => { setSides(current => [...current, 'debit', 'credit']); add({ accountId: '', description: '', debit: '0', credit: '0' }); add({ accountId: '', description: '', debit: '0', credit: '0' }); }}>Thêm dòng Nợ/Có</Button>
+            <Button onClick={() => addLine('debit')}>Thêm bên Nợ</Button>
+            <Button onClick={() => addLine('credit')}>Thêm bên Có</Button>
+          </div>
+        </>;
+      }}</Form.List>
+      <div className={styles.formTotals}><span>Tổng Nợ<strong>{total ? formatMoney(total.debit) : 'Không hợp lệ'}</strong></span><span>Tổng Có<strong>{total ? formatMoney(total.credit) : 'Không hợp lệ'}</strong></span><span className={total && total.debit === total.credit && total.debit > 0n ? styles.positive : styles.warning}>{total && total.debit === 0n && total.credit === 0n ? <>Chưa nhập số tiền</> : total && total.debit === total.credit ? <><Icon name="check" size={16} /> Cân đối Nợ / Có</> : <>Chênh lệch: {total ? formatMoney(total.debit - total.credit) : '—'}</>}</span></div>
       {total && total.debit !== total.credit && <Alert type="warning" showIcon title="Nháp đang lệch Nợ/Có. Có thể lưu để bổ sung, chưa đủ điều kiện ghi sổ." />}
       <div className={`${styles.formFooter} ${styles.draftActions}`}><Button danger type="text" onClick={() => modal.confirm({ title: 'Bỏ nội dung nháp đang nhập?', content: 'Nội dung chưa lưu trong biểu mẫu sẽ bị bỏ. Chứng từ đã lưu vẫn giữ nguyên.', okText: 'Bỏ nháp', cancelText: 'Tiếp tục nhập', onOk: () => { setDraft(null); setDraftOpen(false); } })}>Bỏ nháp</Button><div><Button icon={<Icon name="download" size={16} />} onClick={exportDraft}>Xuất nháp</Button>{isDemo && <Tooltip title="Cần kết nối backend và kiểm tra nghiệp vụ"><Button disabled>Ghi sổ</Button></Tooltip>}<Button type="primary" htmlType="submit" loading={mutation.isPending}>{isDemo ? 'Lưu nháp mẫu' : 'Lưu nháp'}</Button></div></div>
     </Form>

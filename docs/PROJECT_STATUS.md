@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Form chứng từ khác: hai bên Nợ/Có —0.4.1
+
+- Chia chi tiết hạch toán thành hai nhóm đối xứng: TK Nợ/Có, đối tượng Nợ/Có, diễn giải Nợ/Có và số tiền Nợ/Có trên cùng hàng hiển thị. Có thêm/xóa riêng từng bên hoặc thêm cả hai; không báo cân đối khi chưa nhập tiền.
+- Đây là cách trình bày form; giữ nguyên mảng dòng ledger, thứ tự nguồn, API, schema3 và quy tắc kiểm tra server. Không tự ghép bút toán đối ứng, tự điền tiền bên còn lại hoặc ép chứng từ nhiều Nợ/nhiều Có thành một cặp.
+- Validation: TypeScript strict/build và18 test Node đạt. Edge với backend thật/dữ liệu giả lập: nhập hai TK/đối tượng/diễn giải riêng, tiền9007199254740993, thêm/xóa từng bên, lưu và kiểm tra API; mở/lưu lại nháp cũ1 Nợ/3 Có giữ đủ dữ liệu/thứ tự. Kiểm tra1440px và390px; mobile chỉ bảng cuộn ngang, nút lưu còn hiển thị. Đã cập nhật selectors E2E; chưa chạy lại Playwright CLI trong lượt này.
+
 ### Bản nháp BCTC thay tab doanh thu/chi phí — 0.4.0
 
 - Thay tab trong ảnh bằng danh sách/lập BCTC theo bố cục tham chiếu AMIS; URL `tab=income` cũ mở BCTC, giữ NKC/sổ cái/cân đối phát sinh và API income tương thích.
