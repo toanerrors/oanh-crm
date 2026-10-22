@@ -13,6 +13,7 @@ import type { ServerReportRow } from '../../shared/data/reports';
 import { financialPreview, formatFinancialAmount } from './financial';
 import type { FinancialInput, FinancialReport, FinancialRow, FinancialTemplate } from './financial';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
+import { DateInput } from '../../shared/ui/DateInput';
 import styles from './FinancialReports.module.css';
 import appStyles from '../../app/App.module.css';
 
@@ -133,7 +134,7 @@ function FinancialEditor({ initial, template, onClose, onSaved }: { initial: Fin
           ]} />
         </> : <Form.Item name="notes" label="Thuyết minh và giải trình bổ sung"><Input.TextArea rows={18} maxLength={60000} showCount placeholder="Nhập thuyết minh, chính sách kế toán, giải trình và tham chiếu các bảng chi tiết đã đối chiếu…" /></Form.Item>}
         <Form.Item name="address" label="Địa chỉ đơn vị báo cáo"><Input maxLength={160} /></Form.Item>
-        <div className={styles.signatures}><Form.Item name="preparedBy" label="Người lập biểu"><Input maxLength={160} /></Form.Item><Form.Item name="chiefAccountant" label="Kế toán trưởng"><Input maxLength={160} /></Form.Item><Form.Item name="director" label="Người đại diện theo pháp luật"><Input maxLength={160} /></Form.Item><Form.Item name="preparedDate" label="Ngày lập" rules={[{ required: true, message: 'Chọn ngày lập.' }]}><Input type="date" /></Form.Item></div>
+        <div className={styles.signatures}><Form.Item name="preparedBy" label="Người lập biểu"><Input maxLength={160} /></Form.Item><Form.Item name="chiefAccountant" label="Kế toán trưởng"><Input maxLength={160} /></Form.Item><Form.Item name="director" label="Người đại diện theo pháp luật"><Input maxLength={160} /></Form.Item><Form.Item name="preparedDate" label="Ngày lập" rules={[{ required: true, message: 'Chọn ngày lập.' }]}><DateInput /></Form.Item></div>
       </div>
     </Form>
     <Drawer title="Đối chiếu số liệu sổ đã ghi sổ" open={sourceOpen} onClose={() => setSourceOpen(false)} width="min(1200px, 96vw)"><div className={styles.source}><Select aria-label="Kỳ đối chiếu" value={sourcePeriod} onChange={setSourcePeriod} options={[{ value: 'current', label: `Năm ${current.from.slice(0, 4)}` }, { value: 'previous', label: `Năm ${current.previousFrom.slice(0, 4)}` }]} /><p>{formatDate(from)} – {formatDate(to)} · Phiên bản {source.data?.revision ?? '…'} · VND · Giữ số dư hai bên theo đối tượng</p><Alert type="info" title="Phát sinh bao gồm bút toán kết chuyển. Khi lập B02, cần đối chiếu và loại chuyển số nội bộ theo đúng chỉ tiêu." />{source.error && <Alert type="error" title={source.error.message} />}<Table<ServerReportRow> rowKey="key" dataSource={source.data?.rows ?? []} loading={source.isPending} pagination={{ pageSize: 15, showSizeChanger: false }} scroll={{ x: 1000 }} columns={[{ title: 'TK', dataIndex: 'code', width: 80 }, { title: 'Tên tài khoản', dataIndex: 'name', width: 240 }, ...(['openingDebit', 'openingCredit', 'debit', 'credit', 'closingDebit', 'closingCredit'] as const).map((key, index) => ({ title: ['Dư đầu Nợ', 'Dư đầu Có', 'PS Nợ', 'PS Có', 'Dư cuối Nợ', 'Dư cuối Có'][index], dataIndex: key, align: 'right' as const, width: 145, render: (value: string) => formatMoney(value) }))]} /></div></Drawer>

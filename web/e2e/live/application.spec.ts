@@ -134,7 +134,8 @@ test('cài đặt chính sách, danh sách sổ phân trang và tải backup qua
   await expect(page.getByRole('heading', { name: 'Cài đặt doanh nghiệp', exact: true })).toBeVisible();
   await expect(page.getByRole('cell', { name: '2026-01-01', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Thêm phiên bản chính sách', exact: true }).click();
-  await page.getByLabel('Ngày hiệu lực', { exact: true }).fill('2026-11-01');
+  await page.getByLabel('Ngày hiệu lực', { exact: true }).fill('01/11/2026');
+  await page.getByLabel('Ngày hiệu lực', { exact: true }).press('Enter');
   await page.getByRole('checkbox', { name: /Tôi xác nhận các thông số/ }).check();
   await page.getByRole('button', { name: 'Lưu phiên bản chính sách', exact: true }).click();
   await expect(page.getByRole('cell', { name: '2026-11-01', exact: true })).toBeVisible();

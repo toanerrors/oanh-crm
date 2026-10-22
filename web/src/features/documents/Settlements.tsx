@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Input, Select, Table, Tag } from 'antd';
+import { Alert, Button, Select, Table, Tag } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
@@ -10,6 +10,7 @@ import { businessToday, formatDate, formatMoney } from '../../shared/accounting/
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { searchOptions } from '../../shared/ui/search';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
+import { DateInput } from '../../shared/ui/DateInput';
 import styles from '../../app/App.module.css';
 import { accountingModule } from '../../app/module-navigation';
 
@@ -39,7 +40,7 @@ function SettlementPage() {
     <section className={styles.panel}>
       <PageToolbar label="Công cụ công nợ" actions={pageActions}>
         <Select disabled={Boolean(module)} aria-label="Loại chứng từ công nợ" value={kind} onChange={value => { setParams({ kind: value }); setPage(1); setPartner(''); }} options={[{ value: 'sale', label: 'Phải thu · Chứng từ bán hàng' }, { value: 'purchase', label: 'Phải trả · Chứng từ mua hàng' }]} />
-        <label>Đến ngày <Input type="date" aria-label="Ngày tra cứu công nợ" value={asOf} onChange={event => { setAsOf(event.target.value); setPage(1); }} /></label>
+        <label>Đến ngày <DateInput aria-label="Ngày tra cứu công nợ" value={asOf} onChange={value => { setAsOf(value); setPage(1); }} /></label>
         <Select aria-label="Đối tượng công nợ" showSearch={searchOptions} value={partner} onChange={value => { setPartner(value); setPage(1); }} style={{ minWidth: 220 }} options={[{ value: '', label: 'Tất cả đối tượng' }, ...data?.partners.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` })) ?? []]} />
       </PageToolbar>
       {query.error && <Alert type="error" title={query.error.message} action={<Button onClick={() => void query.refetch()}>Thử lại</Button>} />}

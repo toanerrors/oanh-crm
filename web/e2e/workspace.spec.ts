@@ -36,6 +36,15 @@ test('gợi ý không dấu, nhập tự do và chiều cao control thống nh�
     page.getByRole('combobox', { name: 'Chọn kỳ kế toán' }).locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
   ]) expect((await control.boundingBox())?.height).toBe(32);
   await create.click();
+  const date = page.getByLabel('Ngày chứng từ', { exact: true });
+  await date.click();
+  await expect(page.locator('.ant-picker-dropdown:visible')).toBeVisible();
+  await date.fill('29/02/2024');
+  await date.press('Enter');
+  await expect(date).toHaveValue('29/02/2024');
+  await date.fill('22/10/2026');
+  await date.press('Enter');
+  await expect(date).toHaveValue('22/10/2026');
   const description = page.getByLabel('Diễn giải', { exact: true });
   await description.fill('thue van phong');
   const suggestion = page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Thanh toán chi phí thuê văn phòng tháng 10' });

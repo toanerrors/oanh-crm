@@ -16,6 +16,7 @@ import { Icon } from '../../shared/ui/Icon';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
 import { StatusTag } from '../../shared/ui/Page';
 import { searchOptions, suggestionOptions } from '../../shared/ui/search';
+import { DateInput } from '../../shared/ui/DateInput';
 import styles from '../../app/App.module.css';
 import { api, apiScope, command, isDemo } from '../../shared/api/client';
 
@@ -73,7 +74,7 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
           <Form.Item name="description" label="Diễn giải" rules={[{ required: true, whitespace: true, message: 'Nhập diễn giải chứng từ' }]}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn diễn giải đã dùng" maxLength={500} /></AutoComplete></Form.Item>
           {!isDemo && <Form.Item name="sourceId" label="Mã chứng từ nguồn (nếu có)"><Input placeholder="Mã nguồn dùng thống nhất khi nhập tay / import" maxLength={100} /></Form.Item>}
         </div>
-        <div className={styles.manualDates}><Form.Item name="date" label="Ngày chứng từ" rules={[{ required: true, message: 'Chọn ngày chứng từ' }]}><Input type="date" /></Form.Item><Form.Item label="Số chứng từ"><Input readOnly value={initial.reference || 'Tự cấp khi ghi sổ'} /></Form.Item></div>
+        <div className={styles.manualDates}><Form.Item name="date" label="Ngày chứng từ" rules={[{ required: true, message: 'Chọn ngày chứng từ' }]}><DateInput /></Form.Item><Form.Item label="Số chứng từ"><Input readOnly value={initial.reference || 'Tự cấp khi ghi sổ'} /></Form.Item></div>
         <div className={styles.manualTotal}><span>Tổng Nợ</span><strong>{total ? formatMoney(total.debit) : '—'}</strong><small>VND</small></div>
       </div>
       <h3 className={styles.sectionTitle}>Chi tiết hạch toán <span>VND · Số nguyên đến đồng</span></h3>
@@ -155,7 +156,7 @@ export function DocumentDetail() {
   function reverse() {
     if (!document) return;
     let reason = ''; let date = document.date;
-    modal.confirm({ title: `Đảo chứng từ ${document.reference}`, content: <div><p>Chọn ngày thuộc kỳ mở. Giữ liên kết và toàn bộ chứng từ gốc.</p><Input type="date" defaultValue={date} onChange={event => { date = event.target.value; }} aria-label="Ngày chứng từ đảo" /><Input.TextArea placeholder="Lý do đảo chứng từ" onChange={event => { reason = event.target.value; }} aria-label="Lý do đảo chứng từ" style={{ marginTop: 12 }} /></div>, okText: 'Lập và ghi sổ chứng từ đảo', cancelText: 'Hủy', onOk: async () => {
+    modal.confirm({ title: `Đảo chứng từ ${document.reference}`, content: <div><p>Chọn ngày thuộc kỳ mở. Giữ liên kết và toàn bộ chứng từ gốc.</p><DateInput defaultValue={date} onChange={value => { date = value; }} aria-label="Ngày chứng từ đảo" /><Input.TextArea placeholder="Lý do đảo chứng từ" onChange={event => { reason = event.target.value; }} aria-label="Lý do đảo chứng từ" style={{ marginTop: 12 }} /></div>, okText: 'Lập và ghi sổ chứng từ đảo', cancelText: 'Hủy', onOk: async () => {
       const saved = await command<AccountingDocument>(`/documents/${document.id}/reverse`, { id: document.id, date, reason });
       void message.success(`Đã ghi sổ ${saved.reference}.`); await client.invalidateQueries({ queryKey: workspaceKey() }); openDocument(saved.id);
     } });

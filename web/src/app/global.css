@@ -18,7 +18,6 @@ h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { text-wrap: balance; }
 svg { flex-shrink: 0; vertical-align: middle; }
 ::selection { background: #c4e7d9; }
-input[type=date] { color-scheme: light; }
 .ant-table { font-variant-numeric: tabular-nums; }
 .ant-table-thead > tr > th { font-size: 12px; letter-spacing: 0; font-weight: 600; }
 .ant-table-tbody > tr > td { border-bottom-color: #f0f3f1 !important; }
@@ -27,7 +26,6 @@ input[type=date] { color-scheme: light; }
 .ant-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .ant-select-selection-item { font-weight: 500; }
 .ant-form-item-label > label { font-size: 13px; font-weight: 550; }
-.ant-input[type=date], .ant-input[type=month] { height: 32px; }
 .ant-input-number-input { font-variant-numeric: tabular-nums; text-align: right; }
 .ant-tabs-tab { font-weight: 500; }
 .ant-drawer-title { font-size: 14px !important; }

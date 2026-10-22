@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### DatePicker Ant Design cho ngày và tháng — 0.5.8
+
+- Thay toàn bộ input ngày/tháng native bằng `DateInput` bọc Ant Design DatePicker trong chứng từ khác, mua/bán/thu chi, nghiệp vụ, chính sách, công nợ, số dư và ngày lập BCTC. Form và API tiếp tục dùng chuỗi `YYYY-MM-DD`/`YYYY-MM`; giao diện `DD/MM/YYYY`/`MM/YYYY`, lịch tiếng Việt, nhập bàn phím và xóa ngày. Truyền tiếp id/ref, trạng thái disabled và props của Form.
+- Dùng Day.js1.11.23 đã có qua Ant Design, khai báo trực tiếp đúng phiên bản sau khi người dùng chấp thuận; không nâng package. Parse strict, không đổi ngày sai sang ngày khác hoặc chuyển ngày qua UTC. Theme DatePicker có cell36×24 để lịch gọn, vừa màn hình nhỏ dù controlHeightSM toàn ứng dụng là32.
+- Validation:30 test Node gồm3 test ngày/tháng/ngày nhuận/định dạng sai/timezone; TypeScript strict và production build đạt. Cập nhật E2E tương tác lịch và định dạng ngày chính sách, kiểm tra danh sách11 test mẫu/8 test live; chưa chạy E2E tự động. Edge/dữ liệu giả lập: lịch tiếng Việt trong chứng từ/popup mua hàng, chọn ngày công nợ, nhập ngày nhuận/tháng, ngày sai không rollover, xóa/khôi phục ngày và nhập chuỗi canonical; kiểm tra popup không tràn ở360/390px, khôi phục viewport. Không ghi dữ liệu thử vào production.
+
 ### Nút icon và tooltip trên thanh công cụ — 0.5.7
 
 - Thêm `ToolbarButton` dùng Ant Design Button/Tooltip: icon32×32px, nhãn tiếng Việt qua tooltip khi hover/focus và `aria-label`; wrapper giữ tooltip cho nút bị vô hiệu hóa. Giữ trạng thái disabled/loading, quyền và handler cũ.
