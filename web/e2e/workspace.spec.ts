@@ -48,7 +48,7 @@ test('gợi ý không dấu, nhập tự do và chiều cao control thống nh�
     description,
     partner.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
     account.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
-    page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true }).locator('xpath=ancestor::*[contains(@class,"ant-input-number")][last()]'),
+    page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true }).locator('xpath=ancestor::*[contains(@class,"ant-input-number")][last()]'),
     page.getByRole('button', { name: 'Lưu nháp mẫu', exact: true }),
   ]) expect((await control.boundingBox())?.height).toBe(32);
 
@@ -102,7 +102,7 @@ test('nút lưu nháp luôn hiện khi nhập nhiều dòng', async ({ page }) =
   await page.getByLabel('Diễn giải', { exact: true }).fill('Nháp nhiều dòng');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.getByLabel('Diễn giải', { exact: true })).toHaveValue('Nháp nhiều dòng');
-  for (let index = 0; index < 8; index++) await page.getByRole('button', { name: 'Thêm dòng Nợ/Có' }).click();
+  for (let index = 0; index < 8; index++) await page.getByRole('button', { name: 'Thêm dòng hạch toán' }).click();
   await page.locator('.ant-drawer-body').evaluate(element => { element.scrollTop = 0; });
   const save = page.getByRole('button', { name: 'Lưu nháp mẫu', exact: true });
   await expect(save).toBeInViewport();
@@ -126,8 +126,10 @@ test('tiền lớn, thêm/xóa dòng và nháp giữ qua chuyển route, không 
   await page.goto('/documents');
   await page.getByRole('button', { name: 'Tạo chứng từ', exact: true }).click();
   await page.getByLabel('Diễn giải', { exact: true }).fill('Kiểm tra số tiền lớn');
-  await expect(page.getByRole('columnheader', { name: 'BÊN NỢ', exact: true })).toBeVisible();
-  await expect(page.getByRole('columnheader', { name: 'BÊN CÓ', exact: true })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'TK Nợ', exact: true })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'TK Có', exact: true })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('combobox', { name: 'Diễn giải dòng 1', exact: true })).toHaveCount(1);
   await expect(page.getByRole('combobox', { name: 'Đối tượng Nợ dòng 1', exact: true })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Đối tượng Có dòng 1', exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'TK Nợ dòng 1' }).click();
@@ -136,21 +138,19 @@ test('tiền lớn, thêm/xóa dòng và nháp giữ qua chuyển route, không 
   await page.getByRole('combobox', { name: 'TK Có dòng 1' }).click();
   await page.getByRole('combobox', { name: 'TK Có dòng 1' }).fill('411');
   await page.getByRole('combobox', { name: 'TK Có dòng 1' }).press('Enter');
-  await page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true }).fill('9007199254740993');
-  await page.getByRole('spinbutton', { name: 'Số tiền Có dòng 1', exact: true }).fill('9007199254740993');
-  await page.getByRole('button', { name: 'Thêm dòng Nợ/Có' }).click();
-  await page.getByRole('button', { name: 'Xóa dòng Nợ 2', exact: true }).click();
-  await page.getByRole('button', { name: 'Xóa dòng Có 2', exact: true }).click();
+  await page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true }).fill('9007199254740993');
+  await page.getByRole('button', { name: 'Thêm dòng hạch toán' }).click();
+  await page.getByRole('button', { name: 'Xóa dòng hạch toán 2', exact: true }).click();
   await expect(page.getByText('Cân đối Nợ / Có', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Tổng quan', exact: true }).click();
   await page.getByRole('button', { name: 'Tiếp tục nháp', exact: true }).click();
   await expect(page.getByLabel('Diễn giải', { exact: true })).toHaveValue('Kiểm tra số tiền lớn');
-  await expect(page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true })).toHaveValue('9.007.199.254.740.993');
-  await page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true }).press('ArrowUp');
-  await page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true }).hover();
+  await expect(page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true })).toHaveValue('9.007.199.254.740.993');
+  await page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true }).press('ArrowUp');
+  await page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true }).hover();
   await page.mouse.wheel(0, -100);
-  await expect(page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true })).toHaveValue('9.007.199.254.740.993');
+  await expect(page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true })).toHaveValue('9.007.199.254.740.993');
   await page.getByRole('button', { name: 'Lưu nháp mẫu', exact: true }).click();
   await expect(page.getByText('Đã lưu nháp trong phiên mẫu. Nháp chưa tác động đến sổ.')).toBeVisible();
   await expect(page.getByRole('link', { name: /Doanh thu trong kỳ/ })).toContainText('528');
@@ -199,17 +199,17 @@ test('đổi kỳ không giữ chứng từ kỳ cũ, sổ và công nợ truy �
 test('ô tiền từ chối định dạng mơ hồ và số vượt giới hạn, không lưu giá trị cũ', async ({ page }) => {
   await page.goto('/documents');
   await page.getByRole('button', { name: 'Tạo chứng từ', exact: true }).click();
-  const input = page.getByRole('spinbutton', { name: 'Số tiền Nợ dòng 1', exact: true });
+  const input = page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true });
   for (const value of ['1.5', '1,5', '9223372036854775808']) {
     await input.fill(value);
     await page.getByLabel('Diễn giải', { exact: true }).click();
-    await expect(page.getByText('Nhập số nguyên không âm hợp lệ', { exact: true })).toBeVisible();
+    await expect(page.getByText('Nhập số tiền nguyên dương hợp lệ', { exact: true })).toBeVisible();
     await expect(input).toHaveValue(value);
   }
   await input.fill('1234567');
   await page.getByLabel('Diễn giải', { exact: true }).click();
   await expect(input).toHaveValue('1.234.567');
-  await expect(page.getByText('Nhập số nguyên không âm hợp lệ', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Nhập số tiền nguyên dương hợp lệ', { exact: true })).toHaveCount(0);
 });
 
 test('mobile 390px không tràn ngang và mở được điều hướng, biểu mẫu', async ({ page }) => {

@@ -186,3 +186,8 @@ Mẫu `tt99-2026-v1` đối chiếu Phụ lụcIV Mục1, B01 năm hoạt độn
 - Kho hiện hỗ trợ hàng hóa156 theo item–warehouse, số lượng đúng scale và giá trị VND đã đối chiếu; ghi đồng thời lô tồn và biến động ban đầu theo chính sách đã xác nhận. TSCĐ211/214 và trả trước242 nhập nguyên giá, lũy kế, thu hồi, kỳ bắt đầu và tổng tháng. Số kỳ đã phân bổ trước chuyển đổi được lưu bất biến; kỳ sau tiếp tục đường thẳng trên nguyên giá gốc, phần dư kỳ cuối. Tài khoản kho/tài sản khác chưa có phân hệ chi tiết bị chặn, không nhận số tổng thay chi tiết.
 - Nguồn `opening` thuộc dư đầu ngay tại kỳ chuyển đổi, không thuộc phát sinh, NKC, thu/chi tháng hoặc doanh thu/chi phí. Các kỳ sau lấy số đã xác nhận cùng phát sinh trước kỳ, không đặt lại số dư. BCTC source và báo cáo trước mốc từ chối thay vì trả0 cho lịch sử chưa nhập. Source BCTC chia hai bên theo đối tượng chỉ với tài khoản yêu cầu đối tượng.
 - Công nợ đầu kỳ có chi tiết đối tượng, chưa có hóa đơn chuyển đổi và phân bổ thu/trả theo hóa đơn cho nguồn này. Phiếu hạch toán đối ứng131/331 thủ công được giữ trong sổ và cần đối soát, không tự gán hóa đơn nguồn.
+
+
+## 14. Nhập chứng từ theo cặp Nợ/Có (0.5.1)
+
+Form chứng từ khác có cặp TK/đối tượng Nợ và Có riêng, số tiền/diễn giải dùng chung một lần nhập. Tác động đúng hai dòng nguồn của cặp, giữ chuỗi tiền chính xác và thứ tự nguồn. Đây là cách nhập một cặp, không phải tự bù chênh lệch cho chứng từ nhiều đối ứng. Nháp nhiều Nợ/Có, khác số tiền hoặc khác diễn giải giữa hai bên giữ chế độ chi tiết một bên mỗi dòng; chỉ chuyển sang cặp khi số tiền/diễn giải từng cặp trùng chính xác. Dòng không có diễn giải dùng diễn giải chứng từ khi đọc sổ. Không đổi dữ liệu chứng từ đã ghi sổ, API, schema hoặc bước kiểm tra ghi sổ phía server.

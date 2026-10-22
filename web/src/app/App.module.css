@@ -400,3 +400,6 @@
 .tableLink { white-space: nowrap; }
 
 .journalAddActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+.journalLayout { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+.journalLayout p { margin:0; }

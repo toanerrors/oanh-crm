@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Chứng từ khác: nhập số tiền và diễn giải một lần — 0.5.1
+
+- Mặc định mỗi dòng có TK/đối tượng Nợ và Có riêng, một số tiền và một diễn giải chung. Nhập/sửa số tiền hoặc diễn giải cập nhật đúng hai dòng ledger của cặp; thêm/xóa cả cặp. Diễn giải dòng có thể để trống để dùng diễn giải chứng từ khi xem sổ.
+- Chế độ nhiều Nợ/Có giữ mỗi dòng nguồn một bên, một số tiền và một diễn giải. Nháp cũ chỉ dùng giao diện cặp khi các dòng đối ứng theo thứ tự hai bên có cùng số tiền/diễn giải; còn lại mở chi tiết và chặn chuyển chế độ gây mất thông tin. Giữ thứ tự dòng, đối tượng, tài khoản, API, schema4 và kiểm tra server.
+- Validation: TypeScript strict/build,24 test Node (cặp tiền lớn, khác diễn giải, nhiều đối ứng, Có trước Nợ). Edge/backend thật trên dữ liệu giả lập: một lần nhập9.007.199.254.740.993 tạo đúng hai dòng cùng tiền/diễn giải, giữ đối tượng riêng; thêm/xóa cặp, chuyển chế độ/route giữ nháp; mở/lưu nháp1 Nợ/3 Có giữ nguyên toàn bộ dòng và thứ tự. Nhập1.5 báo lỗi, không làm tròn; bố cục mobile390px giữ nút lưu và bảng cuộn ngang. Đã cập nhật E2E selectors, không chạy Playwright CLI trong lượt kiểm tra Edge.
+
 ### Nhập số dư đầu kỳ — 0.5.0
 
 - Thêm thao tác ngay tại Cân đối phát sinh, form Ant Design nhập Nợ/Có, nguồn đối chiếu và ngày đầu tháng chuyển đổi; lưu/mở lại/bỏ nháp, mở kỳ còn thiếu và xác nhận riêng. Chủ sở hữu khởi tạo trước lần ghi sổ đầu tiên, số xác nhận bất biến. Không thêm số dư thật khi release.
