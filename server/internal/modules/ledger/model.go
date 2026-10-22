@@ -26,12 +26,14 @@ type Document struct {
 	Lines       []Line `json:"lines"`
 }
 type Account struct {
-	ID              string `json:"id"`
-	Code            string `json:"code"`
-	Name            string `json:"name"`
-	Group           string `json:"group"`
-	RequiresPartner bool   `json:"requiresPartner"`
-	Active          bool   `json:"active"`
+	ParentID        *string `json:"parentId,omitempty"`
+	ParentRevision  int64   `json:"parentRevision,omitempty"`
+	ID              string  `json:"id"`
+	Code            string  `json:"code"`
+	Name            string  `json:"name"`
+	Group           string  `json:"group"`
+	RequiresPartner bool    `json:"requiresPartner"`
+	Active          bool    `json:"active"`
 }
 type Partner struct {
 	ID     string `json:"id"`

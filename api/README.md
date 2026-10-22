@@ -87,3 +87,7 @@ Mốc đầu tháng và nguồn đối chiếu bắt buộc. `lines` gồm accou
 - `POST /excel-imports/{id}/commit`: configuration/expectedRevision/fingerprint, epoch/key; tính lại và nhập cả gói atomic, chứng từ/số dư chỉ nháp. `/discard`: JSON{}, epoch/key, chỉ xóa tệp chờ của actor.
 
 Mapping là object fieldKey→columnIndex từ0; headerRow từ1. dateFormat=dmy|iso, numberFormat=plain|vi|en, mode=add|update, ignoreUnmapped boolean; opening thêm cutoff/source. Kết quả đếm records và rows riêng, tiền là chuỗi. Tệp staged gắn epoch; actor khác/viewer không được đọc. Owner-only kinds: accounts/employees/opening. API CSV `/imports/preview` và `/imports` giữ tương thích.
+
+## Tài khoản cha–con (0.7.0)
+
+`workspace.accounts[]` và `POST /accounts` thêm `parentId` (ID, rỗng là cấp1) và `parentRevision` (mặc định0). Bỏ parentId trong lệnh cũ giữ nguyên cha; khi đổi cha gửi đúng revision đã đọc. Trả VERSION_CONFLICT khi quan hệ đổi đồng thời, INVALID_PARENT khi tự tham chiếu/vòng lặp/cha sai hoặc quá10cấp, HISTORY_LOCKED khi nhánh đã có chứng từ. Quyền owner, epoch và idempotency giữ nguyên. Mã tài khoản không bị dùng để đoán quan hệ; tên/nhóm lịch sử vẫn khóa như trước. Excel accounts có cột parentCode, danh mục CSV xuất mã cha. Báo cáo chưa tổng hợp theo cây.

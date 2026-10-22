@@ -2,7 +2,7 @@ name: oanh
 
 services:
   app:
-    image: oanh-crm:0.6.1
+    image: oanh-crm:0.7.0
     build:
       context: .
       args:

@@ -241,3 +241,11 @@ Mẫu năm dương lịch TT99 cho hoạt động liên tục; chỉ tiêu nhậ
 `platform/spreadsheet` đọc/chuẩn hóa raw XLSX bằng Excelize2.11.0 và CSV bằng thư viện chuẩn; không phụ thuộc HTTP/DB. `operations/excel_*` sở hữu schema cột, ghép dữ liệu, điều phối catalog/voucher/opening qua serviceTx hiện có. Ledger công khai lookup mã/nguồn và validator trong cùng transaction; không có bộ ghi sổ riêng cho Excel. Handler multipart parse ngoài write transaction. Không thêm thư viện Excel phía trình duyệt.
 
 `excel_imports` lưu actor/epoch, SHA256 tệp, workbook đã đọc, thiết lập, trạng thái và kết quả. Bản sao raw đã đọc giữ trong DB/backup; không chạy macro/công thức. Preview dùng transaction rollback, commit dùng Ledger.Write cùng kiểm tra revision/idempotency và từng validator nghiệp vụ. Schema1–4/checksum cũ giữ nguyên; schema5 thêm một bảng và hai index. Xem [phạm vi/giới hạn import](excel-import.md).
+
+## Quan hệ tài khoản cha–con — schema6 (0.7.0)
+
+`account_hierarchy(account_id,revision,parent_id)` dùng ID ổn định, FK, khóa account/revision, CHECK tự tham chiếu, trigger chống vòng lặp và sửa/xóa lịch sử. View `account_current_parents` lấy bản mới nhất. Baseline revision0 theo `parentCode` trong bộ nguồn đã nhúng; cặp vận hành1121→112 được khai báo tường minh. Không đoán cha bằng tiền tố. Setup và endpoint nạp tham chiếu bổ sung liên kết còn thiếu, giữ liên kết đã lưu.
+
+`ledger.SaveAccountTx` điều phối lưu danh mục và append quan hệ trong transaction/audit/idempotency hiện có; client gửi parentRevision để chống ghi đè quan hệ. Tối đa10cấp, cha phải tồn tại/đang sử dụng; không đổi cha nếu tài khoản hoặc nhánh con có bất kỳ chứng từ nào. Payload cũ bỏ parentId giữ nguyên quan hệ; trường revision0 bỏ khỏi JSON hash để giữ idempotency cũ. Workspace đọc danh mục/quan hệ trong cùng snapshot. Đây là phân cấp quản lý danh mục; báo cáo/ghi sổ vẫn dùng dòng trực tiếp theo account ID, chưa cộng gộp cây theo ngày hiệu lực.
+
+Frontend dựng Table tree/TreeSelect từ parentId, đếm con trực tiếp, cấp và đường dẫn tên; tìm không dấu giữ các tổ tiên, mở/thu mọi nhánh, thêm con kế thừa nhóm/yêu cầu đối tượng khi tạo. Mã mới không bị ép theo tiền tố cha. Excel tài khoản thêm parentCode; cột không ghép giữ quan hệ cũ, mã cha phải có trước khi nhập con trong cùng tệp. CSV danh mục có mã cha.

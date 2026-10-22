@@ -20,6 +20,14 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Tài khoản cha–con và bảng cây — 0.7.0
+
+- Danh mục trước đây chỉ phẳng; parentCode tồn tại trong file tham chiếu, chưa lưu cho tài khoản doanh nghiệp. Schema6 thêm lịch sử quan hệ theo ID/revision, view hiện hành, FK, trigger chống vòng lặp/sửa lịch sử. Seed từ quan hệ nguồn đã có và cặp vận hành1121→112 khai báo tường minh; giữ ID/tên/nhóm/bút toán, tăng dataset revision một lần. Không đoán quan hệ bằng tiền tố; chưa dùng cây để cộng gộp báo cáo theo ngày hiệu lực.
+- Bảng Ant Design dạng cây có thụt cấp, cấp1–10, số con trực tiếp, đường dẫn tên qua tooltip và trạng thái; mở/thu riêng hoặc toàn bộ. Tìm không dấu giữ tổ tiên và tự mở nhánh khớp, số con vẫn phản ánh toàn bộ nhánh. Thêm con từ từng dòng hoặc chọn cha qua TreeSelect; loại chính tài khoản/nhánh con/cha ngừng dùng. Con mới kế thừa nhóm/yêu cầu đối tượng từ cha, cho đối chiếu trước khi lưu.
+- Server owner/epoch/idempotency như cũ, parentRevision chống ghi đè; chặn vòng lặp/quá10cấp/cha không hợp lệ. Tài khoản hoặc nhánh con có chứng từ giữ nguyên cha. Payload cũ không gửi parentId giữ quan hệ, hash retry cũ được kiểm thử. Excel tài khoản có parentCode, cột không ghép giữ cha; CSV danh mục thêm mã cha. Backup/restore nhận schema1–6; image0.6.x không đọc schema6.
+- Validation: Go test/race/vet đạt cho operations/ledger/identity/sqlite/httpserver; bổ sung case migration5→6 với ID khác mã/giữ tên, cycle/service/DB, depth, reparent đồng thời, stale version, history chứa tiền trên2^53, retry payload cũ, Excel, backup/restore/reopen.42test Node, TypeScript strict và production build đạt; OpenAPI parse đạt. Cập nhật E2E cây/tìm kiếm/thu gọn và đọc danh sách9test live; chưa chạy E2E tự động.
+- Edge/dữ liệu giả lập: kiểm tra112/1121,128/1281–1288, thu/mở từng nhánh/toàn bộ, tìm1331 giữ133, tạo mã con không trùng tiền tố cha và tải lại vẫn còn quan hệ; TreeSelect và thêm tài khoản ở390px không tràn, bảng cuộn ngang, khôi phục viewport, console không lỗi. Chưa benchmark cây lớn hơn bộ tài khoản hiện có.
+
 ### Ẩn tab tài khoản Google Sheet — 0.6.1
 
 - Bỏ tab “Tài khoản từ Google Sheet” và phần bảng/ghi chú/nút nạp tham chiếu khỏi Danh mục; gỡ component/import không còn dùng. Giữ hai tab đối tượng và hệ thống tài khoản, dữ liệu tài khoản đã nhập và API nguồn ở backend.

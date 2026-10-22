@@ -197,3 +197,9 @@ Form chứng từ khác có cặp TK/đối tượng Nợ và Có riêng, số t
 Invariant: upload/configuration không tạo bút toán; preview rollback toàn bộ; commit hoặc ghi toàn bộ danh mục/nháp+kết quả+audit/idempotency hoặc không ghi dòng nào. Không tự ghi sổ/xác nhận số dư. Dòng cùng nguồn phải nhất quán; cùng sự kiện nguồn không được nhập lại qua kiểu cặp/nhiều dòng/CSV/nhập tay. Cột bỏ qua phải được người dùng xác nhận. Danh mục cập nhật giữ cột tùy chọn chưa ghép, không tự đổi lịch sử. Số dư chỉ bổ sung chi tiết chưa có; không net công nợ hai bên.
 
 Parser giữ raw string, kiểm tra tiền/decimal exact, định dạng số tường minh, ngày1900/1904; từ chối công thức ở cột ghép, lỗi ô và địa chỉ XML trùng/sai thứ tự. Kiểm thử SQLite thật bao phủ tiền trên2^53, lỗi một phần/trigger lỗi cuối transaction, retry và cạnh tranh commit, stale revision/epoch, quyền, tham chiếu phân bổ công nợ/chi phí mua hàng, backup/restore/reopen. Chi tiết và giới hạn tại [excel-import.md](excel-import.md).
+
+## 16. Tài khoản con (0.7.0)
+
+Cây danh mục dựa trên quan hệ ID đã lưu, không suy ra từ mã. Phiên bản quan hệ theo revision, baseline0 khi chuyển đổi; dữ liệu chứng từ/đối tượng/ngân hàng/kho và tên snapshot không đổi. Chặn vòng lặp/tự làm cha/vượt10cấp/cha không hiệu lực, stale parentRevision; nhánh có chứng từ giữ nguyên cha. Một lần lưu gồm tài khoản, quan hệ, revision, audit và khóa retry cùng commit. Nhập Excel dùng cùng validator; không ghép parentCode không xóa quan hệ. Metadata hierarchy hiện chưa được dùng rollup báo cáo hoặc thay quy tắc tài khoản ghi sổ.
+
+SQLite thật kiểm tra seed theo ID khác mã, bảo toàn tên, migration5→6, cycle ở service/DB, nhiều cấp, cạnh tranh reparent, retry, khóa nhánh có bút toán lớn hơn2^53, backup/restore và reopen. Bộ cây frontend kiểm tra không đoán tiền tố, tìm con giữ tổ tiên, cấp và giới hạn nhánh được chọn làm cha.

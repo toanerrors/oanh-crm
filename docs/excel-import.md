@@ -36,3 +36,5 @@ Không nhập bảng lương/chấm công, hóa đơn chuyển đổi công nợ
 - Luồng MISA trên [dashboard](https://actapp.misa.vn/app/Overview/dashboard), menu Nhập từ Excel của tiền gửi: chọn tệp → ghép dữ liệu → kiểm tra → kết quả, sheet/dòng tiêu đề, mẫu cơ bản/nâng cao. Chỉ xem giao diện, không nhập dữ liệu thật vào MISA.
 - [Hướng dẫn nhập/xuất Excel MISA](https://helpact.misa.vn/kb/cac-cau-hoi-thuong-gap-khi-xuat-khau-nhap-khau-du-lieu-excel/).
 - [Excelize2.11.0](https://github.com/qax-os/excelize/releases/tag/v2.11.0), [OpenReader/RawCellValue/giới hạn giải nén](https://xuri.me/excelize/en/workbook.html). Dependency được người dùng phê duyệt, parser chạy backend.
+
+Từ0.7.0, mẫu tài khoản có Mã tài khoản cha (parentCode). Nhập cha trước con trong cùng tệp; để trống ô đã ghép để tạo cấp1, không ghép cột để giữ cha hiện có khi cập nhật. Vòng lặp/nhánh có chứng từ/cha không tồn tại bị báo lỗi và chặn toàn bộ gói.

@@ -39,7 +39,7 @@ func ExcelSchemas(role string) []ExcelSchema {
 	name := f("name", "Tên", "text", true)
 	schemas := []ExcelSchema{
 		{Key: "partners", Label: "Khách hàng, nhà cung cấp", Group: "Danh mục", Fields: []ExcelField{code, name, f("role", "Vai trò", "choice", true, "customer", "supplier", "both"), f("email", "Email", "text", false), f("phone", "Điện thoại", "identifier", false), active}},
-		{Key: "accounts", Label: "Tài khoản kế toán", Group: "Danh mục", Owner: true, Fields: []ExcelField{code, name, f("group", "Nhóm tài khoản", "choice", true, "cash", "receivable", "payable", "revenue", "expense", "inventory", "capital", "asset", "tax", "liability", "wip"), f("requiresPartner", "Yêu cầu đối tượng", "bool", true), active}},
+		{Key: "accounts", Label: "Tài khoản kế toán", Group: "Danh mục", Owner: true, Fields: []ExcelField{code, name, f("parentCode", "Mã tài khoản cha", "code", false), f("group", "Nhóm tài khoản", "choice", true, "cash", "receivable", "payable", "revenue", "expense", "inventory", "capital", "asset", "tax", "liability", "wip"), f("requiresPartner", "Yêu cầu đối tượng", "bool", true), active}},
 		{Key: "items", Label: "Hàng hóa, dịch vụ", Group: "Danh mục", Fields: []ExcelField{code, name, f("unit", "Đơn vị tính", "text", true), f("tracked", "Theo dõi tồn kho", "bool", true), active}},
 		{Key: "warehouses", Label: "Kho", Group: "Danh mục", Fields: []ExcelField{code, name, active}},
 		{Key: "banks", Label: "Tài khoản ngân hàng", Group: "Danh mục", Fields: []ExcelField{f("number", "Số tài khoản ngân hàng", "identifier", true), f("bankName", "Tên ngân hàng", "text", true), f("accountCode", "Tài khoản kế toán", "code", true), active}},
@@ -81,10 +81,16 @@ func ExcelSchemas(role string) []ExcelSchema {
 		}
 		for i := range schema.Fields {
 			field := &schema.Fields[i]
+			if schema.Key == "accounts" && field.Key == "parentCode" {
+				field.Basic = true
+			}
 			if (schema.Key == "receipt" || schema.Key == "payment") && (field.Key == "counterAccount" || field.Key == "bankNumber") {
 				field.Basic = true
 			}
 			field.Aliases = []string{field.Key, field.Label}
+			if field.Key == "parentCode" {
+				field.Aliases = append(field.Aliases, "TK cha", "Tài khoản cha")
+			}
 			switch field.Key {
 			case "sourceId":
 				field.Aliases = append(field.Aliases, "Số chứng từ", "Mã nguồn", "sourceId")

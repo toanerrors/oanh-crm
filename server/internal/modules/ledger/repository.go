@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"oanh.local/accounting/internal/accounting"
+	"oanh.local/accounting/internal/platform/sqlite"
 )
 
 type Queryer interface {
@@ -67,13 +68,13 @@ func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Wor
 	if err != nil {
 		return w, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT id,code,name,account_group,requires_partner,active FROM accounts ORDER BY code")
+	rows, err := tx.QueryContext(ctx, "SELECT a.id,a.code,a.name,a.account_group,a.requires_partner,a.active,COALESCE(h.parent_id,''),COALESCE(h.revision,0) FROM accounts a LEFT JOIN account_current_parents h ON h.account_id=a.id ORDER BY a.code")
 	if err != nil {
 		return w, err
 	}
 	for rows.Next() {
 		var a Account
-		if err = rows.Scan(&a.ID, &a.Code, &a.Name, &a.Group, &a.RequiresPartner, &a.Active); err != nil {
+		if err = rows.Scan(&a.ID, &a.Code, &a.Name, &a.Group, &a.RequiresPartner, &a.Active, &a.ParentID, &a.ParentRevision); err != nil {
 			rows.Close()
 			return w, err
 		}
@@ -224,8 +225,38 @@ func (s *Service) SaveAccountTx(ctx context.Context, tx *sql.Tx, a Account) (any
 	if duplicate > 0 {
 		return nil, accounting.Fail("DUPLICATE_CODE", "Mã tài khoản đã tồn tại.")
 	}
+	parent, revision, err := s.AccountParentTx(ctx, tx, a.ID)
+	if err != nil {
+		return nil, err
+	}
+	if a.ParentID != nil && *a.ParentID != parent {
+		if a.ParentRevision != revision {
+			return nil, accounting.Fail("VERSION_CONFLICT", "Quan hệ tài khoản đã thay đổi. Mở lại tài khoản để đối chiếu.")
+		}
+		if err = s.validateAccountParentTx(ctx, tx, a.ID, *a.ParentID); err != nil {
+			return nil, err
+		}
+	}
 	_, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,account_group=excluded.account_group,requires_partner=excluded.requires_partner,active=excluded.active", a.ID, a.Code, a.Name, a.Group, a.RequiresPartner, a.Active)
-	return a, err
+	if err != nil {
+		return nil, err
+	}
+	if a.ParentID != nil && *a.ParentID != parent {
+		if err = tx.QueryRowContext(ctx, "SELECT revision+1 FROM meta WHERE id=1").Scan(&revision); err != nil {
+			return nil, err
+		}
+		var next any
+		if *a.ParentID != "" {
+			next = *a.ParentID
+		}
+		if _, err = tx.ExecContext(ctx, "INSERT INTO account_hierarchy(account_id,revision,parent_id) VALUES(?,?,?)", a.ID, revision, next); err != nil {
+			return nil, err
+		}
+		parent = *a.ParentID
+	}
+	a.ParentID = &parent
+	a.ParentRevision = revision
+	return a, nil
 }
 func (s *Service) SavePeriod(ctx context.Context, cmd Command, p Period) (json.RawMessage, error) {
 	return s.Write(ctx, cmd, "admin.period.save", p, func(tx *sql.Tx) (any, error) {
@@ -293,6 +324,13 @@ func (s *Service) ApplyReferenceChart(ctx context.Context, cmd Command, version 
 				return nil, err
 			}
 			added += int(count)
+		}
+		var revision int64
+		if err := tx.QueryRowContext(ctx, "SELECT revision+1 FROM meta WHERE id=1").Scan(&revision); err != nil {
+			return nil, err
+		}
+		if err := sqlite.SeedAccountHierarchy(ctx, tx, revision); err != nil {
+			return nil, err
 		}
 		return map[string]any{"version": chart.Version, "added": added}, nil
 	})

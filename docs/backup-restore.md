@@ -116,3 +116,7 @@ Thêm metadata chuyển đổi và lịch sử phân bổ tài sản trước ch
 Backup chứa bảng `excel_imports`: dữ liệu đã đọc từ tệp, cấu hình ghép cột, hash, actor và kết quả nhập. Không cần file tạm của upload để phục hồi. Tệp riêng theo actor; owner bị hạ quyền không đọc lại tệp đã tải với quyền owner. Sau restore, tệp chờ của epoch cũ bị chặn và phải tải lại; lịch sử đã nhập vẫn đọc theo phiên/epoch hiện hành, không cho nhập lại. Không lưu tệp tài chính vào Git hoặc trình duyệt.
 
 Ứng dụng đọc/chuẩn bị nâng backup schema1–4 và nhận schema5; checksum/schema fingerprint lịch sử giữ nguyên. Image0.5.x không đọc schema5. Release0.6.0 phải có backup nguội toàn bộ volume và kiểm tra trên bản sao trước migration; không hạ schema hoặc chạy binary cũ trên volume đã nâng. Kiểm thử backup/restore/reopen xác minh số tiền lớn và nguồn nhập vẫn được giữ nguyên.
+
+## Schema6 — quan hệ tài khoản
+
+Backup chứa toàn bộ `account_hierarchy`, phiên bản và view hiện hành; Check kiểm tra FK, vòng lặp, giới hạn10cấp và revision không vượt dataset. Migration nhận schema1–5, bổ sung baseline quan hệ theo nguồn có sẵn, giữ tài khoản/bút toán và tăng revision một lần. Checksum/schemaHash1–5 giữ nguyên. Sau restore vẫn đổi epoch và thu hồi phiên như trước. Binary0.6.x không đọc schema6; cần giữ backup trước release để khôi phục có kiểm chứng, không hạ schema tại chỗ.

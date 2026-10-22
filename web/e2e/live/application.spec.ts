@@ -315,6 +315,16 @@ test('tab phân hệ giữ nguyên khi mở danh mục, công nợ và các báo
     await expect(reportTools.getByRole('button', { name: 'In báo cáo', exact: true })).toBeVisible();
     await expect(reportTools.getByRole('button', { name: 'Xuất CSV', exact: true })).toBeVisible();
   }
+  await page.goto('/catalog');
+  await page.getByRole('tab', { name: 'Hệ thống tài khoản', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Tài khoản từ Google Sheet', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('cell', { name: '1281', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Thu gọn tất cả tài khoản', exact: true }).click();
+  await expect(page.getByRole('cell', { name: '1281', exact: true })).toHaveCount(0);
+  await page.getByLabel('Tìm trong danh mục', { exact: true }).fill('1331');
+  await expect(page.getByText('133', { exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '1331', exact: true })).toBeVisible();
+
 });
 
 

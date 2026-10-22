@@ -35,6 +35,9 @@ var openingSchema string
 //go:embed imports.sql
 var importsSchema string
 
+//go:embed account_hierarchy.sql
+var accountHierarchySchema string
+
 func schemaHash(version int) string {
 	if version == 1 {
 		return Hash([]byte(schema))
@@ -48,7 +51,10 @@ func schemaHash(version int) string {
 	if version == 4 {
 		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema))
 	}
-	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema))
+	if version == 5 {
+		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema))
+	}
+	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema))
 }
 
 func migrationChecksum(version int, source string) string {
@@ -200,7 +206,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
 		return err
 	}
-	if maximum > 5 {
+	if maximum > 6 {
 		return fmt.Errorf("database schema is newer than this application")
 	}
 	if maximum > 0 {
@@ -208,7 +214,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema} {
+	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema} {
 		version := index + 1
 		if version <= maximum {
 			continue
@@ -230,6 +236,12 @@ func migrate(ctx context.Context, db *sql.DB) error {
 				_, err = tx.ExecContext(ctx, "UPDATE meta SET revision=revision+1 WHERE id=1")
 			}
 		}
+		if err == nil && version == 6 {
+			err = SeedAccountHierarchy(ctx, tx, 0)
+			if err == nil {
+				_, err = tx.ExecContext(ctx, "UPDATE meta SET revision=revision+1 WHERE id=1")
+			}
+		}
 		if err == nil {
 			_, err = tx.ExecContext(ctx, "INSERT INTO schema_migrations VALUES(?,?)", version, migrationChecksum(version, source))
 		}
@@ -246,6 +258,9 @@ func migrate(ctx context.Context, db *sql.DB) error {
 }
 func Check(ctx context.Context, db *sql.DB) error {
 	if err := verifySchema(ctx, db); err != nil {
+		return err
+	}
+	if err := verifyAccountHierarchy(ctx, db); err != nil {
 		return err
 	}
 	if err := verifyOpening(ctx, db); err != nil {

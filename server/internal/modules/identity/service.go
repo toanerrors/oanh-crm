@@ -108,6 +108,9 @@ func (s *Service) Setup(ctx context.Context, input Setup) error {
 			return err
 		}
 	}
+	if err = sqlite.SeedAccountHierarchy(ctx, tx, 0); err != nil {
+		return err
+	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO audit(actor_id,action,entity_id,occurred_at,revision) SELECT ?,'setup',company_id,?,revision FROM meta", id, sqlite.Now()); err != nil {
 		return err
 	}

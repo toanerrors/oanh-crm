@@ -38,6 +38,8 @@ export interface Partner {
 }
 
 export interface Account {
+  parentId?: string;
+  parentRevision?: number;
   active?: boolean;
   id: string;
   code: string;

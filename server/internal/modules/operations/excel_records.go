@@ -113,7 +113,20 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 		case "partners":
 			_, err = s.Ledger.SavePartnersTx(ctx, tx, []ledger.Partner{{ID: id, Code: code, Name: values["name"], Role: values["role"], Email: values["email"], Phone: values["phone"], Active: active}})
 		case "accounts":
-			_, err = s.Ledger.SaveAccountTx(ctx, tx, ledger.Account{ID: id, Code: code, Name: values["name"], Group: values["group"], RequiresPartner: values["requiresPartner"] == "true", Active: active})
+			account := ledger.Account{ID: id, Code: code, Name: values["name"], Group: values["group"], RequiresPartner: values["requiresPartner"] == "true", Active: active}
+			if _, mapped := config.Mapping["parentCode"]; mapped {
+				parent, e := s.excelReferenceTx(ctx, tx, "account", values["parentCode"])
+				if e != nil {
+					return nil, e
+				}
+				_, revision, e := s.Ledger.AccountParentTx(ctx, tx, id)
+				if e != nil {
+					return nil, e
+				}
+				account.ParentID = &parent
+				account.ParentRevision = revision
+			}
+			_, err = s.Ledger.SaveAccountTx(ctx, tx, account)
 		case "items":
 			_, err = s.saveItemTx(ctx, tx, Item{ID: id, Code: code, Name: values["name"], Unit: values["unit"], Tracked: values["tracked"] == "true", Active: active})
 		case "warehouses":
