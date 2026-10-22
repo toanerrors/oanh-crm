@@ -11,6 +11,7 @@ test('tổng quan, điều hướng SPA và các màn hình chính hiển thị 
     await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: label, exact: true }).click();
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     await expect(page.getByText('Không gian làm việc', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^Cân đối Nợ\/Có chỉ là một bước kiểm tra\./)).toHaveCount(0);
     await expect(page.getByText(/^(Dữ liệu mẫu|Dữ liệu doanh nghiệp) · Kỳ /)).toHaveCount(0);
   }
   expect(errors).toEqual([]);

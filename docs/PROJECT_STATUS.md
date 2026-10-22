@@ -20,6 +20,11 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Bỏ ghi chú cuối bảng báo cáo — 0.5.4
+
+- Gỡ khối footer có biểu tượng khiên và dòng “Cân đối Nợ/Có chỉ là một bước kiểm tra…” khỏi màn hình sổ/báo cáo, gồm các báo cáo nằm trong phân hệ. Khối ghi chú tương ứng ở công nợ cũng được gỡ. Giữ nguyên phân trang, bộ lọc, tổng số và truy vấn.
+- Validation: TypeScript strict/production build đạt; bổ sung assertion vào E2E hiện có và kiểm tra danh sách test. Không chạy E2E tự động cho thay đổi văn bản này; kiểm tra hiển thị trên Edge sau release.
+
 ### Bỏ breadcrumb và footer phạm vi dữ liệu — 0.5.3
 
 - Bỏ breadcrumb “Không gian làm việc → phân hệ” ở header và dòng footer “Dữ liệu doanh nghiệp/mẫu · Kỳ · Phiên bản · Đơn vị: VND” trên các trang dùng chung. Gỡ component/import/CSS không còn sử dụng; giữ nút mở menu mobile, tìm kiếm, tài khoản và các tab phân hệ.

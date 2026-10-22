@@ -294,6 +294,7 @@ test('tab phân hệ giữ nguyên khi mở danh mục, công nợ và các báo
     await page.reload();
     await expect(tabs.getByRole('button', { name: 'Báo cáo', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByText('Không gian làm việc', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^Cân đối Nợ\/Có chỉ là một bước kiểm tra\./)).toHaveCount(0);
     await expect(page.getByText(/^Dữ liệu doanh nghiệp · Kỳ /)).toHaveCount(0);
     await expect(page.locator('.ant-pagination')).toBeVisible();
   }
