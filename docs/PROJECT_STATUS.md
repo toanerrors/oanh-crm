@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Nhập số tiền không bị chèn dấu phân cách giữa chừng — 0.7.3
+
+- Tái hiện Edge: gõ liên tục5000000 tại Dư Nợ số dư đầu kỳ thành5.000000 và báo sai. MoneyInput giữ chữ số khi focus/gõ, chỉ định dạng nhóm nghìn khi blur; giá trị rỗng truyền rõ cho InputNumber để không khôi phục số cũ. Dùng cùng component cho toàn bộ ô tiền, giữ chuỗi chính xác và validator/parser hiện có.
+- Validation:15test accounting Node, TypeScript strict, production build và diff check đạt. Bổ sung bước hồi quy E2E trong luồng khởi tạo trước ghi sổ; đã parse/list9test live, chưa chạy E2E tự động.
+- Edge trên dataset mới giả lập: nhập từng phím5000000,9007199254740993,int64max; focus/blur, xóa toàn bộ và sửa cuối số; dán5.000.000. Số lẻ, ký hiệu mũ, số âm, dấu nhóm sai và vượt int64 giữ nguyên để báo lỗi, không tự làm tròn/chặn về max. Lưu nháp số dư cân đối5triệu; API trả debit/credit chuỗi5000000 và chứng từ trạng thái draft. Không thay số dư/chứng từ thật hoặc backend/schema.
+
 ### Sửa ô tài khoản chuyển tiền bị co hẹp — 0.7.1–0.7.2
 
 - Cố định chiều rộng ô mã tài khoản đi/đến, loại bỏ quy tắc flex ghi đè làm ô chọn chỉ còn mũi tên. Chỉ hiển thị mã đã chọn; 0.7.2 mở danh sách rộng320px để đọc đủ mã và tên tài khoản thay vì bị cắt theo ô mã112px. Ô tiền mặt/ngân hàng chia phần còn lại và tự xuống dòng khi thiếu chỗ.

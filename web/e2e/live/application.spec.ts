@@ -48,6 +48,38 @@ test('khởi tạo, chính sách, ghi nhận bán hàng và tải lại vẫn gi
   await command(page.request, '/policies', policy);
   await command(page.request, '/partners', { partners: [{ id: 'customer', code: 'KH1', name: 'Khách kiểm thử', role: 'customer', email: '', phone: '', active: true }, { id: 'supplier', code: 'NCC1', name: 'Nhà cung cấp kiểm thử', role: 'supplier', email: '', phone: '', active: true }] });
   await command(page.request, '/items', { id: 'service', code: 'DV1', name: 'Dịch vụ kiểm thử', unit: 'lần', tracked: false, active: true });
+  await test.step('gõ tiền liên tục trong số dư không chèn dấu phân cách giữa chừng', async () => {
+    await page.goto('/reports?tab=trial');
+    await page.getByRole('button', { name: 'Nhập số dư đầu kỳ', exact: true }).click();
+    const debit = page.getByRole('spinbutton', { name: 'Dư Nợ dòng 1', exact: true });
+    const credit = page.getByRole('spinbutton', { name: 'Dư Có dòng 1', exact: true });
+    for (const [raw, formatted] of [['5000000', '5.000.000'], ['9007199254740993', '9.007.199.254.740.993'], ['9223372036854775807', '9.223.372.036.854.775.807']]) {
+      await debit.click();
+      await debit.press('ControlOrMeta+A');
+      await debit.press('Backspace');
+      await credit.click();
+      await expect(debit).toHaveValue('');
+      await debit.pressSequentially(raw);
+      await expect(debit).toHaveValue(raw);
+      await credit.click();
+      await expect(debit).toHaveValue(formatted);
+      await expect(page.getByText('Nhập số tiền VND hợp lệ.', { exact: true })).toHaveCount(0);
+      await debit.click();
+      await expect(debit).toHaveValue(raw);
+      await debit.press('End');
+      await debit.press('Backspace');
+      await expect(debit).toHaveValue(raw.slice(0, -1));
+    }
+    for (const invalid of ['1.5', '1e3', '-100', '9223372036854775808']) {
+      await debit.fill(invalid);
+      await credit.click();
+      await expect(debit).toHaveValue(invalid);
+      await expect(page.getByText('Nhập số tiền VND hợp lệ.', { exact: true })).toHaveCount(1);
+    }
+    await page.getByRole('dialog').getByRole('button', { name: 'Đóng', exact: true }).last().click();
+    await page.getByRole('button', { name: 'Bỏ thay đổi', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
   await page.goto('/automation?kind=sale');
   await page.getByLabel('Mã nguồn / ký hiệu-số chứng từ gốc', { exact: true }).fill('E2E-SALE-1');
   await page.getByLabel('Diễn giải', { exact: true }).fill('Dịch vụ kiểm thử từ giao diện');
