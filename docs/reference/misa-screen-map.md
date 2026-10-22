@@ -34,3 +34,10 @@ Nguồn: [Google Sheets người dùng chỉ định](https://docs.google.com/sp
 - Nhiều kho: nhập/xuất trực tiếp từ kho của dòng hàng, FIFO/bình quân độc lập từng hàng–kho; dữ liệu cũ thuộc Kho mặc định. Chưa có điều chuyển giữa kho, kiểm kê hoặc quy đổi đơn vị.
 - Giao diện dùng bố cục/mật độ tương tự, thương hiệu Oanh và Ant Design. Inter v4.1 tự lưu trữ từ [nguồn chính thức](https://rsms.me/inter/) theo OFL 1.1; không sao chép logo, hình hoặc mã nguồn riêng của MISA.
 - Chưa tích hợp phát hành hóa đơn điện tử, ngân hàng điện tử, nhập khẩu/hải quan/ngoại tệ, hợp đồng/đơn hàng có vòng đời riêng, BCTC/tờ khai pháp định hoặc mọi menu trong sản phẩm MISA. Trường số hợp đồng/đơn hàng hiện chỉ là tham chiếu.
+
+
+## BCTC bổ sung ngày22/10/2026
+
+Đã mở `CreateFinancialReportDetail` và luồng chọn kỳ trong Edge: danh sách năm/người lập/ngày/trạng thái; popup chọn B01/B02/B03, chỉ một phương pháp LCTT; chi tiết chỉ tiêu/mã/thuyết minh/hai cột, người ký và thao tác cuối. Mẫu doanh nghiệp AMIS đang xem hiển thị cấu trúc TT200; không sao chép mã cũ sang TT99.
+
+Oanh thay tab income bằng financial, có mẫu TT99 năm hoạt động liên tục, công thức tổng và nhập tay, source sổ theo khoảng, lưu/version/kiểm tra/in/CSV. Chưa có tự động ánh xạ tài khoản, cấu hình công thức người dùng, B09 đầy đủ, XML hoặc gửi báo cáo. Nguồn pháp định/giới hạn tại `docs/accounting-correctness.md` mục12.

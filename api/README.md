@@ -64,3 +64,10 @@ Mua/bán nhận thông tin hóa đơn tùy chọn: `invoiceNumber`, `invoiceSeri
 - Thanh toán ngay nhận paymentAccount và bankAccountId nếu qua ngân hàng; chứng từ mua/bán, kho, phiếu tiền và phân bổ công nợ commit hoặc rollback cùng nhau. Kết quả trả paymentDocument để truy phiếu liên kết.
 
 47 method/path đã được mô tả trong OpenAPI. Dữ liệu tài chính vẫn là chuỗi; không thêm production dependency. Giới hạn nghiệp vụ và nguồn AMIS ở [ma trận màn hình](../docs/reference/misa-screen-map.md).
+
+
+## Bản nháp BCTC (0.4.0)
+
+Sáu operation `/financial-reports`: template, danh sách/đọc theo ID, preview, lưu, source và print (GET/POST danh sách là hai operation). Mẫu `tt99-2026-v1` giữ các chỉ tiêu B01/B02/B03 trực tiếp hoặc gián tiếp của năm dương lịch từ2026, hoạt động liên tục; B01 bắt buộc. Chỉ tiêu chi tiết nhập tay; không tự lấy số dư tài khoản làm BCTC. B09 hiện là vùng thuyết minh bổ sung, chưa có toàn bộ bảng pháp định.
+
+Preview không ghi; save dùng version/idempotency/epoch và transaction chung, cho phép nháp còn thiếu và trả `issues`. Tổng được server tính lại bằng big.Int, thiếu thành phần giữ trống. Ô tiền tối đa30 chữ số nguyên, EPS tối đa2 chữ số lẻ. `sourceRevision` là phiên bản tham chiếu dữ liệu, không phải bằng chứng đã khớp; lần lưu riêng báo cáo có thể tăng cùng global revision. Source đọc đúng khoảng tối đa1 năm và cùng snapshot; dư Nợ/Có giữ theo đối tượng, không rollup bằng tiền tố. Phát sinh gồm kết chuyển nên không dùng trực tiếp làm doanh thu/chi phí. Print yêu cầu đúng version đã lưu; CSV từ snapshot server đã trả, có phòng formula injection. Không có XML, nộp thuế, kiểm toán hoặc phê duyệt pháp định.

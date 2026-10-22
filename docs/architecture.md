@@ -224,3 +224,10 @@ Tài liệu Vite, TanStack Query và SQLite đã được tra bằng Context7; c
 Chi phí mua hàng giữ liên kết documentId + chỉ số dòng nguồn bất biến trong payload operations; mỗi lần phân bổ kiểm tra phần còn lại bên trong write transaction. Hàng nhập nhận thêm giá trị, đồng thời ghi Có TK chi phí của nguồn, không ghi VAT/công nợ lần hai. Làm tròn/phân bổ dùng math/big; kết quả từng dòng giữ trong calculation. Kiểm tra backup/khởi động đối chiếu kho theo chiều và tổng giá trị với ledger, chi phí phân bổ với nguồn và ngân hàng với bút toán.
 
 Bộ tài khoản tham chiếu được embed, đóng góp vào checksum migration 2. Chỉ bổ sung mã còn thiếu; chart tham chiếu không tự đổi phân nhóm tài khoản có lịch sử hoặc tạo rollup báo cáo bằng tiền tố. Không chỉnh schema.sql/migration 1 đã phát hành.
+
+
+## Bản nháp BCTC — schema3
+
+Các truy vấn và bản nháp BCTC hiện nằm trong `ledger/financial.go`, sử dụng cùng read snapshot và `ledger.Write` cho kiểm tra quyền/epoch/version, idempotency, audit và commit. Không tạo bản sao sổ hoặc ghi bút toán từ BCTC. `financial_reports.data` giữ input có template version; tổng dẫn xuất được tính lại, không chấp nhận client đặt tổng. Giữ nguyên định nghĩa `tt99-2026-v1` khi bổ sung mẫu tương lai để đọc lại báo cáo lịch sử.
+
+Mẫu năm dương lịch TT99 cho hoạt động liên tục; chỉ tiêu nhập tay, không suy ra phân loại ngắn/dài hạn hoặc luồng tiền từ mã tài khoản. Source là bảng đối chiếu phát sinh/số dư theo khoảng ngày, giữ riêng hai bên theo đối tượng. B09 là nội dung bổ sung tự do; không phải bộ thuyết minh pháp định đầy đủ. UI thay tab income bằng financial, URL income cũ vẫn mở BCTC; API income giữ tương thích.

@@ -101,3 +101,8 @@ Release 0.3.0 thêm migration 2 có checksum bao gồm SQL và bộ tài khoản
 Kiểm tra bổ sung: ngân hàng khớp ledger, biến động và lô theo từng hàng–kho, nguồn chi phí không bị phân bổ vượt/trùng/sai ngày và tổng phân bổ bằng tổng nguồn. Nháp chỉ có dòng ledger nháp và payload, không có biến động phân hệ. Chứng từ đã post không được sửa payload nháp hoặc biến động ngân hàng/kho.
 
 Trước nâng production lên schema 2 phải có backup đã xác minh. Có thể dừng container, sao chép toàn bộ `/data` khi writer đã đóng, kiểm tra SQLite bản sao chỉ đọc, đóng gói và checksum. Lưu ngoài repository, quyền riêng tư; không ghi DB/attachments vào Git. Binary 0.2.0 không đọc schema 2; rollback dữ liệu cần runbook và xác nhận, không chép đè volume tùy tiện.
+
+
+## Schema3 — bản nháp BCTC
+
+Backup bao gồm bảng `financial_reports` với input/version/ngày/người cập nhật. Migration3 chỉ thêm bảng/index, không đổi tiền hoặc bút toán. Đã bổ sung kiểm thử migration1/2→3 và backup/restore bản nháp có tiền trên2^53, giữ version/nội dung, đổi epoch và chặn lệnh phiên cũ. Template `tt99-2026-v1` phải giữ khả năng đọc lại, không sửa định nghĩa đã phát hành.

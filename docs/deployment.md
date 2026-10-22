@@ -1,6 +1,6 @@
 # Release bằng Docker trên máy chủ
 
-Bản phát hành: `0.3.0`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
+Bản phát hành: `0.4.0`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
 
 ## Build và chạy
 
@@ -12,7 +12,7 @@ docker compose up -d --wait --wait-timeout 90
 docker compose ps
 ```
 
-Image: `oanh-crm:0.3.0`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
+Image: `oanh-crm:0.4.0`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
 
 Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Mã nguồn dùng remote `origin` tại [toanerrors/oanh-crm](https://github.com/toanerrors/oanh-crm). Sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker → healthcheck. Image hiện được lưu local trên server, chưa cấu hình registry. Không force-push hoặc thay đổi tag đã phát hành; không in thông tin xác thực trong output Git.
 
@@ -57,3 +57,8 @@ Domain/Cloudflare do người vận hành cấu hình sau release; kiểm tra or
 Release 0.3.0 thêm nháp nghiệp vụ, tài khoản ngân hàng, chiều kho và bộ tài khoản tham chiếu. Trước khi khởi động image mới, tạo backup đã xác minh. Nếu chưa có phiên chủ sở hữu để gọi API backup, dừng container và sao chép **toàn bộ** `/data` của container đã dừng vào thư mục riêng (gồm pointer/dataset/attachments), kiểm tra SQLite trên bản sao chỉ đọc rồi đóng gói/checksum; không copy riêng `.db` đang chạy. Giữ nguyên volume `oanh_data` khi thay image. Migration chạy trong transaction, bảo toàn tên tài khoản/bút toán cũ; kho cũ được gắn Kho mặc định. Nhánh mã nguồn của đợt này: `codex/misa-voucher-workspace`, tag dự kiến `v0.3.0`.
 
 Image 0.2.0 không đọc schema 2. Rollback binary cần image hỗ trợ schema 2; khôi phục bản dữ liệu trước nâng cấp phải theo runbook, không tự chép đè volume hoặc làm mất phát sinh sau release.
+
+
+## Nâng schema 2 → 3 (BCTC 0.4.0)
+
+Thêm bảng bản nháp BCTC và index; không thay tài khoản/bút toán/chính sách. Backup được xác minh trước khi khởi động image mới, giữ volume hiện tại. Schema3 đọc và nâng backup1/2 trên bản chuẩn bị. Image0.3.0 không đọc schema3; không rollback binary cũ trực tiếp trên volume đã nâng. Giữ bản dữ liệu trước release và image theo commit; phục hồi dữ liệu phải theo runbook và có ủy quyền đúng phạm vi.

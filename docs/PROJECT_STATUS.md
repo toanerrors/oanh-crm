@@ -20,6 +20,16 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Bản nháp BCTC thay tab doanh thu/chi phí — 0.4.0
+
+- Thay tab trong ảnh bằng danh sách/lập BCTC theo bố cục tham chiếu AMIS; URL `tab=income` cũ mở BCTC, giữ NKC/sổ cái/cân đối phát sinh và API income tương thích.
+- Bộ mẫu TT99 `tt99-2026-v1`: B01 (126 chỉ tiêu), B02 (21), B03 trực tiếp (27) hoặc gián tiếp (37), năm dương lịch từ2026, hoạt động liên tục. Chọn kỳ/báo cáo, nhập chi tiết hai cột, xem công thức/tổng tự tính, người ký/địa chỉ/thuyết minh bổ sung, kiểm tra, lưu/mở lại nháp, in và CSV.
+- Server tính lại bằng big.Int, giữ trống khi thiếu thành phần, kiểm tra280=440 và liên báo cáo; tiền lớn/số âm chính xác, EPS tối đa2 chữ số lẻ. Source là bảng đối chiếu sổ toàn năm trong cùng snapshot, giữ dư hai bên theo đối tượng; không cộng riêng trang/100 chứng từ workspace.
+- Schema3 chỉ thêm bảng bản nháp/index. Save dùng version, epoch, quyền, idempotency/audit/commit chung; có test đồng thời/retry/rollback/reopen, migration1/2→3, backup/restore nháp và chặn phiên cũ. Không đổi bút toán/policy/chart để tạo báo cáo.
+- Validation: Go race cho ledger/sqlite/httpserver/operations, vet cho ledger/sqlite/httpserver; TypeScript strict/build và16 test Node đạt. OpenAPI53 operation khớp router/schema refs. Edge kiểm tra nhập tiền trên2^53, giữ qua chuyển tab và reload, công thức, lưu/mở lại, source toàn năm, EPS−0,25, bản in và bố cục1440/390px; thanh nút mobile đã sửa để nằm trong viewport. Dữ liệu QA hoàn toàn giả lập.
+- Giới hạn: đây là bản nháp nhập tay, chưa có mapping tài khoản→BCTC đã thẩm định, chưa tự lấy số liệu/phân loại ngắn–dài hạn hoặc luồng tiền; B09 mới là nội dung bổ sung, chưa đủ các bảng pháp định. Chưa có TT133/TT200, mẫu giữa niên độ/không hoạt động liên tục, XML/nộp thuế/kiểm toán/phê duyệt. Không gọi phép kiểm tra số học là nghiệm thu pháp định.
+
+
 ### Biểu mẫu tham chiếu AMIS ngày 22/10/2026 — release 0.3.0
 
 - Đã khảo sát 15 URL trong Edge, gồm các liên kết GL trong ảnh. Bố cục danh sách có toolbar/tổng/chi tiết dưới, biểu mẫu toàn màn hình có đối tượng/ngày/tổng, bảng nhiều dòng, vùng đính kèm và thanh thao tác cuối. Thương hiệu Oanh, Inter tự lưu trữ có OFL; Ant Design Form/Table hiện có.

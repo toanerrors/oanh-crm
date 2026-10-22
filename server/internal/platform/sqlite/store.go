@@ -26,11 +26,17 @@ var schema string
 //go:embed vouchers.sql
 var vouchersSchema string
 
+//go:embed financial.sql
+var financialSchema string
+
 func schemaHash(version int) string {
 	if version == 1 {
 		return Hash([]byte(schema))
 	}
-	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash()))
+	if version == 2 {
+		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash()))
+	}
+	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema))
 }
 
 func migrationChecksum(version int, source string) string {
@@ -182,7 +188,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
 		return err
 	}
-	if maximum > 2 {
+	if maximum > 3 {
 		return fmt.Errorf("database schema is newer than this application")
 	}
 	if maximum > 0 {
@@ -190,7 +196,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	for index, source := range []string{schema, vouchersSchema} {
+	for index, source := range []string{schema, vouchersSchema, financialSchema} {
 		version := index + 1
 		if version <= maximum {
 			continue

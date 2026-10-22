@@ -44,7 +44,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 	defer upgraded.Close()
 	var version int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 2 {
+	if version != 3 {
 		t.Fatal(version)
 	}
 	var name string
@@ -74,7 +74,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 		t.Fatal(after, err)
 	}
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 2 {
+	if version != 3 {
 		t.Fatal(version)
 	}
 	if err = Check(ctx, upgraded.Read); err != nil {
@@ -85,5 +85,60 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 	}
 	if err = Check(ctx, upgraded.Read); err == nil {
 		t.Fatal("accepted changed migration checksum")
+	}
+}
+
+func TestFinancialMigrationFromVersionTwo(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dataset := filepath.Join(root, "datasets", "legacy-two")
+	if err := os.MkdirAll(filepath.Join(dataset, "attachments"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := Connect(ctx, filepath.Join(dataset, "accounting.sqlite"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []string{schema, vouchersSchema, "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL) STRICT", "INSERT INTO meta VALUES(1,'company','Kiểm thử','old',0,'VND','test')", "INSERT INTO accounts VALUES('111','111','Tên lịch sử','cash',0,1)", "INSERT INTO accounts VALUES('112','112','Ngân hàng','bank',0,1)", "INSERT INTO bank_accounts VALUES('bank','0000123','Ngân hàng thử','112',1)"} {
+		if _, err = db.Exec(source); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i, source := range []string{schema, vouchersSchema} {
+		if _, err = db.Exec("INSERT INTO schema_migrations VALUES(?,?)", i+1, migrationChecksum(i+1, source)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = WriteFile(filepath.Join(root, "active-dataset.json"), []byte(`{"dataset":"legacy-two"}`)); err != nil {
+		t.Fatal(err)
+	}
+	old := &Store{Root: root, Dataset: dataset, Read: db, Write: db}
+	archive, _, err := old.Backup(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	upgraded, err := Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upgraded.Close()
+	var number string
+	if err = upgraded.Read.QueryRow("SELECT number FROM bank_accounts WHERE id='bank'").Scan(&number); err != nil || number != "0000123" {
+		t.Fatal(number, err)
+	}
+	var count int
+	if err = upgraded.Read.QueryRow("SELECT count(*) FROM financial_reports").Scan(&count); err != nil || count != 0 {
+		t.Fatal(count, err)
+	}
+	staged, err := upgraded.Stage(ctx, archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = upgraded.Activate(ctx, staged.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = Check(ctx, upgraded.Read); err != nil {
+		t.Fatal(err)
 	}
 }

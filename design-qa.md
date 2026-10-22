@@ -38,3 +38,11 @@
 - Console ở tab kiểm tra cuối: không có error/warn. Không chạy Playwright CLI ở lượt này; thao tác UI thực hiện bằng Edge.
 
 Không còn lỗi P0/P1/P2 quan sát được trong các màn hình/luồng trên. Chưa benchmark tải lớn hoặc nghiệm thu số liệu sản xuất. Release/healthcheck được xác minh ở bước phát hành Docker.
+
+
+## BCTC —22/10/2026
+
+- Tham chiếu Edge: luồng chọn kỳ và `CreateFinancialReportDetail`, bố cục tab/heading/bảng chỉ tiêu/mã/thuyết minh/hai cột/chữ ký/footer. Mẫu cũ của tài khoản tham chiếu được đối chiếu riêng với biểu mẫu TT99 năm.
+- QA bằng hai dataset giả lập, không dùng dữ liệu production: tiền9007199254740993 giữ qua tab/lưu/reload; doanh thu1000−giảm trừ100=900; bộ số kiểm tra B01 tài sản1500/nguồn1500, B02 trước thuế600/thuế100/sau thuế500; B03 gián tiếp600−100+đầu kỳ1000=cuối1500; EPS−0,25 giữ chính xác. Kiểm tra backend độc lập các phép tính, thiếu dữ liệu và retry/concurrency/rollback/recovery.
+- Màn hình1440×900 và390×844: bảng cuộn ngang riêng, footer đủ nút, nội dung modal cuộn dọc; rút mô tả vào hướng dẫn mở rộng. Source sổ toàn năm đọc snapshot, giữ hai bên đối tượng. Bản in HTML chứa dấu nháp, phiên bản và mục còn thiếu; script in cùng origin phù hợp CSP.
+- Ảnh QA ngoài Git: `bctc-desktop-final.jpg`, `bctc-mobile-final.jpg` trong thư mục visualization của chat. Chưa benchmark tập BCTC lớn hoặc nghiệm thu biểu mẫu pháp định; không gắn nhãn hoàn tất B09/XML.

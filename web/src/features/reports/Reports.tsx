@@ -13,17 +13,25 @@ import { api, downloadApi, isDemo } from '../../shared/api/client';
 import { useQuery } from '@tanstack/react-query';
 import { workspaceKey } from '../../shared/data/workspace';
 import { exactRow } from '../../shared/data/reports';
+import { FinancialReports } from './FinancialReports';
 import type { ServerReport } from '../../shared/data/reports';
 
 interface ReportRow { key: string; code: string; name: string; debit: bigint; credit: bigint; openingDebit?: bigint; openingCredit?: bigint; closingDebit?: bigint; closingCredit?: bigint; date?: string; documentId?: string; description?: string; account?: string }
 
 export function Component() {
+ const { pathname } = useLocation();
+ const [params] = useSearchParams();
+ if (!isDemo && pathname !== "/receivables" && ["financial", "income"].includes(params.get("tab") ?? "")) return <FinancialReports />;
+ return <BookReports />;
+}
+
+function BookReports() {
   const { data, period, openDocument, refresh } = useWorkspace();
   const { message } = App.useApp();
   const { pathname } = useLocation();
   const [params, setParams] = useSearchParams();
   const isDebt = pathname === '/receivables';
-  const tab = isDebt ? 'debt' : !isDemo && params.get('tab') === 'income' ? 'income' : params.get('tab') === 'trial' ? 'trial' : params.get('tab') === 'ledger' ? 'ledger' : 'journal';
+  const tab = isDebt ? 'debt' : params.get('tab') === 'trial' ? 'trial' : params.get('tab') === 'ledger' ? 'ledger' : 'journal';
   const [account, setAccount] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -39,7 +47,7 @@ export function Component() {
   const credit = !isDemo ? BigInt(server.data?.credit ?? '0') : filtered.reduce((sum, row) => sum + row.credit, 0n);
   const sumField = (field: keyof Pick<ReportRow, 'openingDebit' | 'openingCredit' | 'closingDebit' | 'closingCredit'>) => !isDemo ? BigInt(server.data?.[field] ?? '0') : filtered.reduce((sum, row) => sum + (row[field] ?? 0n), 0n);
   const amountColumn = (title: string, key: keyof ReportRow) => ({ title, dataIndex: key, align: 'right' as const, width: 145, render: (value: bigint) => formatMoney(value) });
-  const titles = { journal: 'Nhật ký chung', ledger: 'Sổ cái', trial: 'Cân đối phát sinh', debt: 'Chi tiết công nợ', income: 'Chi tiết doanh thu và chi phí' };
+  const titles = { journal: 'Nhật ký chung', ledger: 'Sổ cái', trial: 'Cân đối phát sinh', debt: 'Chi tiết công nợ' };
   const ledgerBalance = !isDemo ? server.data?.accountBalance ? exactRow(server.data.accountBalance) : null : tab === 'ledger' && account !== 'all' ? trialBalance(data, period).find(item => item.key === account) : null;
   const exportReport = () => { if (!isDemo) { void downloadApi(`/reports/export?${serverParams}`, `so-${tab}-${period}.csv`).catch(error => void message.error((error as Error).message)); return; } downloadCsv(`so-mau-${tab}-${period}.csv`, [
     ['DỮ LIỆU MẪU', titles[tab], `Kỳ ${period}`, `Phiên bản ${data.revision}`, `Tài khoản: ${tab === 'ledger' ? account : 'Tất cả'}`],
@@ -51,7 +59,7 @@ export function Component() {
     <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : 'book'} /></span><div><strong>{titles[tab]} · Kỳ {period.split('-').reverse().join('/')}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
     {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={refresh}>Tải lại dữ liệu</Button>} />}
     <section className={styles.panel}>
-      {!isDebt && <div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setSearch(''); setPage(1); setParams({ tab: value }); }} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, ...(!isDemo ? [{ key: 'income', label: 'Doanh thu & chi phí' }] : [])]} /></div>}
+      {!isDebt && <div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setSearch(''); setPage(1); setParams({ tab: value }); }} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, ...(!isDemo ? [{ key: 'financial', label: 'Báo cáo tài chính' }] : [])]} /></div>}
       <div className={styles.tableToolbar}><Input prefix={<Icon name="search" size={17} />} value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} aria-label="Tìm trong báo cáo" placeholder="Tìm mã, tên hoặc diễn giải…" allowClear className={styles.filterSearch} />{tab === 'ledger' && <Select aria-label="Chọn tài khoản sổ cái" showSearch={searchOptions} value={account} onChange={value => { setAccount(value); setPage(1); }} style={{ minWidth: 240 }} options={[{ value: 'all', label: 'Tất cả tài khoản' }, ...data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{isDebt && <Select aria-label="Loại công nợ" value={debtType} onChange={value => { setDebtType(value); setPage(1); }} style={{ minWidth: 210 }} options={[{ value: 'receivable', label: 'Phải thu khách hàng · 131' }, { value: 'payable', label: 'Phải trả người bán · 331' }]} />}</div>
       {ledgerBalance && <div className={styles.ledgerBalances}>{[['Dư đầu Nợ', ledgerBalance.openingDebit], ['Dư đầu Có', ledgerBalance.openingCredit], ['Dư cuối Nợ', ledgerBalance.closingDebit], ['Dư cuối Có', ledgerBalance.closingCredit]].map(([label, value]) => <span key={String(label)}>{label}<strong>{formatMoney(value as bigint)}<small>VND</small></strong></span>)}</div>}
       <Table<ReportRow> loading={!isDemo && server.isPending} key={`${tab}-${period}-${account}`} rowKey="key" dataSource={filtered} scroll={{ x: tab === 'trial' ? 1300 : 850 }} pagination={{ current: page, onChange: setPage, total: isDemo ? filtered.length : server.data?.total ?? 0, pageSize: 10, hideOnSinglePage: true, showSizeChanger: false, showTotal: total => `${total} dòng` }} columns={tab === 'trial' ? [

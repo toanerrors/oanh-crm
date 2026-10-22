@@ -166,3 +166,14 @@ Bài nhắc TT133/TT200; dự án không tự đổi chế độ kế toán theo
 - Chuyển nội bộ cùng TK112 chỉ hợp lệ khi hai ID ngân hàng khác nhau; tổng sổ tiền gửi không đổi, chi tiết ngân hàng chuyển đủ hai phía. Đảo phiếu hoán đổi biến động gốc, giữ khả năng đối chiếu dù ngân hàng đã ngừng sử dụng.
 
 Kết quả độc lập đã kiểm tra: giá 1.001, CK10%, VAT10% → CK100/base901/VAT90/tổng991; giá gồm VAT1.100 trừ CK100 → base909/VAT91/tổng1.000. Nguồn phí101 phân bổ tỷ trọng1:2 → 34/67. Hàng1.000 + phí101, VAT hàng100 đủ khấu trừ → tồn1.101, phải trả hàng1.100, giảm TK phí101; công nợ phí111 riêng. Hai kho cùng hàng giá100 và1.000 giữ giá vốn riêng ở cả FIFO/bình quân. Regression còn bao phủ tiền trên2^53, nháp/rollback/retry, reopen và backup/restore schema1→2.
+
+
+## 12. Bản nháp BCTC TT99
+
+Mẫu `tt99-2026-v1` đối chiếu Phụ lụcIV Mục1, B01 năm hoạt động liên tục, B02 và B03 trực tiếp/gián tiếp. [Công báo Chính phủ](https://congbao.chinhphu.vn/van-ban/thong-tu-so-99-2025-tt-btc-46529.htm); [bản phụ lục biểu mẫu do MISA lưu trữ](https://www.meinvoice.vn/wp-content/uploads/2025/10/Phu-luc-4-bieu-mau-bao-cao-tai-chinh.pdf), đọc22/10/2026. Năm bắt đầu từ2026, năm dương lịch; năm so sánh liền trước. Không tự đổi policy/chart của doanh nghiệp.
+
+- Dòng chi tiết nhập tay sau đối chiếu; không có mapping tài khoản→chỉ tiêu đã thẩm định. B01 cột so sánh là dư đầu kỳ; B02/B03 là năm trước. Không bù trừ số dư đối tượng hoặc mặc định mọi dư131/331 là ngắn hạn.
+- Ô trống giữ trống và tạo mục cần kiểm tra; chỉ tiêu tổng trống khi thiếu bất kỳ thành phần. Các phép cộng/trừ dùng big.Int/BigInt, không epsilon; server tính lại khi lưu. Chỉ tiêu (*) và dòng tiền chi trình bày âm, không tự đổi dấu. Tiền VND nguyên đồng; EPS nhập chính xác tối đa2 chữ số lẻ, không tự tính từ số cổ phiếu.
+- Kiểm tra280=440 mỗi cột, B03.70=B01.110, B03 gián tiếp01=B02.50. Chỉ là kiểm tra số học nội bộ, không chứng nhận số liệu khớp sổ hoặc hồ sơ pháp định hoàn tất. B09 mới có vùng thuyết minh bổ sung, chưa có các bảng chi tiết pháp định.
+- Source đọc cùng snapshot, trước ngày from là dư đầu, from≤ngày≤to là phát sinh; include cả kết chuyển/đảo kết chuyển như cân đối sổ. Đọc bút toán trực tiếp, cộng số dư từng đối tượng trước khi tổng hai bên. Không lấy riêng100 chứng từ workspace hoặc cộng riêng trang đang hiển thị.
+- BCTC lưu ở trạng thái nháp, có version/nguồn tham chiếu; lỗi ghi/audit rollback cả dữ liệu và chống trùng. Không thay sổ hoặc trạng thái kỳ. Thay đổi sổ sau đó không tự sửa số đã nhập trong nháp; kế toán phải đối chiếu lại.
