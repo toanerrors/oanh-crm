@@ -20,6 +20,11 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Ẩn tab tài khoản Google Sheet — 0.6.1
+
+- Bỏ tab “Tài khoản từ Google Sheet” và phần bảng/ghi chú/nút nạp tham chiếu khỏi Danh mục; gỡ component/import không còn dùng. Giữ hai tab đối tượng và hệ thống tài khoản, dữ liệu tài khoản đã nhập và API nguồn ở backend.
+- Validation: TypeScript strict, production build và diff check đạt. Không đổi backend/schema hoặc quy tắc số liệu; không chạy thêm Go/E2E cho thay đổi hiển thị này.
+
 ### Nhập XLSX/CSV theo luồng MISA — 0.6.0
 
 - Trình nhập4bước: chọn tệp/sheet/dòng tiêu đề → ghép cột tự động hoặc thủ công → kiểm tra toàn bộ/lọc lỗi/tải XLSX lỗi → kết quả. Mẫu cơ bản/nâng cao Text, định dạng ngày/số tường minh, xác nhận cột bỏ qua. Có lối vào tổng quan/sidebar và toolbar các phân hệ/danh mục/kho/ngân hàng/số dư; modal giữ tab nguồn, mobile giữ thanh bước gọn.
