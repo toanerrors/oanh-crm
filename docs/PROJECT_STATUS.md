@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Sidebar thu gọn/mở rộng — 0.5.9
+
+- Nút icon ở trái header desktop thu sidebar về64px và mở lại224px (210px ở màn hình vừa); đồng bộ sidebar, vùng nội dung và tiến trình điều hướng bằng biến chiều rộng chung, transition200ms. Ẩn tên/nhóm/logo chữ khi thu gọn, giữ icon/trạng thái đang chọn/badge nháp và tên truy cập; tooltip tên mục khi hover/focus. Không mount lại Outlet hoặc đổi query/form khi bật tắt.
+- Trạng thái giao diện giữ trong AppShell khi chuyển route; không lưu dữ liệu tài chính hoặc tùy chọn mới vào localStorage. Mobile giữ Drawer đầy đủ, ẩn nút thu gọn desktop; CSS thu gọn chỉ áp dụng từ761px. Dùng quy tắc giảm chuyển động sẵn có của ứng dụng.
+- Validation:30 test Node, TypeScript strict/production build và diff check đạt; bổ sung E2E cho chiều rộng/tooltip/điều hướng/giảm chuyển động/mobile, kiểm tra danh sách12 test. Chưa chạy E2E tự động và chưa xác minh hiển thị/chuyển động trực tiếp: kết nối điều khiển Edge timeout trong lượt này. Việc tiếp theo: kiểm tra thu/mở, tooltip, nháp và breakpoint trên Edge khi kết nối hoạt động.
+
 ### DatePicker Ant Design cho ngày và tháng — 0.5.8
 
 - Thay toàn bộ input ngày/tháng native bằng `DateInput` bọc Ant Design DatePicker trong chứng từ khác, mua/bán/thu chi, nghiệp vụ, chính sách, công nợ, số dư và ngày lập BCTC. Form và API tiếp tục dùng chuỗi `YYYY-MM-DD`/`YYYY-MM`; giao diện `DD/MM/YYYY`/`MM/YYYY`, lịch tiếng Việt, nhập bàn phím và xóa ngày. Truyền tiếp id/ref, trạng thái disabled và props của Form.

@@ -248,3 +248,33 @@ test('mobile 390px không tràn ngang và mở được điều hướng, biểu
   await expect(page.getByRole('button', { name: 'Tiếp tục nháp', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('sidebar thu gọn giữ điều hướng, tooltip và menu mobile đầy đủ', async ({ page }) => {
+  await page.goto('/');
+  const sidebar = page.locator('#desktop-sidebar');
+  const navigation = sidebar.getByRole('navigation', { name: 'Điều hướng chính' });
+  await expect.poll(async () => (await sidebar.boundingBox())?.width).toBe(224);
+  await page.getByRole('button', { name: 'Thu gọn thanh bên', exact: true }).click();
+  const expand = page.getByRole('button', { name: 'Mở rộng thanh bên', exact: true });
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  await expect.poll(async () => (await sidebar.boundingBox())?.width).toBe(64);
+  await navigation.getByRole('link', { name: 'Bán hàng', exact: true }).focus();
+  await expect(page.getByRole('tooltip', { name: 'Bán hàng', exact: true })).toBeVisible();
+  await navigation.getByRole('link', { name: 'Bán hàng', exact: true }).press('Enter');
+  await expect(page.getByRole('heading', { name: 'Bán hàng', exact: true })).toBeVisible();
+  await expect(expand).toBeVisible();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(sidebar).toHaveCSS('transition-duration', '0s');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(expand).toBeHidden();
+  await page.getByRole('button', { name: 'Mở điều hướng', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('link', { name: 'Mua hàng', exact: true })).toBeVisible();
+  await page.getByRole('dialog').getByRole('link', { name: 'Mua hàng', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Mua hàng', exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 820, height: 1000 });
+  await expect.poll(async () => (await sidebar.boundingBox())?.width).toBe(64);
+  await expand.click();
+  await expect.poll(async () => (await sidebar.boundingBox())?.width).toBe(210);
+  await expect(page.getByRole('button', { name: 'Thu gọn thanh bên', exact: true })).toHaveAttribute('aria-expanded', 'true');
+});

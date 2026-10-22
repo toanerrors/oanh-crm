@@ -30,6 +30,7 @@ const navigation: { path: string; label: string; icon: IconName; group?: string 
 export function AppShell() {
   const { period, setPeriod, data, draft, voucherDraft, setDraftOpen, detailId, refresh } = useWorkspace();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -44,21 +45,22 @@ export function AppShell() {
 
   useEffect(() => { document.title = `${current} · Oanh`; }, [current]);
 
-  const sidebar = <div className={styles.sidebarContent}>
-    <Link to="/" className={styles.brand} aria-label="Oanh, về tổng quan"><span className={styles.brandMark}><span /><span /><span /></span><span>oanh<span className={styles.brandDot}>.</span></span></Link>
-    <nav className={styles.navigation} aria-label="Điều hướng chính">{navigation.map(item => <div key={item.path}>{item.group && <div className={styles.navGroup}>{item.group}</div>}<NavLink to={item.path} end={item.path === '/'} onClick={() => setMobileOpen(false)} className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeNav : ''}`}><Icon name={item.icon} size={19} /><span>{item.label}</span>{item.path === '/documents' && draftCount > 0 && <span className={styles.navCount}>{draftCount}</span>}</NavLink></div>)}</nav>
+  const sidebar = (compact = false) => <div className={styles.sidebarContent}>
+    <Link to="/" className={styles.brand} aria-label="Oanh, về tổng quan"><span className={styles.brandMark}><span /><span /><span /></span><span className={styles.brandName}>oanh<span className={styles.brandDot}>.</span></span></Link>
+    <nav className={styles.navigation} aria-label="Điều hướng chính">{navigation.map(item => <div key={item.path}>{item.group && <div className={styles.navGroup}>{item.group}</div>}<Tooltip title={compact ? `${item.label}${item.path === '/documents' && draftCount > 0 ? ` · ${draftCount} bản nháp` : ''}` : undefined} placement="right" trigger={['hover', 'focus']}><NavLink to={item.path} end={item.path === '/'} onClick={() => setMobileOpen(false)} className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeNav : ''}`}><Icon name={item.icon} size={19} /><span className={styles.navLabel}>{item.label}</span>{item.path === '/documents' && draftCount > 0 && <span className={styles.navCount}>{draftCount}</span>}</NavLink></Tooltip></div>)}</nav>
     <div className={styles.sidebarBottom}>
       <div className={styles.helpCard}><span className={styles.helpIcon}><Icon name="spark" size={18} /></span><strong>Kế toán nhẹ nhàng hơn</strong><p>Bắt đầu từ một chứng từ.<br />Kết nối mọi con số.</p><Link to="/help" onClick={() => setMobileOpen(false)}>Khám phá hướng dẫn <Icon name="arrow" size={15} /></Link></div>
-      <NavLink to="/settings" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeNav : ''}`} onClick={() => setMobileOpen(false)}><Icon name="settings" size={19} />Thiết lập</NavLink>
+      <Tooltip title={compact ? 'Thiết lập' : undefined} placement="right" trigger={['hover', 'focus']}><NavLink to="/settings" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeNav : ''}`} onClick={() => setMobileOpen(false)}><Icon name="settings" size={19} /><span className={styles.navLabel}>Thiết lập</span></NavLink></Tooltip>
     </div>
   </div>;
 
-  return <div className={styles.app}>
+  return <div className={`${styles.app} ${collapsed ? styles.sidebarCollapsed : ''}`}>
     <a href="#main-content" className={styles.skipLink}>Chuyển đến nội dung</a>
-    <aside className={styles.sidebar}>{sidebar}</aside>
-    <Drawer className={styles.mobileDrawer} placement="left" open={mobileOpen} onClose={() => setMobileOpen(false)} size={280} title="Điều hướng" styles={{ body: { padding: 16 } }}>{sidebar}</Drawer>
+    <aside id="desktop-sidebar" className={styles.sidebar}>{sidebar(collapsed)}</aside>
+    <Drawer className={styles.mobileDrawer} placement="left" open={mobileOpen} onClose={() => setMobileOpen(false)} size={280} title="Điều hướng" styles={{ body: { padding: 16 } }}>{sidebar()}</Drawer>
     <div className={styles.workspace}>
       <header className={styles.topbar}>
+        <Tooltip title={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} trigger={['hover', 'focus']}><Button className={styles.sidebarToggle} type="text" icon={<Icon name="menu" />} aria-label={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} aria-expanded={!collapsed} aria-controls="desktop-sidebar" onClick={() => setCollapsed(value => !value)} /></Tooltip>
         <Button className={styles.mobileMenu} type="text" icon={<Icon name="menu" />} aria-label="Mở điều hướng" onClick={() => setMobileOpen(true)} />
         <button type="button" className={styles.companySwitch} aria-label="Thiết lập công ty" title={companyName} onClick={() => navigate('/settings')}><span className={styles.companyIcon}><Icon name="building" size={20} /></span><span><strong>{companyName}</strong><small>Kế toán doanh nghiệp</small></span><Icon name="down" size={14} /></button>
         <div className={styles.topbarActions}>
