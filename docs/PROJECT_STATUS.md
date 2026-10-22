@@ -20,6 +20,11 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Căn hàng bộ lọc công nợ — 0.5.11
+
+- Nhãn Đến ngày đặt cạnh DatePicker trong một hàng flex, ô ngày rộng180px và cao32px như hai Select bên cạnh. Chỉ áp dụng bộ lọc công nợ theo chứng từ; giữ giá trị ngày/API và cơ chế lọc cũ.
+- Validation: TypeScript strict/production build đạt; bổ sung kiểm tra hình học vào E2E phân hệ mua/bán, đọc thành công danh sách8 test live (chưa chạy E2E tự động). Edge: xác nhận trước sửa DatePicker lệch xuống10px, sau sửa cả3 control cùng tọa độ trên/dưới và cao32px ở mua/bán; mở lịch, đổi ngày lọc phản ánh đúng ngày ISO; mobile390px xuống hàng, không tràn ngang sau khi chuyển bố cục hoàn tất; khôi phục viewport, không có lỗi console.
+
 ### Chức năng nhanh và ghim trên sidebar — 0.5.10
 
 - Rê chuột/focus vào phân hệ mở menu tối gồm nghiệp vụ, danh mục và báo cáo hiện có; dùng cùng danh sách khi sidebar224/210px hoặc thu gọn64px. Lối tắt báo cáo giữ đường dẫn/tab phân hệ nguồn; thao tác lập chứng từ theo quyền, kết chuyển mới chỉ dành cho owner. Mẫu chỉ hiển thị các lối tắt chạy trong mẫu.

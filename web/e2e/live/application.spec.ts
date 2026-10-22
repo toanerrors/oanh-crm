@@ -287,6 +287,13 @@ test('tab phân hệ giữ nguyên khi mở danh mục, công nợ và các báo
       await expect(tabs.getByRole('button', { name: title, exact: true })).toBeVisible();
       await expect(tabs.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-current', 'page');
       await expect(page.getByRole('navigation', { name: 'Điều hướng chính', exact: true }).getByRole('link', { name: title, exact: true })).toHaveAttribute('aria-current', 'page');
+      if (path === 'settlements') {
+        const controls = page.getByRole('group', { name: 'Công cụ công nợ', exact: true }).locator('.ant-select, .ant-picker');
+        await expect(controls).toHaveCount(3);
+        const boxes = await controls.evaluateAll(elements => elements.map(element => { const rect = element.getBoundingClientRect(); return { top: rect.top, height: rect.height }; }));
+        expect(boxes.map(box => box.height)).toEqual([32, 32, 32]);
+        expect(boxes.map(box => box.top)).toEqual([boxes[0].top, boxes[0].top, boxes[0].top]);
+      }
     }
     await page.getByRole('tab', { name: 'Báo cáo tài chính', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/${module}/reports\\?tab=financial$`));

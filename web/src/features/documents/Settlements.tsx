@@ -40,7 +40,7 @@ function SettlementPage() {
     <section className={styles.panel}>
       <PageToolbar label="Công cụ công nợ" actions={pageActions}>
         <Select disabled={Boolean(module)} aria-label="Loại chứng từ công nợ" value={kind} onChange={value => { setParams({ kind: value }); setPage(1); setPartner(''); }} options={[{ value: 'sale', label: 'Phải thu · Chứng từ bán hàng' }, { value: 'purchase', label: 'Phải trả · Chứng từ mua hàng' }]} />
-        <label>Đến ngày <DateInput aria-label="Ngày tra cứu công nợ" value={asOf} onChange={value => { setAsOf(value); setPage(1); }} /></label>
+        <label className={styles.toolbarDateFilter}>Đến ngày <DateInput style={{ width: 180 }} aria-label="Ngày tra cứu công nợ" value={asOf} onChange={value => { setAsOf(value); setPage(1); }} /></label>
         <Select aria-label="Đối tượng công nợ" showSearch={searchOptions} value={partner} onChange={value => { setPartner(value); setPage(1); }} style={{ minWidth: 220 }} options={[{ value: '', label: 'Tất cả đối tượng' }, ...data?.partners.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` })) ?? []]} />
       </PageToolbar>
       {query.error && <Alert type="error" title={query.error.message} action={<Button onClick={() => void query.refetch()}>Thử lại</Button>} />}
