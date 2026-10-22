@@ -79,7 +79,7 @@ func (s *Service) Write(ctx context.Context, cmd Command, operation string, payl
 	return json.RawMessage(b), nil
 }
 func reservedSource(source string) bool {
-	return source != "" && strings.Contains("|closing|closing_reversal|reversal|payroll|asset|depreciation|costing|corporate_tax|transfer|treasury_reversal|", "|"+source+"|")
+	return source != "" && strings.Contains("|opening|closing|closing_reversal|reversal|payroll|asset|depreciation|costing|corporate_tax|transfer|treasury_reversal|", "|"+source+"|")
 }
 func manualSource(kind, source string) (string, error) {
 	if source != "" && source != "manual" && source != kind {
@@ -98,7 +98,7 @@ func (s *Service) Save(ctx context.Context, cmd Command, doc Document) (json.Raw
 	doc.SourceType = source
 	return s.Write(ctx, cmd, "document.save", doc, func(tx *sql.Tx) (any, error) {
 		var count int
-		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM voucher_inputs WHERE document_id=?", doc.ID).Scan(&count); err != nil {
+		if err := tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM voucher_inputs WHERE document_id=?)+(SELECT count(*) FROM opening_balances WHERE document_id=?)", doc.ID, doc.ID).Scan(&count); err != nil {
 			return nil, err
 		}
 		if count > 0 {
@@ -207,7 +207,7 @@ func (s *Service) SaveTx(ctx context.Context, tx *sql.Tx, doc Document) (Documen
 func (s *Service) Post(ctx context.Context, cmd Command, input Post) (json.RawMessage, error) {
 	return s.Write(ctx, cmd, "document.post", input, func(tx *sql.Tx) (any, error) {
 		var count int
-		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM voucher_inputs WHERE document_id=?", input.ID).Scan(&count); err != nil {
+		if err := tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM voucher_inputs WHERE document_id=?)+(SELECT count(*) FROM opening_balances WHERE document_id=?)", input.ID, input.ID).Scan(&count); err != nil {
 			return nil, err
 		}
 		if count > 0 {
@@ -245,6 +245,16 @@ func (s *Service) PostTx(ctx context.Context, tx *sql.Tx, input Post) (Document,
 			}
 		}
 	}
+	if doc.SourceType != "opening" {
+		var cutoff string
+		err = tx.QueryRowContext(ctx, "SELECT o.cutoff FROM opening_balances o JOIN documents d ON d.id=o.document_id WHERE d.status='posted'").Scan(&cutoff)
+		if err != nil && err != sql.ErrNoRows {
+			return doc, err
+		}
+		if cutoff != "" && doc.Date < cutoff {
+			return doc, accounting.Fail("BEFORE_CONVERSION", "Ngày chứng từ trước mốc số dư đầu kỳ; không được cộng lại lịch sử trước chuyển đổi.")
+		}
+	}
 	var closed bool
 	err = tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", doc.Date[:7]).Scan(&closed)
 	if err == sql.ErrNoRows || closed {
@@ -265,6 +275,9 @@ func (s *Service) PostTx(ctx context.Context, tx *sql.Tx, input Post) (Document,
 	}
 	var number, order int64
 	scope := doc.Type + ":" + doc.Date[:4]
+	if doc.SourceType == "opening" {
+		scope = "opening:" + doc.Date[:4]
+	}
 	if err = tx.QueryRowContext(ctx, "INSERT INTO counters VALUES(?,1) ON CONFLICT(scope) DO UPDATE SET value=value+1 RETURNING value", scope).Scan(&number); err != nil {
 		return doc, err
 	}
@@ -272,6 +285,9 @@ func (s *Service) PostTx(ctx context.Context, tx *sql.Tx, input Post) (Document,
 		return doc, err
 	}
 	prefix := map[string]string{"receipt": "PT", "payment": "PC", "sale": "BH", "purchase": "MH", "journal": "CT"}[doc.Type]
+	if doc.SourceType == "opening" {
+		prefix = "SDDK"
+	}
 	doc.Reference = fmt.Sprintf("%s-%s-%06d", prefix, doc.Date[:4], number)
 	doc.Status = "posted"
 	doc.Version++

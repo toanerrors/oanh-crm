@@ -56,7 +56,11 @@ func (s *Service) depreciate(ctx context.Context, tx *sql.Tx, in Input, p Policy
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM operations WHERE kind='depreciation' AND substr(source_id,1,length(?))=?", a.ID+":", a.ID+":").Scan(&previous); err != nil {
 		return err
 	}
-	if previous != elapsed {
+	var imported int
+	if err = tx.QueryRowContext(ctx, "SELECT COALESCE((SELECT elapsed FROM opening_assets WHERE asset_id=?),0)", a.ID).Scan(&imported); err != nil {
+		return err
+	}
+	if previous+imported != elapsed {
 		return accounting.Fail("ALLOCATION_SEQUENCE", "Phải tính liên tiếp từng kỳ, không bỏ kỳ hoặc chạy lặp.")
 	}
 	base := (cost - residual) / int64(a.Months)

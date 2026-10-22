@@ -1,0 +1,16 @@
+.editor :global(.ant-modal-container) { padding:0; overflow:hidden; max-height:calc(100dvh - 32px); display:flex; flex-direction:column; }
+.editor :global(.ant-modal-header) { padding:16px 24px; margin:0; border-bottom:1px solid #e4e9e6; }
+.editor :global(.ant-modal-body) { min-height:0; flex:1; overflow:auto; padding:16px 24px; background:#f5f7f6; }
+.editor :global(.ant-modal-footer) { margin:0; padding:12px 24px; border-top:1px solid #e4e9e6; }
+.editor :global(td .ant-form-item) { margin:0; }
+.editor :global(td .ant-input-number-input) { text-align:right; }
+.editor :global(.ant-table-cell) { padding:7px 10px !important; }
+.parameters { display:grid; grid-template-columns:220px 1fr; gap:16px; margin-top:16px; }
+.actions { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.totals { display:flex; gap:28px; justify-content:flex-end; padding:16px 0 0; flex-wrap:wrap; }
+.totals span { display:grid; gap:5px; color:#66756e; }
+.totals strong { color:#173b30; font-size:18px; }
+.help { color:#66756e; margin:0 0 12px; }
+.add { margin-top:12px; }
+.error { margin-top:12px; }
+@media(max-width:650px) { .parameters { grid-template-columns:1fr; gap:0; } .editor :global(.ant-modal-body) { padding:12px; } .totals { justify-content:flex-start; gap:16px; } }

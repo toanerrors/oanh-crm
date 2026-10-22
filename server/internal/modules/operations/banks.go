@@ -105,18 +105,18 @@ func (s *Service) Banks(ctx context.Context, period string) (BankList, error) {
 	for i := range result.Accounts {
 		b := &result.Accounts[i]
 		opening, receipts, payments := new(big.Int), new(big.Int), new(big.Int)
-		movements, e := tx.QueryContext(ctx, "SELECT d.date,m.debit,m.credit FROM bank_movements m JOIN documents d ON d.id=m.document_id WHERE m.bank_id=? AND d.status='posted' AND d.date<?", b.ID, end)
+		movements, e := tx.QueryContext(ctx, "SELECT d.date,d.source_type,m.debit,m.credit FROM bank_movements m JOIN documents d ON d.id=m.document_id WHERE m.bank_id=? AND d.status='posted' AND d.date<?", b.ID, end)
 		if e != nil {
 			return result, e
 		}
 		for movements.Next() {
-			var date string
+			var date, source string
 			var debit, credit int64
-			if e = movements.Scan(&date, &debit, &credit); e != nil {
+			if e = movements.Scan(&date, &source, &debit, &credit); e != nil {
 				movements.Close()
 				return result, e
 			}
-			if date < start.Format("2006-01-02") {
+			if source == "opening" || date < start.Format("2006-01-02") {
 				opening.Add(opening, big.NewInt(debit))
 				opening.Sub(opening, big.NewInt(credit))
 			} else {

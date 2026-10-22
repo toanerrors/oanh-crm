@@ -4,6 +4,7 @@ import { useWorkspace } from '../../app/WorkspaceProvider';
 import { Icon } from './Icon';
 import styles from '../../app/App.module.css';
 import { isDemo } from '../api/client';
+import { formatDate } from '../accounting/money';
 
 export function PageHeading({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
   return <div className={styles.pageHeading}><div><h1>{title}</h1><p>{description}</p></div><div className={styles.headingActions}>{actions}</div></div>;
@@ -26,5 +27,5 @@ export function EmptyData({ description = 'Chưa có chứng từ trong phạm v
 
 export function ScopeNote() {
   const { data, period, isFetching } = useWorkspace();
-  return <div className={styles.scopeNote}><span><Icon name="shield" size={14} />{isDemo ? 'Dữ liệu mẫu' : 'Dữ liệu doanh nghiệp'} · Kỳ {period.split('-').reverse().join('/')} · Phiên bản {data?.revision ?? '—'}</span><span>{isFetching ? 'Đang cập nhật…' : 'Đơn vị: VND'}</span></div>;
+  return <div className={styles.scopeNote}><span><Icon name="shield" size={14} />{isDemo ? 'Dữ liệu mẫu' : 'Dữ liệu doanh nghiệp'} · Kỳ {period.split('-').reverse().join('/')} · Phiên bản {data?.revision ?? '—'}{data?.conversionDate ? ` · Dữ liệu từ ${formatDate(data.conversionDate)}` : ''}</span><span>{isFetching ? 'Đang cập nhật…' : 'Đơn vị: VND'}</span></div>;
 }

@@ -48,6 +48,10 @@ func New(store *sqlite.Store, assets string, secure bool) *Server {
 	m.HandleFunc("GET /api/v1/workspace", s.workspace)
 	m.HandleFunc("GET /api/v1/documents", s.documents)
 	m.HandleFunc("GET /api/v1/documents/export", s.exportDocuments)
+	m.HandleFunc("GET /api/v1/opening-balances", s.openingGet)
+	m.HandleFunc("POST /api/v1/opening-balances", s.openingSave)
+	m.HandleFunc("POST /api/v1/opening-balances/confirm", s.openingPost)
+	m.HandleFunc("POST /api/v1/opening-balances/discard", s.openingDiscard)
 	m.HandleFunc("GET /api/v1/financial-reports/print", s.financialPrint)
 	m.HandleFunc("GET /api/v1/financial-reports/source", s.financialSource)
 	m.HandleFunc("GET /api/v1/financial-reports/template", s.financialTemplate)
@@ -177,7 +181,7 @@ func (s *Server) failure(w http.ResponseWriter, r *http.Request, err error) {
 		status = 404
 	case "RATE_LIMITED":
 		status = 429
-	case "VERSION_CONFLICT", "DATASET_CHANGED", "IDEMPOTENCY_CONFLICT", "DUPLICATE_SOURCE", "DUPLICATE_INVOICE", "DUPLICATE_CODE", "DOCUMENT_POSTED", "ALREADY_INITIALIZED", "HISTORY_LOCKED", "STOCK_POLICY_LOCKED":
+	case "OPENING_LOCKED", "OPENING_HISTORY_EXISTS", "VERSION_CONFLICT", "DATASET_CHANGED", "IDEMPOTENCY_CONFLICT", "DUPLICATE_SOURCE", "DUPLICATE_INVOICE", "DUPLICATE_CODE", "DOCUMENT_POSTED", "ALREADY_INITIALIZED", "HISTORY_LOCKED", "STOCK_POLICY_LOCKED":
 		status = 409
 	}
 	message := err.Error()

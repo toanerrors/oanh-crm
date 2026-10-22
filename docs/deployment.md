@@ -1,6 +1,6 @@
 # Release bằng Docker trên máy chủ
 
-Bản phát hành: `0.4.1`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
+Bản phát hành: `0.5.0`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
 
 ## Build và chạy
 
@@ -12,7 +12,7 @@ docker compose up -d --wait --wait-timeout 90
 docker compose ps
 ```
 
-Image: `oanh-crm:0.4.1`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
+Image: `oanh-crm:0.5.0`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
 
 Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Mã nguồn dùng remote `origin` tại [toanerrors/oanh-crm](https://github.com/toanerrors/oanh-crm). Sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker → healthcheck. Image hiện được lưu local trên server, chưa cấu hình registry. Không force-push hoặc thay đổi tag đã phát hành; không in thông tin xác thực trong output Git.
 
@@ -62,3 +62,7 @@ Image 0.2.0 không đọc schema 2. Rollback binary cần image hỗ trợ schem
 ## Nâng schema 2 → 3 (BCTC 0.4.0)
 
 Thêm bảng bản nháp BCTC và index; không thay tài khoản/bút toán/chính sách. Backup được xác minh trước khi khởi động image mới, giữ volume hiện tại. Schema3 đọc và nâng backup1/2 trên bản chuẩn bị. Image0.3.0 không đọc schema3; không rollback binary cũ trực tiếp trên volume đã nâng. Giữ bản dữ liệu trước release và image theo commit; phục hồi dữ liệu phải theo runbook và có ủy quyền đúng phạm vi.
+
+### Migration4 của 0.5.0
+
+Release thêm số dư đầu kỳ, không tạo/chỉnh số dư thật trong lúc deploy. Backup nguội toàn bộ dữ liệu trước release và kiểm tra schema/integrity/FK/đối soát trước khi nâng. Image0.4.x không đọc schema4; giữ image theo commit và bản dữ liệu trước release. Khôi phục hoặc thay dataset phải theo runbook, không hạ schema trực tiếp trên volume hiện tại.

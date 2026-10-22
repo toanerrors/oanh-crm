@@ -71,6 +71,42 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	var openingTable int
+	if err = db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_schema WHERE name='opening_balances'").Scan(&openingTable); err != nil {
+		return err
+	}
+	if openingTable > 0 {
+		var raw, doc string
+		err = db.QueryRowContext(ctx, "SELECT o.payload,d.id FROM opening_balances o JOIN documents d ON d.id=o.document_id WHERE d.status='posted'").Scan(&raw, &doc)
+		if err != nil && err != sql.ErrNoRows {
+			return err
+		}
+		if err == nil {
+			var input struct {
+				Lines []struct {
+					BankAccountID string `json:"bankAccountId"`
+					Debit         string `json:"debit"`
+					Credit        string `json:"credit"`
+				} `json:"lines"`
+			}
+			if err = json.Unmarshal([]byte(raw), &input); err != nil {
+				return err
+			}
+			for _, l := range input.Lines {
+				if l.BankAccountID != "" {
+					d, e := accounting.Money(l.Debit)
+					if e != nil {
+						return e
+					}
+					c, e := accounting.Money(l.Credit)
+					if e != nil {
+						return e
+					}
+					add(expected, dimension{doc, l.BankAccountID}, d, c)
+				}
+			}
+		}
+	}
 	for _, e := range entries {
 		var input struct {
 			BankAccountID            string `json:"bankAccountId"`

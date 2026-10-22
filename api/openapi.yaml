@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oanh Accounting API
-  version: 0.4.0
+  version: 0.5.0
   description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
     key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
 servers:
@@ -9,6 +9,128 @@ servers:
 security:
 - SessionCookie: []
 paths:
+  /opening-balances:
+    get:
+      summary: Đọc số dư đầu kỳ
+      operationId: get_opening_balances
+      description: 'Đọc cho mọi vai trò. Dữ liệu cùng snapshot.'
+      responses:
+        '200':
+          description: Thành công sau commit đối với lệnh ghi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpeningState'
+        default:
+          description: Lỗi nghiệp vụ hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Lưu nháp số dư đầu kỳ
+      operationId: save_opening_balances
+      description: 'Chỉ chủ sở hữu. Kiểm tra epoch, version và idempotency trong transaction; khởi tạo trước lần ghi sổ đầu tiên.'
+      responses:
+        '200':
+          description: Thành công sau commit đối với lệnh ghi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpeningState'
+        default:
+          description: Lỗi nghiệp vụ hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpeningInput'
+  /opening-balances/confirm:
+    post:
+      summary: Xác nhận số dư đầu kỳ
+      operationId: confirm_opening_balances
+      description: 'Chỉ chủ sở hữu. Kiểm tra epoch, version và idempotency trong transaction; khởi tạo trước lần ghi sổ đầu tiên.'
+      responses:
+        '200':
+          description: Thành công sau commit đối với lệnh ghi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpeningState'
+        default:
+          description: Lỗi nghiệp vụ hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpeningPost'
+  /opening-balances/discard:
+    post:
+      summary: Bỏ nháp số dư đầu kỳ
+      operationId: discard_opening_balances
+      description: 'Chỉ chủ sở hữu. Kiểm tra epoch, version và idempotency trong transaction; khởi tạo trước lần ghi sổ đầu tiên.'
+      responses:
+        '200':
+          description: Thành công sau commit đối với lệnh ghi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpeningState'
+        default:
+          description: Lỗi nghiệp vụ hoặc phiên bản.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpeningPost'
   /session:
     get:
       summary: Thông tin phiên
@@ -1425,6 +1547,63 @@ components:
         $ref: '#/components/schemas/ID'
       description: Một khóa cho một ý định; cùng key khác payload bị 409.
   schemas:
+    OpeningPost:
+      type: object
+      additionalProperties: false
+      required: [id, version]
+      properties:
+        id: {type: string}
+        version: {type: integer, minimum: 1}
+    OpeningInput:
+      type: object
+      additionalProperties: false
+      required: [id, version, cutoff, source, lines, stocks, assets]
+      properties:
+        id: {type: string}
+        version: {type: integer, minimum: 0}
+        cutoff:
+          type: string
+          format: date
+          description: Ngày đầu tháng bắt đầu sử dụng dữ liệu. Nhập số dư cuối ngày trước mốc.
+        source: {type: string, minLength: 1, maxLength: 900}
+        lines:
+          type: array
+          items:
+            allOf:
+            - $ref: '#/components/schemas/Line'
+            - type: object
+              properties:
+                bankAccountId: {type: string}
+        stocks:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [itemId, warehouseId, quantity, value]
+            properties:
+              itemId: {type: string}
+              warehouseId: {type: string}
+              quantity: {type: string}
+              value: {type: string, pattern: '^(0|[1-9][0-9]*)$'}
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
+    OpeningState:
+      allOf:
+      - $ref: '#/components/schemas/Context'
+      - type: object
+        required: [input, document, postedCount]
+        properties:
+          input:
+            oneOf:
+            - $ref: '#/components/schemas/OpeningInput'
+            - {type: 'null'}
+          document:
+            oneOf:
+            - $ref: '#/components/schemas/Document'
+            - {type: 'null'}
+          postedCount: {type: integer}
     ID:
       type: string
       pattern: ^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$
@@ -1458,6 +1637,10 @@ components:
     Context:
       type: object
       properties:
+        conversionDate:
+          type: string
+          format: date
+          description: Mốc số dư đầu kỳ đã xác nhận, nếu có.
         companyId: *id002
         companyName: *id002
         epoch: *id002

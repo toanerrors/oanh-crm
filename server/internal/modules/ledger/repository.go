@@ -48,7 +48,7 @@ func ReadDocument(ctx context.Context, q Queryer, id string) (Document, error) {
 }
 func ReadContext(ctx context.Context, q Queryer) (Context, error) {
 	var c Context
-	err := q.QueryRowContext(ctx, "SELECT company_id,company_name,epoch,revision,currency,regime FROM meta WHERE id=1").Scan(&c.CompanyID, &c.CompanyName, &c.Epoch, &c.Revision, &c.Currency, &c.Regime)
+	err := q.QueryRowContext(ctx, "SELECT company_id,company_name,epoch,revision,currency,regime,COALESCE((SELECT o.cutoff FROM opening_balances o JOIN documents d ON d.id=o.document_id WHERE d.status='posted'),'') FROM meta WHERE id=1").Scan(&c.CompanyID, &c.CompanyName, &c.Epoch, &c.Revision, &c.Currency, &c.Regime, &c.ConversionDate)
 	return c, err
 }
 func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Workspace, error) {
@@ -118,7 +118,7 @@ func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Wor
 	if err != nil {
 		return w, err
 	}
-	rows, err = tx.QueryContext(ctx, "SELECT id FROM documents WHERE substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id LIMIT 100", period)
+	rows, err = tx.QueryContext(ctx, "SELECT id FROM documents WHERE source_type<>'opening' AND substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id LIMIT 100", period)
 	if err != nil {
 		return w, err
 	}

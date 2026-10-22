@@ -231,3 +231,7 @@ Bộ tài khoản tham chiếu được embed, đóng góp vào checksum migrati
 Các truy vấn và bản nháp BCTC hiện nằm trong `ledger/financial.go`, sử dụng cùng read snapshot và `ledger.Write` cho kiểm tra quyền/epoch/version, idempotency, audit và commit. Không tạo bản sao sổ hoặc ghi bút toán từ BCTC. `financial_reports.data` giữ input có template version; tổng dẫn xuất được tính lại, không chấp nhận client đặt tổng. Giữ nguyên định nghĩa `tt99-2026-v1` khi bổ sung mẫu tương lai để đọc lại báo cáo lịch sử.
 
 Mẫu năm dương lịch TT99 cho hoạt động liên tục; chỉ tiêu nhập tay, không suy ra phân loại ngắn/dài hạn hoặc luồng tiền từ mã tài khoản. Source là bảng đối chiếu phát sinh/số dư theo khoảng ngày, giữ riêng hai bên theo đối tượng. B09 là nội dung bổ sung tự do; không phải bộ thuyết minh pháp định đầy đủ. UI thay tab income bằng financial, URL income cũ vẫn mở BCTC; API income giữ tương thích.
+
+### Số dư đầu kỳ (0.5.0)
+
+`operations/opening.go` điều phối nháp và xác nhận khởi tạo qua ledger.Write/SaveTx/PostTx, tái sử dụng giá kho và tài sản hiện có. Schema4 thêm singleton opening_balances (mốc, nguồn, payload, liên kết document) và opening_assets (số kỳ/lũy kế trước chuyển đổi); không tạo bản sao bảng số dư. Trigger bảo vệ nguồn đã xác nhận và chặn ghi sổ trước mốc; số dư luôn là các dòng nguồnopening trong cùng ledger. Báo cáo phân biệt opening với movement theo nguồn. Backup kiểm tra lại payload→ledger/ngân hàng/kho/tài sản; hash/checksum schema1–3 giữ nguyên, chỉ nâng bản chuẩn bị khi restore.

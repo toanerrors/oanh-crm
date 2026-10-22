@@ -125,7 +125,7 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 		return nil, err
 	}
 	counts := map[string]int{}
-	rows, err = q.QueryContext(ctx, "SELECT status,count(*) FROM documents WHERE substr(date,1,7)=? GROUP BY status", period)
+	rows, err = q.QueryContext(ctx, "SELECT status,count(*) FROM documents WHERE source_type<>'opening' AND substr(date,1,7)=? GROUP BY status", period)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 			add(partners, partner, d)
 			add(partners, partner, -c)
 		}
-		if source != "closing" && source != "closing_reversal" {
+		if source != "opening" && source != "closing" && source != "closing_reversal" {
 			if group == "revenue" {
 				add(months, month+":revenue", c)
 				add(months, month+":revenue", -d)
@@ -277,7 +277,7 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 			return result, err
 		}
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM documents WHERE substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id", f.Period)
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM documents WHERE source_type<>'opening' AND substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id", f.Period)
 	if err != nil {
 		return result, err
 	}
@@ -377,9 +377,9 @@ func moneySummary(ctx context.Context, tx *sql.Tx, account, period, bank string)
 	}
 	args = append(args, end)
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(accounts)), ",")
-	query := "SELECT d.date,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE d.status='posted' AND l.account_id IN (" + placeholders + ") AND d.date<?"
+	query := "SELECT d.date,d.source_type,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE d.status='posted' AND l.account_id IN (" + placeholders + ") AND d.date<?"
 	if bank != "" {
-		query = "SELECT d.date,m.debit,m.credit FROM bank_movements m JOIN documents d ON d.id=m.document_id WHERE d.status='posted' AND m.bank_id=? AND d.date<?"
+		query = "SELECT d.date,d.source_type,m.debit,m.credit FROM bank_movements m JOIN documents d ON d.id=m.document_id WHERE d.status='posted' AND m.bank_id=? AND d.date<?"
 		args = []any{bank, end}
 	}
 	rows, err := tx.QueryContext(ctx, query, args...)
@@ -389,12 +389,12 @@ func moneySummary(ctx context.Context, tx *sql.Tx, account, period, bank string)
 	defer rows.Close()
 	opening, receipts, payments := new(big.Int), new(big.Int), new(big.Int)
 	for rows.Next() {
-		var date string
+		var date, source string
 		var debit, credit int64
-		if err = rows.Scan(&date, &debit, &credit); err != nil {
+		if err = rows.Scan(&date, &source, &debit, &credit); err != nil {
 			return nil, err
 		}
-		if date < start.Format("2006-01-02") {
+		if source == "opening" || date < start.Format("2006-01-02") {
 			opening.Add(opening, big.NewInt(debit))
 			opening.Sub(opening, big.NewInt(credit))
 		} else {
@@ -429,6 +429,9 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 	report.Period = f.Period
 	if err != nil {
 		return report, err
+	}
+	if report.ConversionDate != "" && f.Period < report.ConversionDate[:7] {
+		return report, accounting.Fail("BEFORE_CONVERSION", "Kỳ báo cáo trước mốc chuyển đổi; chưa có dữ liệu lịch sử trong bộ dữ liệu này.")
 	}
 	if f.Revision != nil && *f.Revision != report.Revision {
 		return report, accounting.Fail("VERSION_CONFLICT", "Sổ đã thay đổi. Tải lại dữ liệu để đọc cùng phiên bản.")
@@ -472,14 +475,14 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 		}
 		add(closing, key, d)
 		add(closing, key, -c)
-		if date < f.Period+"-01" {
+		if source == "opening" || date < f.Period+"-01" {
 			add(opening, key, d)
 			add(opening, key, -c)
 		} else {
 			add(debits, account, d)
 			add(credits, account, c)
 		}
-		if date[:7] != f.Period {
+		if source == "opening" || date[:7] != f.Period {
 			continue
 		}
 		if f.Kind == "journal" || f.Kind == "ledger" {
@@ -491,7 +494,7 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 			}
 			report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, Debit: accounting.Text(d), Credit: accounting.Text(c)})
 		}
-		if f.Kind == "income" && source != "closing" && source != "closing_reversal" && (accounts[account].Group == "revenue" || accounts[account].Group == "expense") {
+		if f.Kind == "income" && source != "opening" && source != "closing" && source != "closing_reversal" && (accounts[account].Group == "revenue" || accounts[account].Group == "expense") {
 			report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, Debit: accounting.Text(d), Credit: accounting.Text(c)})
 		}
 	}

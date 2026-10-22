@@ -47,14 +47,15 @@ type Period struct {
 	Closed bool   `json:"closed"`
 }
 type Context struct {
-	Period      string `json:"period,omitempty"`
-	CompanyID   string `json:"companyId"`
-	CompanyName string `json:"companyName"`
-	Epoch       string `json:"epoch"`
-	Revision    int64  `json:"revision"`
-	Currency    string `json:"currency"`
-	Scale       int    `json:"scale"`
-	Regime      string `json:"regime"`
+	ConversionDate string `json:"conversionDate,omitempty"`
+	Period         string `json:"period,omitempty"`
+	CompanyID      string `json:"companyId"`
+	CompanyName    string `json:"companyName"`
+	Epoch          string `json:"epoch"`
+	Revision       int64  `json:"revision"`
+	Currency       string `json:"currency"`
+	Scale          int    `json:"scale"`
+	Regime         string `json:"regime"`
 }
 type Workspace struct {
 	Server *Metrics `json:"server"`

@@ -373,7 +373,10 @@ func (s *Service) FinancialSource(ctx context.Context, from, to string) (Financi
 	if err != nil {
 		return out, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT a.code,a.name,COALESCE(l.partner_id,''),d.date,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id JOIN accounts a ON a.id=l.account_id WHERE d.status='posted' AND d.date<=? ORDER BY a.code,l.partner_id,d.date,d.posted_order,l.position`, to)
+	if out.ConversionDate != "" && from < out.ConversionDate {
+		return out, accounting.Fail("BEFORE_CONVERSION", "Khoảng đối chiếu bắt đầu trước mốc chuyển đổi; chưa có đủ lịch sử cho khoảng này.")
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT a.code,a.name,CASE WHEN a.requires_partner=1 THEN COALESCE(l.partner_id,'') ELSE '' END,d.date,d.source_type,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id JOIN accounts a ON a.id=l.account_id WHERE d.status='posted' AND d.date<=? ORDER BY a.code,l.partner_id,d.date,d.posted_order,l.position`, to)
 	if err != nil {
 		return out, err
 	}
@@ -386,9 +389,9 @@ func (s *Service) FinancialSource(ctx context.Context, from, to string) (Financi
 	all := map[string]*balances{}
 	order := []string{}
 	for rows.Next() {
-		var code, name, partner, date string
+		var code, name, partner, date, source string
 		var d, c int64
-		if err = rows.Scan(&code, &name, &partner, &date, &d, &c); err != nil {
+		if err = rows.Scan(&code, &name, &partner, &date, &source, &d, &c); err != nil {
 			return out, err
 		}
 		a := all[code]
@@ -402,7 +405,7 @@ func (s *Service) FinancialSource(ctx context.Context, from, to string) (Financi
 			a.closing[partner] = new(big.Int)
 		}
 		a.closing[partner].Add(a.closing[partner], delta)
-		if date < from {
+		if source == "opening" || date < from {
 			if a.opening[partner] == nil {
 				a.opening[partner] = new(big.Int)
 			}

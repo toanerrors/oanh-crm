@@ -106,3 +106,7 @@ Trước nâng production lên schema 2 phải có backup đã xác minh. Có th
 ## Schema3 — bản nháp BCTC
 
 Backup bao gồm bảng `financial_reports` với input/version/ngày/người cập nhật. Migration3 chỉ thêm bảng/index, không đổi tiền hoặc bút toán. Đã bổ sung kiểm thử migration1/2→3 và backup/restore bản nháp có tiền trên2^53, giữ version/nội dung, đổi epoch và chặn lệnh phiên cũ. Template `tt99-2026-v1` phải giữ khả năng đọc lại, không sửa định nghĩa đã phát hành.
+
+### Schema4 — số dư đầu kỳ
+
+Thêm metadata chuyển đổi và lịch sử phân bổ tài sản trước chuyển đổi. Backup/Check đối chiếu số dư với ledger, chi tiết ngân hàng, stock movement và tài sản; chặn lịch sử giao nhau với mốc. Giữ nguyên hash/checksum migration1–3, nhận gói1/2/3/4 và chỉ nâng bản chuẩn bị. Đã kiểm tra migration/backup/restore từ schema3 có BCTC cũ, số dư đã xác nhận và lô tồn/tài sản sau phát sinh. Image trước0.5.0 không đọc schema4; không rollback binary cũ trực tiếp trên volume đã nâng.

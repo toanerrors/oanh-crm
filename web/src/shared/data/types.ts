@@ -47,6 +47,7 @@ export interface Account {
 }
 
 export interface Workspace {
+  conversionDate?: string;
   regime?: string;
   server?: import('./reports').ServerMetrics;
   companyName?: string;

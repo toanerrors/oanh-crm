@@ -20,6 +20,15 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Nhập số dư đầu kỳ — 0.5.0
+
+- Thêm thao tác ngay tại Cân đối phát sinh, form Ant Design nhập Nợ/Có, nguồn đối chiếu và ngày đầu tháng chuyển đổi; lưu/mở lại/bỏ nháp, mở kỳ còn thiếu và xác nhận riêng. Chủ sở hữu khởi tạo trước lần ghi sổ đầu tiên, số xác nhận bất biến. Không thêm số dư thật khi release.
+- Chi tiết tài khoản/đối tượng/ngân hàng, hàng hóa156 theo hàng–kho và TSCĐ211/214, trả trước242; tạo đồng thời nguồn ledger, ngân hàng, lô tồn/biến động, tài sản và số kỳ đã phân bổ. Mọi tiền giữ chuỗi/int64/big.Int/BigInt; không tự cân đối chênh lệch.
+- Nguồnopening vào dư đầu ngay kỳ chuyển đổi, tách phát sinh/NKC/thu chi và danh sách chứng từ thông thường; chuyển tiếp kỳ sau từ cùng sổ. Context có mốc dữ liệu. Báo cáo/source BCTC trước mốc bị từ chối; công nợ giữ riêng hai bên theo đối tượng. Cột tiền lớn không ngắt dòng.
+- Schema4 bổ sung metadata chuyển đổi và lịch sử phân bổ ban đầu; checksum/hash1–3 giữ nguyên. Backup/restore kiểm tra payload với ledger, ngân hàng, kho và tài sản. Đã kiểm tra migration từ3 có BCTC cũ, backup/restore bộ đã xác nhận, phát sinh bán hàng/khấu hao sau chuyển đổi, rollback/retry/cạnh tranh ghi và stale version/epoch/quyền.
+- Validation: test Go cho ledger/operations/sqlite/httpserver; race cho các test Opening/Migration/Report/Posting và vet bốn package; TypeScript strict, production build,21 test Node. Edge dữ liệu giả lập: nhập9.007.199.254.740.993, lưu/mở lại sau reload, mở kỳ, xác nhận/khóa, đối chiếu dư đầu/phát sinh0 và bố cục form1440/390px; không dùng dữ liệu thật làm test. Không chạy Playwright CLI song song Edge.
+- Giới hạn: chỉ khởi tạo trước chứng từ đầu tiên, chưa điều chỉnh số dư đã xác nhận, chưa có hóa đơn công nợ chuyển đổi để phân bổ thu/trả theo hóa đơn. Kho/tài sản ngoài156/211/214/242 cần phân hệ chi tiết tương ứng, hiện bị chặn thay vì nhận số tổng không đối soát được. Chưa benchmark dữ liệu lớn.
+
 ### Form chứng từ khác: hai bên Nợ/Có —0.4.1
 
 - Chia chi tiết hạch toán thành hai nhóm đối xứng: TK Nợ/Có, đối tượng Nợ/Có, diễn giải Nợ/Có và số tiền Nợ/Có trên cùng hàng hiển thị. Có thêm/xóa riêng từng bên hoặc thêm cả hai; không báo cân đối khi chưa nhập tiền.

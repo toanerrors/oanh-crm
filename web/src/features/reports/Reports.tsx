@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { workspaceKey } from '../../shared/data/workspace';
 import { exactRow } from '../../shared/data/reports';
 import { FinancialReports } from './FinancialReports';
+import { OpeningBalances } from './OpeningBalances';
 import type { ServerReport } from '../../shared/data/reports';
 
 interface ReportRow { key: string; code: string; name: string; debit: bigint; credit: bigint; openingDebit?: bigint; openingCredit?: bigint; closingDebit?: bigint; closingCredit?: bigint; date?: string; documentId?: string; description?: string; account?: string }
@@ -46,7 +47,7 @@ function BookReports() {
   const debit = !isDemo ? BigInt(server.data?.debit ?? '0') : filtered.reduce((sum, row) => sum + row.debit, 0n);
   const credit = !isDemo ? BigInt(server.data?.credit ?? '0') : filtered.reduce((sum, row) => sum + row.credit, 0n);
   const sumField = (field: keyof Pick<ReportRow, 'openingDebit' | 'openingCredit' | 'closingDebit' | 'closingCredit'>) => !isDemo ? BigInt(server.data?.[field] ?? '0') : filtered.reduce((sum, row) => sum + (row[field] ?? 0n), 0n);
-  const amountColumn = (title: string, key: keyof ReportRow) => ({ title, dataIndex: key, align: 'right' as const, width: 145, render: (value: bigint) => formatMoney(value) });
+  const amountColumn = (title: string, key: keyof ReportRow) => ({ title, dataIndex: key, align: 'right' as const, width: tab === 'trial' ? 185 : 145, render: (value: bigint) => <span className={styles.tableAmount}>{formatMoney(value)}</span> });
   const titles = { journal: 'Nhật ký chung', ledger: 'Sổ cái', trial: 'Cân đối phát sinh', debt: 'Chi tiết công nợ' };
   const ledgerBalance = !isDemo ? server.data?.accountBalance ? exactRow(server.data.accountBalance) : null : tab === 'ledger' && account !== 'all' ? trialBalance(data, period).find(item => item.key === account) : null;
   const exportReport = () => { if (!isDemo) { void downloadApi(`/reports/export?${serverParams}`, `so-${tab}-${period}.csv`).catch(error => void message.error((error as Error).message)); return; } downloadCsv(`so-mau-${tab}-${period}.csv`, [
@@ -55,7 +56,7 @@ function BookReports() {
   ]); };
 
   return <DataBoundary>
-    <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} actions={<>{!isDemo && isDebt && <Link to="/settlements"><Button>Công nợ theo chứng từ</Button></Link>}{!isDemo && <Button icon={<Icon name="print" size={16} />} onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }}>In báo cáo</Button>}<Button icon={<Icon name="download" size={16} />} onClick={exportReport} disabled={!filtered.length}>Xuất CSV</Button></>} />
+    <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} actions={<>{!isDemo && tab === 'trial' && <OpeningBalances />}{!isDemo && isDebt && <Link to="/settlements"><Button>Công nợ theo chứng từ</Button></Link>}{!isDemo && <Button icon={<Icon name="print" size={16} />} onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }}>In báo cáo</Button>}<Button icon={<Icon name="download" size={16} />} onClick={exportReport} disabled={!filtered.length}>Xuất CSV</Button></>} />
     <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : 'book'} /></span><div><strong>{titles[tab]} · Kỳ {period.split('-').reverse().join('/')}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
     {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={refresh}>Tải lại dữ liệu</Button>} />}
     <section className={styles.panel}>
@@ -72,7 +73,7 @@ function BookReports() {
         { title: 'CHỨNG TỪ', dataIndex: 'code', width: 135, render: (value: string, row) => <button className={styles.tableLink} onClick={() => openDocument(row.documentId ?? null)}>{value}</button> },
         { title: 'DIỄN GIẢI', dataIndex: 'description', render: (value: string, row) => <>{value}<small className={styles.cellSub}>{row.name}</small></> },
         { title: 'TK', dataIndex: 'account', width: 65 }, amountColumn('NỢ (VND)', 'debit'), amountColumn('CÓ (VND)', 'credit'),
-      ]} summary={() => !isDemo && !server.data ? null : tab === 'trial' ? <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell>{[sumField('openingDebit'), sumField('openingCredit'), debit, credit, sumField('closingDebit'), sumField('closingCredit')].map((value, index) => <Table.Summary.Cell index={index + 2} align="right" key={index}><strong>{formatMoney(value)}</strong></Table.Summary.Cell>)}</Table.Summary.Row> : <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={isDebt ? 2 : 4}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 2 : 4} align="right"><strong>{formatMoney(debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 3 : 5} align="right"><strong>{formatMoney(credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />
+      ]} summary={() => !isDemo && !server.data ? null : tab === 'trial' ? <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell>{[sumField('openingDebit'), sumField('openingCredit'), debit, credit, sumField('closingDebit'), sumField('closingCredit')].map((value, index) => <Table.Summary.Cell index={index + 2} align="right" key={index}><strong className={styles.tableAmount}>{formatMoney(value)}</strong></Table.Summary.Cell>)}</Table.Summary.Row> : <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={isDebt ? 2 : 4}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 2 : 4} align="right"><strong>{formatMoney(debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 3 : 5} align="right"><strong>{formatMoney(credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />
     </section>
     <div className={styles.inlineNotice}><Icon name="shield" size={16} />{isDebt ? 'Dư Có khách hàng và dư Nợ nhà cung cấp được giữ riêng, không bù trừ giữa các đối tượng.' : 'Cân đối Nợ/Có chỉ là một bước kiểm tra. Tài khoản, đối tượng và kỳ cần được đối chiếu với chứng từ nguồn.'}</div><ScopeNote />
   </DataBoundary>;
