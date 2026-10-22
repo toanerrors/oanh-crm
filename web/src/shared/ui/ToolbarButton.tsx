@@ -7,5 +7,5 @@ import styles from '../../app/App.module.css';
 type ToolbarButtonProps = Omit<ButtonProps, 'children' | 'icon' | 'aria-label'> & { label: string; icon: IconName };
 
 export function ToolbarButton({ label, icon, ...props }: ToolbarButtonProps) {
-  return <Tooltip title={label} trigger={['hover', 'focus']}><span className={styles.toolbarButton}><Button {...props} aria-label={label} icon={<Icon name={icon} size={17} />} /></span></Tooltip>;
+  return <Tooltip title={label} trigger={['hover', 'focus']}><span className={styles.toolbarButton}><Button {...props} aria-label={label} icon={<Icon name={icon} size={17} />}>{props.type === 'primary' ? label : undefined}</Button></span></Tooltip>;
 }

@@ -386,3 +386,39 @@ test('nhập Excel ghép cột, chặn lỗi và lưu nháp đúng một lần',
   const documents = await (await page.request.get(`/api/v1/documents?${new URLSearchParams({ period: '2026-10', query: 'Nhập tiền lớn' })}`)).json();
   expect(documents.documents.filter((doc: { sourceId: string }) => doc.sourceId === 'E2E-EXCEL-1')).toHaveLength(1);
 });
+
+test('menu chức năng có nhãn, mở đúng thu chi hóa đơn, Excel và dịch vụ', async ({ page }) => {
+  await login(page);
+  await page.goto('/bank');
+  for (const name of ['Thu tiền', 'Chi tiền']) await expect(page.getByRole('button', { name, exact: true })).toHaveText(name);
+  await page.getByRole('button', { name: 'Tùy chọn Chi tiền', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Trả tiền theo hóa đơn', exact: true }).click();
+  await expect(page).toHaveURL(/kind=payment&account=1121&settlement=1$/);
+  await expect(page.getByText('Trả công nợ theo chứng từ', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).click();
+  await expect(page).toHaveURL(/\/bank$/);
+  for (const [action, kind] of [['Chi tiền', 'Phiếu chi, chi tiền gửi'], ['Thu tiền', 'Phiếu thu, thu tiền gửi']]) {
+    await page.getByRole('button', { name: `Tùy chọn ${action}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Nhập từ Excel', exact: true }).click();
+    await expect(page).toHaveURL(/\/bank$/);
+    await expect(page.getByRole('dialog').getByText(kind, { exact: true })).toBeVisible();
+    await page.getByRole('dialog').getByRole('button', { name: 'Đóng', exact: true }).last().click();
+  }
+  for (const [path, action, service] of [['/purchases', 'Mua hàng', 'Mua dịch vụ'], ['/sales', 'Bán hàng', 'Bán dịch vụ']]) {
+    await page.goto(path);
+    await page.getByRole('button', { name: `Tùy chọn ${action}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: service, exact: true }).click();
+    await expect(page).toHaveURL(/service=1$/);
+    await expect(page.getByRole('heading', { name: `Chứng từ ${service.toLowerCase()}`, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).click();
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/bank');
+  const receipt = await page.getByRole('button', { name: 'Thu tiền', exact: true }).boundingBox();
+  const payment = await page.getByRole('button', { name: 'Chi tiền', exact: true }).boundingBox();
+  expect(receipt).not.toBeNull(); expect(payment).not.toBeNull();
+  expect(Math.abs(receipt!.y - payment!.y)).toBeLessThan(1);
+  await page.getByRole('button', { name: 'Tùy chọn Chi tiền', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Chuyển tiền nội bộ', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

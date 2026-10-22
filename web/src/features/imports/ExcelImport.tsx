@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Alert, App, Button, Checkbox, Input, InputNumber, Modal, Result, Select, Skeleton, Steps, Switch, Table, Tag, Upload } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
@@ -18,13 +19,15 @@ import appStyles from '../../app/App.module.css';
 const epochHeaders = () => ({ 'X-Dataset-Epoch': apiScope().epoch });
 const schemaOptions = () => ({ queryKey: [...workspaceKey(), 'excel-schemas'], queryFn: ({ signal }: { signal: AbortSignal }) => api<ExcelSchema[]>('/excel-imports/schemas', { signal }), staleTime: 60_000, retry: false });
 
-export function ImportExcelButton({ kind }: { kind?: string }) {
+export function ImportExcelButton({ kind, children }: { kind?: string; children?: (open: (kind?: string) => void) => ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [selectedKind, setSelectedKind] = useState(kind);
   const location = useLocation();
   const [busy, setBusy] = useState(false);
   if (isDemo || apiScope().permissions === 'viewer') return null;
   const close = () => { if (!busy) setOpen(false); };
-  return <><ToolbarButton label="Nhập từ Excel" icon="upload" onClick={() => setOpen(true)} /><Modal title="Nhập từ Excel" open={open} onCancel={close} maskClosable={false} closable={!busy} width={1120} footer={null} destroyOnHidden><ExcelWizard initialKind={kind ?? excelKindForPath(location.pathname)} onBusy={setBusy} onDone={close} /></Modal></>;
+  const openImport = (nextKind = kind) => { setSelectedKind(nextKind); setOpen(true); };
+  return <>{children ? children(openImport) : <ToolbarButton label="Nhập từ Excel" icon="upload" onClick={() => openImport()} />}<Modal title="Nhập từ Excel" open={open} onCancel={close} maskClosable={false} closable={!busy} width={1120} footer={null} destroyOnHidden><ExcelWizard key={selectedKind ?? excelKindForPath(location.pathname)} initialKind={selectedKind ?? excelKindForPath(location.pathname)} onBusy={setBusy} onDone={close} /></Modal></>;
 }
 
 interface WizardProps { initialKind?: string; initialBatch?: string; onBusy?: (busy: boolean) => void; onDone?: () => void }

@@ -404,6 +404,13 @@
 @media (max-width: 760px) { .tableToolbar .toolbarFilters, .tableToolbar .toolbarActions { width: 100%; } .tableToolbar .toolbarActions { justify-content: flex-end; } }
 
 .toolbarButton { display: inline-flex; flex: 0 0 auto; vertical-align: middle; }
+.toolbarPrimaryActions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.toolbarActionMenu { display: inline-flex; flex: 0 0 auto; vertical-align: middle; }
+.toolbarActionMenu :global(.ant-btn-primary) { font-weight: 600; }
+.toolbarActionMenu :global(.ant-btn-primary):last-child { border-inline-start-color: #00000024; }
+.toolbarActionDropdown :global(.ant-dropdown-menu) { min-width: 240px; padding: 6px; border-radius: 10px; }
+.toolbarActionDropdown :global(.ant-dropdown-menu-item) { padding: 8px 12px; }
+
 
 .sidebarToggle.sidebarToggle { flex-shrink: 0; }
 @media (min-width: 761px) {

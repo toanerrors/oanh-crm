@@ -49,7 +49,7 @@ export function Component() {
   if ((initial.kind === 'receipt' || initial.kind === 'payment') && !initial.treasuryLines?.length && !initial.allocations?.length && initial.counterAccount && initial.amount) {
     initial.treasuryLines = [{ counterAccount: initial.counterAccount, amount: initial.amount, description: initial.description, partnerId: initial.partnerId }];
   }
-  return <VoucherForm key={id ? `${id}-${resumed?.draftVersion ?? query.data?.document.version}` : generatedSource} initial={initial} resuming={Boolean(resumed)} stale={stale} onReload={() => setVoucherDraft(null)} initialDocument={query.data ? { ...query.data.document, version: resumed?.draftVersion ?? query.data.document.version } : undefined} initialCalculation={resumed ? undefined : query.data?.calculation} />;
+  return <VoucherForm key={id ? `${id}-${resumed?.draftVersion ?? query.data?.document.version}` : generatedSource} initial={initial} initialAllocate={!id && !resumed && (kind === 'receipt' || kind === 'payment') && params.get('settlement') === '1'} resuming={Boolean(resumed)} stale={stale} onReload={() => setVoucherDraft(null)} initialDocument={query.data ? { ...query.data.document, version: resumed?.draftVersion ?? query.data.document.version } : undefined} initialCalculation={resumed ? undefined : query.data?.calculation} />;
 }
 
 function exportInput(input: OperationInput) {
@@ -57,7 +57,7 @@ function exportInput(input: OperationInput) {
   const link = document.createElement('a'); link.href = url; link.download = `nhap-${input.sourceId}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function VoucherForm({ initial, initialDocument, initialCalculation, resuming, stale, onReload }: { initial: OperationInput; initialDocument?: AccountingDocument; initialCalculation?: Calculation; resuming: boolean; stale: boolean; onReload: () => void }) {
+function VoucherForm({ initial, initialAllocate, initialDocument, initialCalculation, resuming, stale, onReload }: { initial: OperationInput; initialAllocate: boolean; initialDocument?: AccountingDocument; initialCalculation?: Calculation; resuming: boolean; stale: boolean; onReload: () => void }) {
   const { data, setVoucherDraft, period } = useWorkspace();
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ function VoucherForm({ initial, initialDocument, initialCalculation, resuming, s
   const [dirty, setDirty] = useState(resuming);
   const [preview, setPreview] = useState<{ input: OperationInput; result: Calculation } | null>(initialCalculation ? { input: initial, result: initialCalculation } : null);
   const [tab, setTab] = useState('entries');
-  const [allocate, setAllocate] = useState(Boolean(initial.allocations?.length));
+  const [allocate, setAllocate] = useState(initialAllocate || Boolean(initial.allocations?.length));
   const [showNotes, setShowNotes] = useState(Boolean(initial.voucher?.notes));
   const [showAccounts, setShowAccounts] = useState(true);
   const auto = useQuery({ ...automationOptions(), enabled: apiScope().permissions !== 'viewer' });

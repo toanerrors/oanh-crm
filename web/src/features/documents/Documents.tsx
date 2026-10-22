@@ -10,6 +10,7 @@ import type { AccountingDocument, DocumentType } from '../../shared/data/types';
 import { DataBoundary, EmptyData, PageHeading, StatusTag } from '../../shared/ui/Page';
 import { Icon } from '../../shared/ui/Icon';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
+import { ToolbarActionMenu } from '../../shared/ui/ToolbarActionMenu';
 import styles from '../../app/App.module.css';
 import { api, apiScope, downloadApi, isDemo } from '../../shared/api/client';
 import { useQuery } from '@tanstack/react-query';
@@ -84,7 +85,42 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
     ...filtered.map(item => [item.reference, item.date, documentTypes[item.type], item.description, data.partners.find(partner => partner.id === item.partnerId)?.name ?? '', `${item.lines.length ? formatMoney(totals(item.lines).debit) : '0'} VND`, documentStatuses[item.status]]),
   ]); };
 
-  const pageActions = <>{!isDemo && canWrite && <ImportDocuments />}{!isDemo && bankPage && <BankAccountsButton />}{!isDemo && config.type && ['sale', 'purchase'].includes(config.type) && <ToolbarButton onClick={() => navigate(`${config.type === 'sale' ? '/sales' : '/purchases'}/settlements`)} label="Công nợ theo chứng từ" icon="users" />}{!isDemo && config.type === 'purchase' && canWrite && <ToolbarButton onClick={() => navigate('/automation?kind=asset')} label="Mua tài sản / chi phí trả trước" icon="building" />}{!isDemo && config.treasury && canWrite && <><ToolbarButton onClick={() => navigate(`/vouchers/new?kind=payment&account=${config.accounts?.[0]}`)} label="Chi tiền" icon="arrowUp" /><ToolbarButton onClick={() => navigate(`/vouchers/new?kind=transfer&account=${config.accounts?.[0]}`)} label="Chuyển tiền" icon="transfer" /></>}{!isDemo && apiScope().permissions === 'owner' && !config.accounts && !config.type && <><ToolbarButton onClick={() => navigate('/vouchers/new?kind=closing')} label="Kết chuyển lãi lỗ" icon="chart" /><ToolbarButton onClick={() => navigate('/settings')} label="Quản lý / khóa kỳ" icon="settings" /></>}<ToolbarButton onClick={exportRows} disabled={!filtered.length} label="Xuất CSV" icon="download" />{canWrite && <>{!isDemo && config.type && ['sale', 'purchase'].includes(config.type) && <ToolbarButton onClick={() => navigate(`/vouchers/new?kind=${config.type}&service=1`)} label={config.type === 'sale' ? 'Bán dịch vụ' : 'Mua dịch vụ'} icon="file" />}<ToolbarButton type="primary" onClick={() => !isDemo && config.treasury ? navigate(`/vouchers/new?kind=receipt&account=${config.accounts?.[0]}`) : !isDemo && config.type && ['sale', 'purchase'].includes(config.type) ? navigate(`/vouchers/new?kind=${config.type}`) : newDraft(config.treasury ? 'receipt' : config.type)} label={!isDemo && config.treasury ? 'Thu tiền' : !isDemo && config.type && ['sale', 'purchase'].includes(config.type) ? config.type === 'sale' ? 'Bán hàng' : 'Mua hàng' : 'Tạo chứng từ'} icon={config.treasury ? 'arrowDown' : 'plus'} /></>}</>;
+  const actions = (openExcel?: (kind?: string) => void) => {
+    const importItems = (kind?: string) => openExcel ? [{ type: 'divider' as const }, { key: 'excel', label: 'Nhập từ Excel', icon: <Icon name="upload" size={16} />, onClick: () => openExcel(kind) }] : [];
+    const treasury = (kind: 'receipt' | 'payment') => () => navigate(`/vouchers/new?kind=${kind}&account=${config.accounts?.[0]}`);
+    const trade = config.type === 'sale' || config.type === 'purchase';
+    const create = () => !isDemo && trade ? navigate(`/vouchers/new?kind=${config.type}`) : newDraft(config.treasury ? 'receipt' : config.type);
+    const createLabel = !isDemo && trade ? config.type === 'sale' ? 'Bán hàng' : 'Mua hàng' : 'Tạo chứng từ';
+    return <>
+      {openExcel && <ToolbarButton label="Nhập từ Excel" icon="upload" onClick={() => openExcel()} />}
+      {!isDemo && bankPage && <BankAccountsButton />}
+      {!isDemo && trade && <ToolbarButton onClick={() => navigate(`${config.type === 'sale' ? '/sales' : '/purchases'}/settlements`)} label="Công nợ theo chứng từ" icon="users" />}
+      <ToolbarButton onClick={exportRows} disabled={!filtered.length} label="Xuất CSV" icon="download" />
+      {canWrite && <div className={styles.toolbarPrimaryActions}>{!isDemo && config.treasury ? <>
+        <ToolbarActionMenu label="Thu tiền" icon="arrowDown" onClick={treasury('receipt')} menu={{ items: [
+          { key: 'receipt', label: 'Thu tiền', onClick: treasury('receipt') },
+          { key: 'receipt-invoice', label: 'Thu tiền theo hóa đơn', onClick: () => navigate(`/vouchers/new?kind=receipt&account=${config.accounts?.[0]}&settlement=1`) },
+          ...importItems('receipt'),
+        ] }} />
+        <ToolbarActionMenu label="Chi tiền" icon="arrowUp" onClick={treasury('payment')} menu={{ items: [
+          { key: 'payment', label: 'Chi tiền', onClick: treasury('payment') },
+          { key: 'payment-invoice', label: 'Trả tiền theo hóa đơn', onClick: () => navigate(`/vouchers/new?kind=payment&account=${config.accounts?.[0]}&settlement=1`) },
+          { key: 'transfer', label: 'Chuyển tiền nội bộ', onClick: () => navigate(`/vouchers/new?kind=transfer&account=${config.accounts?.[0]}`) },
+          ...importItems('payment'),
+        ] }} />
+      </> : !isDemo ? <ToolbarActionMenu label={createLabel} icon="plus" onClick={create} menu={{ items: [
+        { key: 'create', label: createLabel, onClick: create },
+        ...(trade ? [{ key: 'service', label: config.type === 'sale' ? 'Bán dịch vụ' : 'Mua dịch vụ', onClick: () => navigate(`/vouchers/new?kind=${config.type}&service=1`) }] : []),
+        ...(config.type === 'purchase' ? [{ key: 'asset', label: 'Mua tài sản / chi phí trả trước', onClick: () => navigate('/automation?kind=asset') }] : []),
+        ...(apiScope().permissions === 'owner' && !config.accounts && !config.type ? [
+          { key: 'closing', label: 'Kết chuyển lãi lỗ', onClick: () => navigate('/vouchers/new?kind=closing') },
+          { key: 'periods', label: 'Quản lý / khóa kỳ', onClick: () => navigate('/settings') },
+        ] : []),
+        ...importItems(),
+      ] }} /> : <ToolbarButton type="primary" label={createLabel} icon={config.treasury ? 'arrowDown' : 'plus'} onClick={create} />}</div>}
+    </>;
+  };
+  const pageActions = !isDemo && canWrite ? <ImportDocuments>{actions}</ImportDocuments> : actions();
   return <DataBoundary>
     {isDemo ? <PageHeading title={config.title} description={config.description} /> : <h1 className={styles.visuallyHidden}>{params.get('source') === 'closing' ? 'Kết chuyển lãi lỗ' : config.title}</h1>}
 

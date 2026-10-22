@@ -20,6 +20,13 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Nút chính có nhãn và menu chức năng theo ảnh mẫu — 0.7.4
+
+- ToolbarButton primary hiện icon cùng nhãn trên toàn ứng dụng; thao tác phụ giữ icon/tooltip. Tiền mặt/tiền gửi có hai nhóm Thu tiền, Chi tiền dạng nút tách menu. Mua/bán/kho và tổng hợp gom lựa chọn dịch vụ, tài sản, kết chuyển/kỳ và nhập Excel phù hợp quyền vào menu; nút chính giữ hành vi cũ.
+- Menu thu/trả theo hóa đơn mở thẳng chế độ phân bổ công nợ của form hiện có bằng settlement=1; không ghi đè chế độ nháp đang tiếp tục. Nhập Excel trong menu mở modal tại phân hệ, chọn đúng receipt/payment và reset wizard theo loại; không thay API/backend/quy tắc ghi sổ.
+- Edge/dữ liệu giả lập: kiểm tra cả thu/chi hóa đơn111/1121, nhập Excel receipt/payment giữ /bank, mua/bán dịch vụ, nút Chi tiền chính, nhãn Danh mục/Số dư/BCTC. Desktop1874, tablet768 và mobile390: nhóm Thu/Chi cùng hàng, popup nằm trong viewport; Enter/Escape, aria-expanded/haspopup và console không lỗi. QA so sánh ảnh tổng thể/chi tiết, sửa P2 tách hai nút ở mobile; xem design-qa.md.
+- Validation: TypeScript strict, production build, diff check đạt; thêm E2E menu/điều hướng/Excel/mobile và parse/list10test live. Chưa chạy E2E tự động; không tạo/sửa chứng từ thật trong QA.
+
 ### Nhập số tiền không bị chèn dấu phân cách giữa chừng — 0.7.3
 
 - Tái hiện Edge: gõ liên tục5000000 tại Dư Nợ số dư đầu kỳ thành5.000000 và báo sai. MoneyInput giữ chữ số khi focus/gõ, chỉ định dạng nhóm nghìn khi blur; giá trị rỗng truyền rõ cho InputNumber để không khôi phục số cũ. Dùng cùng component cho toàn bộ ô tiền, giữ chuỗi chính xác và validator/parser hiện có.
