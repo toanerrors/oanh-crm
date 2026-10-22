@@ -1,0 +1,29 @@
+.popupContainer { border: 1px solid #41474e; border-radius: 10px; box-shadow: 0 12px 36px #0004; overflow: hidden; }
+.functionPanel { width: 340px; max-width: calc(100vw - 88px); max-height: min(620px, calc(100dvh - 32px)); overflow-y: auto; overscroll-behavior: contain; padding: 8px; color: #e9edf0; }
+.panelTitle { display: flex; align-items: center; gap: 9px; padding: 8px 8px 12px; border-bottom: 1px solid #3a4046; }
+.panelTitle > svg { color: #86caa3; }
+.panelTitle > span { margin-left: auto; display: flex; align-items: center; gap: 5px; font-size: 12px; color: #aeb7bd; }
+.functionGroup + .functionGroup { border-top: 1px solid #3a4046; margin-top: 8px; }
+.functionGroup h3 { margin: 12px 10px 5px; color: #adb7bf; font-size: 12px; font-weight: 600; }
+.functionRow, .pinnedRow { display: flex; align-items: center; border-radius: 6px; position: relative; }
+.functionRow:hover, .functionRow:focus-within { background: #343b44; }
+.functionRow a, .actionLink { flex: 1; min-width: 0; padding: 9px 10px; color: #e9edf0; line-height: 20px; font-size: 13px; }
+.actionLink { text-align: left; background: none; border: 0; cursor: pointer; font-family: inherit; }
+.functionRow a:hover, .actionLink:hover { color: #fff; }
+.pinButton, .expandButton { display: inline-flex; justify-content: center; align-items: center; flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #9ba6af; cursor: pointer; }
+.pinButton { margin-right: 3px; }
+.pinButton:hover, .expandButton:hover { background: #ffffff14; color: #fff; }
+.pinButton.isPinned { color: #f3c56d; }
+.isPinned svg, .pinDot svg { fill: currentColor; }
+.functionPanel :is(a, button):focus-visible, .pinnedRow :is(a, button):focus-visible, .expandButton:focus-visible { outline: 2px solid #8cdbb4; outline-offset: -2px; }
+.pinnedSection { border-bottom: 1px solid #3a4046; padding-bottom: 8px; }
+.pinnedList { max-height: 204px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.pinnedLink.pinnedLink { flex: 1; width: 100%; min-width: 0; border: 0; text-align: left; font-family: inherit; background: none; cursor: pointer; margin-bottom: 0; }
+.pinnedLink > svg { flex-shrink: 0; }
+.pinnedLink span { text-overflow: ellipsis; }
+.pinnedLink small { display: block; font-size: 11px; color: #9baea4; font-weight: 400; }
+.pinnedRow:hover { background: #30363b; }
+.pinDot { position: absolute; top: 2px; right: 3px; color: #f3c56d; pointer-events: none; }
+.moduleRow { display: flex; align-items: center; }
+.moduleRow > a { flex: 1; min-width: 0; }
+.inlinePanel { width: 100%; max-width: none; max-height: none; margin: 2px 0 8px; background: #191c21; padding: 4px; border-radius: 6px; }

@@ -249,7 +249,7 @@ test('mobile 390px không tràn ngang và mở được điều hướng, biểu
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('sidebar thu gọn giữ điều hướng, tooltip và menu mobile đầy đủ', async ({ page }) => {
+test('sidebar thu gọn giữ điều hướng, chức năng nhanh và menu mobile đầy đủ', async ({ page }) => {
   await page.goto('/');
   const sidebar = page.locator('#desktop-sidebar');
   const navigation = sidebar.getByRole('navigation', { name: 'Điều hướng chính' });
@@ -259,7 +259,7 @@ test('sidebar thu gọn giữ điều hướng, tooltip và menu mobile đầy �
   await expect(expand).toHaveAttribute('aria-expanded', 'false');
   await expect.poll(async () => (await sidebar.boundingBox())?.width).toBe(64);
   await navigation.getByRole('link', { name: 'Bán hàng', exact: true }).focus();
-  await expect(page.getByRole('tooltip', { name: 'Bán hàng', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Chức năng Bán hàng', exact: true })).toBeVisible();
   await navigation.getByRole('link', { name: 'Bán hàng', exact: true }).press('Enter');
   await expect(page.getByRole('heading', { name: 'Bán hàng', exact: true })).toBeVisible();
   await expect(expand).toBeVisible();
@@ -277,4 +277,47 @@ test('sidebar thu gọn giữ điều hướng, tooltip và menu mobile đầy �
   await expand.click();
   await expect.poll(async () => (await sidebar.boundingBox())?.width).toBe(210);
   await expect(page.getByRole('button', { name: 'Thu gọn thanh bên', exact: true })).toHaveAttribute('aria-expanded', 'true');
+});
+
+
+test('rê sidebar, ghim lối tắt, giữ sau tải lại và bỏ ghim không chuyển trang', async ({ page }) => {
+  await page.goto('/');
+  const sales = page.locator('#desktop-sidebar').getByRole('link', { name: 'Bán hàng', exact: true });
+  await sales.hover();
+  const panel = page.getByRole('dialog', { name: 'Chức năng Bán hàng', exact: true });
+  await expect(panel.getByRole('link', { name: 'Khách hàng', exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Ghim Sổ cái · Bán hàng', exact: true }).click();
+  await expect(page).toHaveURL('/');
+  await expect(panel.getByRole('button', { name: 'Bỏ ghim Sổ cái · Bán hàng', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  const pinned = page.locator('#desktop-sidebar').getByRole('navigation', { name: 'Chức năng đã ghim' });
+  await pinned.getByRole('link', { name: 'Sổ cái · Bán hàng', exact: true }).click();
+  await expect(page).toHaveURL('/sales/reports?tab=ledger');
+  await expect(page.getByRole('tab', { name: 'Sổ cái', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await pinned.getByRole('button', { name: 'Bỏ ghim Sổ cái · Bán hàng', exact: true }).click();
+  await expect(pinned).toHaveCount(0);
+  await expect(page).toHaveURL('/sales/reports?tab=ledger');
+  await sales.focus();
+  await sales.press('ArrowRight');
+  await expect(panel.getByRole('link', { name: 'Bán hàng', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(sales).toBeFocused();
+});
+
+test('mobile mở chức năng bằng nút và ghim dùng chung với desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Mở điều hướng', exact: true }).click();
+  const drawer = page.getByRole('dialog', { name: 'Điều hướng', exact: true });
+  await drawer.getByRole('button', { name: 'Chức năng Mua hàng', exact: true }).click();
+  const panel = drawer.getByRole('region', { name: 'Chức năng Mua hàng', exact: true });
+  await panel.getByRole('button', { name: 'Ghim Sổ cái · Mua hàng', exact: true }).click();
+  await expect(drawer.getByRole('navigation', { name: 'Chức năng đã ghim' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await panel.getByRole('link', { name: 'Sổ cái', exact: true }).click();
+  await expect(drawer).toBeHidden();
+  await expect(page).toHaveURL('/purchases/reports?tab=ledger');
+  await page.setViewportSize({ width: 1440, height: 1080 });
+  await expect(page.locator('#desktop-sidebar').getByRole('navigation', { name: 'Chức năng đã ghim' }).getByRole('link', { name: 'Sổ cái · Mua hàng', exact: true })).toBeVisible();
 });

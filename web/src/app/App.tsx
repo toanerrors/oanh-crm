@@ -1,19 +1,22 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Avatar, Badge, Button, Drawer, Dropdown, Modal, Select, Tooltip } from 'antd';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useNavigation } from 'react-router-dom';
 import { useWorkspace } from './WorkspaceProvider';
 import { Icon } from '../shared/ui/Icon';
-import type { IconName } from '../shared/ui/Icon';
 import styles from './App.module.css';
 import { api, apiScope, isDemo } from '../shared/api/client';
 import { searchOptions } from '../shared/ui/search';
 import { DocumentSearch } from './DocumentSearch';
 import { accountingModule } from './module-navigation';
+import { SidebarNavigation } from './SidebarNavigation';
+import { sidebarPinsKey, sidebarShortcuts } from './sidebar-shortcuts';
+import type { SidebarItem } from './sidebar-shortcuts';
+import { useSidebarPins } from './useSidebarPins';
 
 const DocumentEditor = lazy(() => import('../features/documents/DocumentDrawer').then(module => ({ default: module.DocumentEditor })));
 const DocumentDetail = lazy(() => import('../features/documents/DocumentDrawer').then(module => ({ default: module.DocumentDetail })));
 
-const navigation: { path: string; label: string; icon: IconName; group?: string }[] = [
+const navigation: SidebarItem[] = [
   { path: '/', label: 'Tổng quan', icon: 'grid', group: 'KHÔNG GIAN LÀM VIỆC' },
   { path: '/cash', label: isDemo ? 'Tiền mặt & ngân hàng' : 'Tiền mặt', icon: 'wallet', group: 'NGHIỆP VỤ' },
   ...(!isDemo ? [{ path: '/bank', label: 'Tiền gửi', icon: 'building' as const }] : []),
@@ -28,7 +31,10 @@ const navigation: { path: string; label: string; icon: IconName; group?: string 
 ];
 
 export function AppShell() {
-  const { period, setPeriod, data, draft, voucherDraft, setDraftOpen, detailId, refresh } = useWorkspace();
+  const { period, setPeriod, data, draft, voucherDraft, setDraftOpen, detailId, refresh, newDraft } = useWorkspace();
+  const scope = apiScope();
+  const shortcuts = useMemo(() => sidebarShortcuts(navigation, isDemo ? 'owner' : scope.permissions, isDemo), [scope.permissions]);
+  const pins = useSidebarPins(sidebarPinsKey(isDemo ? 'demo' : scope.companyId, isDemo ? 'demo' : scope.actor), shortcuts);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -45,9 +51,9 @@ export function AppShell() {
 
   useEffect(() => { document.title = `${current} · Oanh`; }, [current]);
 
-  const sidebar = (compact = false) => <div className={styles.sidebarContent}>
+  const sidebar = (compact = false, mobile = false) => <div className={styles.sidebarContent}>
     <Link to="/" className={styles.brand} aria-label="Oanh, về tổng quan"><span className={styles.brandMark}><span /><span /><span /></span><span className={styles.brandName}>oanh<span className={styles.brandDot}>.</span></span></Link>
-    <nav className={styles.navigation} aria-label="Điều hướng chính">{navigation.map(item => <div key={item.path}>{item.group && <div className={styles.navGroup}>{item.group}</div>}<Tooltip title={compact ? `${item.label}${item.path === '/documents' && draftCount > 0 ? ` · ${draftCount} bản nháp` : ''}` : undefined} placement="right" trigger={['hover', 'focus']}><NavLink to={item.path} end={item.path === '/'} onClick={() => setMobileOpen(false)} className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeNav : ''}`}><Icon name={item.icon} size={19} /><span className={styles.navLabel}>{item.label}</span>{item.path === '/documents' && draftCount > 0 && <span className={styles.navCount}>{draftCount}</span>}</NavLink></Tooltip></div>)}</nav>
+    <SidebarNavigation navigation={navigation} shortcuts={shortcuts} pinnedIds={pins.ids} togglePin={pins.toggle} onJournal={() => newDraft()} onNavigate={() => setMobileOpen(false)} compact={compact} mobile={mobile} draftCount={draftCount} />
     <div className={styles.sidebarBottom}>
       <div className={styles.helpCard}><span className={styles.helpIcon}><Icon name="spark" size={18} /></span><strong>Kế toán nhẹ nhàng hơn</strong><p>Bắt đầu từ một chứng từ.<br />Kết nối mọi con số.</p><Link to="/help" onClick={() => setMobileOpen(false)}>Khám phá hướng dẫn <Icon name="arrow" size={15} /></Link></div>
       <Tooltip title={compact ? 'Thiết lập' : undefined} placement="right" trigger={['hover', 'focus']}><NavLink to="/settings" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeNav : ''}`} onClick={() => setMobileOpen(false)}><Icon name="settings" size={19} /><span className={styles.navLabel}>Thiết lập</span></NavLink></Tooltip>
@@ -57,7 +63,7 @@ export function AppShell() {
   return <div className={`${styles.app} ${collapsed ? styles.sidebarCollapsed : ''}`}>
     <a href="#main-content" className={styles.skipLink}>Chuyển đến nội dung</a>
     <aside id="desktop-sidebar" className={styles.sidebar}>{sidebar(collapsed)}</aside>
-    <Drawer className={styles.mobileDrawer} placement="left" open={mobileOpen} onClose={() => setMobileOpen(false)} size={280} title="Điều hướng" styles={{ body: { padding: 16 } }}>{sidebar()}</Drawer>
+    <Drawer className={styles.mobileDrawer} placement="left" open={mobileOpen} onClose={() => setMobileOpen(false)} size={280} title="Điều hướng" styles={{ body: { padding: 16, background: '#202329' }, header: { background: '#202329', borderColor: '#3a4046' } }}>{sidebar(false, true)}</Drawer>
     <div className={styles.workspace}>
       <header className={styles.topbar}>
         <Tooltip title={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} trigger={['hover', 'focus']}><Button className={styles.sidebarToggle} type="text" icon={<Icon name="menu" />} aria-label={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} aria-expanded={!collapsed} aria-controls="desktop-sidebar" onClick={() => setCollapsed(value => !value)} /></Tooltip>

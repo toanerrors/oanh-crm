@@ -20,6 +20,13 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Chức năng nhanh và ghim trên sidebar — 0.5.10
+
+- Rê chuột/focus vào phân hệ mở menu tối gồm nghiệp vụ, danh mục và báo cáo hiện có; dùng cùng danh sách khi sidebar224/210px hoặc thu gọn64px. Lối tắt báo cáo giữ đường dẫn/tab phân hệ nguồn; thao tác lập chứng từ theo quyền, kết chuyển mới chỉ dành cho owner. Mẫu chỉ hiển thị các lối tắt chạy trong mẫu.
+- Nút sao ghim/bỏ ghim từng chức năng vào nhóm ĐÃ GHIM, có nhãn phân hệ để phân biệt. Chỉ lưu ID trong danh sách cho phép vào localStorage theo công ty/người dùng, không lưu dữ liệu nghiệp vụ; lọc ID lỗi/trùng/vượt quyền, đồng bộ sự kiện storage giữa tab và báo nếu trình duyệt không cho lưu. Mobile mở danh sách bằng nút cạnh phân hệ, dùng chung ghim với desktop; chỉnh nền Drawer tối để đủ tương phản.
+- Menu mở bằng ArrowRight/ArrowDown, Tab vào nội dung, Escape đóng và trả focus; đóng khi điều hướng/đổi chế độ sidebar/breakpoint hoặc nhấn ngoài. Popup chỉ mount khi mở; giới hạn chiều cao, cho cuộn. Dùng lại handler chứng từ khác để giữ nháp.
+- Validation:35 test Node gồm5 test lối tắt/quyền/mẫu/ID ghim/phạm vi người dùng; TypeScript strict/production build đạt. Cập nhật E2E sidebar và thêm2 kịch bản ghim/mobile, danh sách14 test đọc thành công; chưa chạy E2E tự động. Edge/backend dữ liệu giả lập: hover mở/rời chuột đóng, ArrowRight/Escape và focus, sidebar64px, ghim không chuyển trang/còn sau tải lại/bỏ ghim, mở báo cáo giữ tab Mua hàng, mở Thu tiền gửi đúng1121, nháp giữ diễn giải sau chuyển Bán hàng; mobile390px và popup820×600 không tràn, khôi phục viewport; không có lỗi console. Kiểm tra trực tiếp thu/mở của0.5.9 nay đã thực hiện khi kết nối Edge hoạt động trở lại. Chưa có benchmark hiệu năng chuyển động.
+
 ### Sidebar thu gọn/mở rộng — 0.5.9
 
 - Nút icon ở trái header desktop thu sidebar về64px và mở lại224px (210px ở màn hình vừa); đồng bộ sidebar, vùng nội dung và tiến trình điều hướng bằng biến chiều rộng chung, transition200ms. Ẩn tên/nhóm/logo chữ khi thu gọn, giữ icon/trạng thái đang chọn/badge nháp và tên truy cập; tooltip tên mục khi hover/focus. Không mount lại Outlet hoặc đổi query/form khi bật tắt.
