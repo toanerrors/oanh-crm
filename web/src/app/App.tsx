@@ -36,6 +36,7 @@ export function AppShell() {
   const navigationState = useNavigation();
   const module = accountingModule(location.pathname);
   const current = navigation.find(item => item.path === (module?.path ?? location.pathname))?.label ?? module?.title ?? (location.pathname.startsWith('/vouchers/') ? 'Chứng từ' : location.pathname === '/settings' ? 'Thiết lập' : 'Trợ giúp');
+  const companyName = isDemo ? 'Không gian mẫu' : data?.companyName ?? 'Doanh nghiệp';
   const person = isDemo ? 'Minh Anh' : apiScope().name;
   const initials = person.split(' ').slice(-2).map(value => value[0]).join('').toUpperCase();
   const draftCount = data?.server?.draftCount ?? data?.documents.filter(item => item.status === 'draft' && item.date.startsWith(period)).length ?? 0;
@@ -45,7 +46,6 @@ export function AppShell() {
 
   const sidebar = <div className={styles.sidebarContent}>
     <Link to="/" className={styles.brand} aria-label="Oanh, về tổng quan"><span className={styles.brandMark}><span /><span /><span /></span><span>oanh<span className={styles.brandDot}>.</span></span></Link>
-    <button className={styles.companySwitch} onClick={() => navigate('/settings')}><span className={styles.companyIcon}><Icon name="building" size={20} /></span><span><strong>{isDemo ? 'Không gian mẫu' : data?.companyName ?? 'Doanh nghiệp'}</strong><small>Kế toán doanh nghiệp</small></span><Icon name="down" size={14} /></button>
     <nav className={styles.navigation} aria-label="Điều hướng chính">{navigation.map(item => <div key={item.path}>{item.group && <div className={styles.navGroup}>{item.group}</div>}<NavLink to={item.path} end={item.path === '/'} onClick={() => setMobileOpen(false)} className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeNav : ''}`}><Icon name={item.icon} size={19} /><span>{item.label}</span>{item.path === '/documents' && draftCount > 0 && <span className={styles.navCount}>{draftCount}</span>}</NavLink></div>)}</nav>
     <div className={styles.sidebarBottom}>
       <div className={styles.helpCard}><span className={styles.helpIcon}><Icon name="spark" size={18} /></span><strong>Kế toán nhẹ nhàng hơn</strong><p>Bắt đầu từ một chứng từ.<br />Kết nối mọi con số.</p><Link to="/help" onClick={() => setMobileOpen(false)}>Khám phá hướng dẫn <Icon name="arrow" size={15} /></Link></div>
@@ -60,6 +60,7 @@ export function AppShell() {
     <div className={styles.workspace}>
       <header className={styles.topbar}>
         <Button className={styles.mobileMenu} type="text" icon={<Icon name="menu" />} aria-label="Mở điều hướng" onClick={() => setMobileOpen(true)} />
+        <button type="button" className={styles.companySwitch} aria-label="Thiết lập công ty" title={companyName} onClick={() => navigate('/settings')}><span className={styles.companyIcon}><Icon name="building" size={20} /></span><span><strong>{companyName}</strong><small>Kế toán doanh nghiệp</small></span><Icon name="down" size={14} /></button>
         <div className={styles.topbarActions}>
           <DocumentSearch />
           <Tooltip title="Hướng dẫn sử dụng"><Button type="text" icon={<Icon name="help" />} aria-label="Hướng dẫn sử dụng" onClick={() => navigate('/help')} /></Tooltip>

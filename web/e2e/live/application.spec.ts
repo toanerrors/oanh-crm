@@ -39,6 +39,10 @@ test('khởi tạo, chính sách, ghi nhận bán hàng và tải lại vẫn gi
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Khởi tạo và đăng nhập' }).click();
   await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Thiết lập công ty', exact: true })).toContainText('Doanh nghiệp E2E');
+  await expect(page.getByRole('complementary').getByRole('button', { name: 'Thiết lập công ty', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Thiết lập công ty', exact: true }).click();
+  await expect(page).toHaveURL(/\/settings$/);
   const session = await (await page.request.get('/api/v1/session')).json(); epoch = session.context.epoch;
   await command(page.request, '/periods', { period: '2026-10', closed: false });
   await command(page.request, '/policies', policy);
@@ -87,6 +91,7 @@ test('gợi ý đơn vị, diễn giải và danh mục không dấu trên biể
   await expect(partner.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]')).toContainText('NCC1 · Nhà cung cấp kiểm thử');
   for (const width of [1440, 820, 390]) {
     await page.setViewportSize({ width, height: 1000 });
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Thiết lập công ty', exact: true })).toBeInViewport();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const row = page.getByLabel('Hàng/dịch vụ 1', { exact: true }).locator('xpath=ancestor::*[contains(@class,"tradeRow")]');
     expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);

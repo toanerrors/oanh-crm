@@ -8,11 +8,13 @@
 .brandMark span { background: #128970; border-radius: 3px; width: 8px; height: 18px; }
 .brandMark span:nth-child(2) { height: 29px; background: #5cba99; }
 .brandMark span:nth-child(3) { height: 23px; }
-.companySwitch { border: 1px solid #365149; border-radius: 6px; padding: 8px; background: #203d35; display: flex; align-items: center; gap: 9px; text-align: left; width: 100%; color: #4b5c55; }
+.companySwitch { min-width: 0; max-width: 520px; border: 1px solid transparent; border-radius: 6px; padding: 3px 6px; background: transparent; display: flex; align-items: center; gap: 9px; text-align: left; color: #4b5c55; }
+.companySwitch:hover { background: #f3f7f4; border-color: #e1e9e3; }
 .companySwitch > span:nth-child(2) { flex: 1; min-width: 0; }
-.companySwitch strong { color: #f1faf6; font-size: 12px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; display: block; white-space: nowrap; }
-.companySwitch small { font-size: 12px; color: #bed0c7; display: block; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.companyIcon { width: 30px; height: 30px; background: #2b5043; color: #8bdbbf; border: 1px solid #426556; border-radius: 6px; display: grid; place-items: center; }
+.companySwitch > svg { flex-shrink: 0; }
+.companySwitch strong { color: #2b4034; font-size: 13px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; display: block; white-space: nowrap; }
+.companySwitch small { font-size: 12px; color: #69766e; display: block; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.companyIcon { width: 30px; height: 30px; flex-shrink: 0; background: #eaf5ef; color: #168a6c; border: 1px solid #d5e7dc; border-radius: 6px; display: grid; place-items: center; }
 .navigation { margin-top: 4px; }
 .navGroup { font-size: 12px; font-weight: 600; letter-spacing: .5px; color: #a4bdb1; padding: 12px 10px 6px; }
 .navLink { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 6px 10px; border-radius: 6px; font-size: 13px; color: #d2dfd8; margin-bottom: 2px; transition: background .15s; }
@@ -32,7 +34,7 @@
 .liveDot { box-shadow: 0 0 0 3px #e4f2e9; margin-right: 8px; }
 .workspace { width: calc(100% - 224px); margin-left: 224px; min-width: 0; }
 .topbar { position: sticky; top: 0; z-index: 25; height: 52px; padding: 0 16px; border-bottom: 1px solid #e8ede9; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fff; }
-.topbarActions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.topbarActions { margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
 .globalSearch { width: 260px; background: #f7faf8; border-color: #dfe7e1; }
 .globalSearch input { background: transparent; }
 .globalSearch svg { color: #69766e; margin-right: 5px; }
@@ -278,7 +280,6 @@
 .sidebarContent { display: flex; flex-direction: column; flex: 1; min-height: 100%; }
 .statusTag.postedStatus { color: #21634b; background: #e8f5ee; }
 .statusTag.draftStatus { color: #89590e; background: #fff3da; }
-.sidebarContent > .companySwitch > svg { color: #c0d2c5; }
 .mobileDrawer :global(.ant-drawer-content) { background: #142f2a; }
 .mobileDrawer :global(.ant-drawer-title), .mobileDrawer :global(.ant-drawer-close) { color: #eef9f1; }
 .mobileDrawer :global(.ant-drawer-header) { border-color: #365149; }
@@ -314,6 +315,8 @@
 @media (max-width: 760px) {
   .desktopSearch { display: none; }
   .topbarActions > .mobileSearch.mobileSearch { display: inline-flex; }
+  .mobileMenu.mobileMenu { flex-shrink: 0; }
+  .companySwitch { flex: 1; max-width: none; padding-inline: 0; gap: 6px; }
   .topbarActions { flex-shrink: 0; gap: 8px; }
   .profile { margin-left: 0; }
   .quickActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -349,8 +352,6 @@
 .documentLines .panelHeader { padding: 4px 12px; }
 .documentLines .panelHeader h2 { font-size: 13px; }
 .sidebar { background: #202329; border-color: #202329; }
-.companySwitch { background: #30353d; border-color: #4a505a; }
-.companyIcon { background: #39473d; }
 .navLink:hover { background: #30363b; }
 .activeNav { background: #47986a; box-shadow: none; }
 .activeNav svg { color: #fff; }

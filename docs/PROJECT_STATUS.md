@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Hiển thị công ty trên header — 0.5.6
+
+- Chuyển tên công ty, biểu tượng và mô tả khỏi sidebar sang bên trái header dùng chung; nhấn vẫn mở Thiết lập. Sidebar desktop và menu mobile không còn khối công ty lặp.
+- Header giữ chiều cao52px, tên dài co gọn bằng dấu ba chấm và có tên đầy đủ qua tooltip gốc; giữ menu, tìm kiếm và tài khoản ở màn hình nhỏ. Không đổi API, dữ liệu hoặc quy tắc kế toán.
+- Validation:27 test Node và TypeScript strict/production build đạt; cập nhật E2E hiện có cho vị trí/nút công ty và viewport, kiểm tra danh sách8 test; chưa chạy E2E tự động. Edge/backend dữ liệu giả lập: desktop và390px, nút công ty mở Thiết lập, menu mobile không lặp công ty, tìm kiếm và menu tài khoản mở đúng.
+
 ### Thanh công cụ cạnh tìm kiếm, bỏ tiêu đề trang lớn — 0.5.5
 
 - `PageToolbar` dùng chung: bộ lọc/tìm kiếm bên trái, các nút chức năng căn phải. Chuyển thao tác báo cáo/số dư/in/CSV, BCTC, danh mục/đối tượng, công nợ và tài khoản tham chiếu vào hàng tìm kiếm. Các mục hàng hóa/nhân viên/chính sách/người dùng và tổng quan đặt nút ngay trên bảng tương ứng. Danh sách chứng từ giữ thanh công cụ hiện có; mẫu demo cũng đưa nút xuống hàng tìm kiếm.
