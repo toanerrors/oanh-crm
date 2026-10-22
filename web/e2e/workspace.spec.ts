@@ -10,6 +10,8 @@ test('tổng quan, điều hướng SPA và các màn hình chính hiển thị 
   for (const [label, heading] of [['Bán hàng', 'Bán hàng'], ['Mua hàng', 'Mua hàng'], ['Tiền mặt & ngân hàng', 'Tiền mặt & ngân hàng'], ['Hàng tồn kho', 'Hàng tồn kho'], ['Công nợ', 'Công nợ'], ['Sổ sách & báo cáo', 'Sổ sách & báo cáo'], ['Danh mục', 'Danh mục']] as const) {
     await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: label, exact: true }).click();
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+    await expect(page.getByText('Không gian làm việc', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^(Dữ liệu mẫu|Dữ liệu doanh nghiệp) · Kỳ /)).toHaveCount(0);
   }
   expect(errors).toEqual([]);
 });

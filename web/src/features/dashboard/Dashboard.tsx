@@ -7,7 +7,7 @@ import { documentTypes } from '../../shared/data/types';
 import type { AccountingDocument } from '../../shared/data/types';
 import { Icon } from '../../shared/ui/Icon';
 import type { IconName } from '../../shared/ui/Icon';
-import { DataBoundary, PageHeading, ScopeNote, StatusTag } from '../../shared/ui/Page';
+import { DataBoundary, PageHeading, StatusTag } from '../../shared/ui/Page';
 import styles from '../../app/App.module.css';
 import { apiScope, isDemo } from '../../shared/api/client';
 
@@ -76,6 +76,5 @@ export function Component() {
         <div className={styles.progressCard}><div><span>{isDemo ? 'Chứng từ mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'}</span><strong>{posted}/{documentCount}</strong></div><Progress percent={documentCount ? Math.round(posted * 100 / documentCount) : 0} showInfo={false} strokeColor="#119478" railColor="#e4ede7" size="small" /><p><Icon name="check" size={14} />Nháp được tách riêng khỏi số liệu trên sổ</p></div>
       </section>
     </div>
-    <ScopeNote />
   </DataBoundary>;
 }

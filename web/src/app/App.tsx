@@ -59,7 +59,7 @@ export function AppShell() {
     <Drawer className={styles.mobileDrawer} placement="left" open={mobileOpen} onClose={() => setMobileOpen(false)} size={280} title="Điều hướng" styles={{ body: { padding: 16 } }}>{sidebar}</Drawer>
     <div className={styles.workspace}>
       <header className={styles.topbar}>
-        <div className={styles.breadcrumb}><Button className={styles.mobileMenu} type="text" icon={<Icon name="menu" />} aria-label="Mở điều hướng" onClick={() => setMobileOpen(true)} /><Icon name="building" size={17} /><span>Không gian làm việc</span><Icon name="chevron" size={12} /><strong>{current}</strong></div>
+        <Button className={styles.mobileMenu} type="text" icon={<Icon name="menu" />} aria-label="Mở điều hướng" onClick={() => setMobileOpen(true)} />
         <div className={styles.topbarActions}>
           <DocumentSearch />
           <Tooltip title="Hướng dẫn sử dụng"><Button type="text" icon={<Icon name="help" />} aria-label="Hướng dẫn sử dụng" onClick={() => navigate('/help')} /></Tooltip>

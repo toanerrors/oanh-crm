@@ -20,6 +20,12 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Bỏ breadcrumb và footer phạm vi dữ liệu — 0.5.3
+
+- Bỏ breadcrumb “Không gian làm việc → phân hệ” ở header và dòng footer “Dữ liệu doanh nghiệp/mẫu · Kỳ · Phiên bản · Đơn vị: VND” trên các trang dùng chung. Gỡ component/import/CSS không còn sử dụng; giữ nút mở menu mobile, tìm kiếm, tài khoản và các tab phân hệ.
+- Người dùng đính chính yêu cầu: giữ phân trang. Đã hoàn tác toàn bộ thay đổi bỏ phân trang trước khi commit; backend/API và các bảng giữ cơ chế phân trang của0.5.2. Không đổi schema, dữ liệu hoặc quy tắc kế toán.
+- Validation:27 test Node, TypeScript strict/production build và kiểm tra danh sách E2E. Edge/backend thật trên dữ liệu giả lập: Cân đối phát sinh không còn breadcrumb/footer, thanh phân trang185 dòng vẫn chuyển trang2; menu390px mở/đóng được. E2E được bổ sung kiểm tra không còn breadcrumb/footer và vẫn có phân trang; chưa chạy E2E tự động, đã kiểm tra trực tiếp bằng Edge.
+
 ### Giữ tab và báo cáo trong phân hệ — 0.5.2
 
 - Thêm layout/route con chung cho Mua hàng, Bán hàng, Tiền mặt, Tiền gửi, Hàng tồn kho và Kế toán tổng hợp. Tab Báo cáo giữ thanh tab, menu và breadcrumb của phân hệ; các tab Nhật ký/Sổ cái/Cân đối/BCTC chuyển nội dung ngay tại đường dẫn con, không dẫn ra trang báo cáo độc lập.

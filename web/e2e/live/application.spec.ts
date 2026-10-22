@@ -293,5 +293,8 @@ test('tab phân hệ giữ nguyên khi mở danh mục, công nợ và các báo
     await expect(page.getByRole('tab', { name: 'Cân đối phát sinh', exact: true })).toHaveAttribute('aria-selected', 'true');
     await page.reload();
     await expect(tabs.getByRole('button', { name: 'Báo cáo', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByText('Không gian làm việc', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^Dữ liệu doanh nghiệp · Kỳ /)).toHaveCount(0);
+    await expect(page.locator('.ant-pagination')).toBeVisible();
   }
 });

@@ -7,7 +7,7 @@ import { downloadCsv } from '../../shared/accounting/csv';
 import { formatDate, formatMoney } from '../../shared/accounting/money';
 import { documentTypes, documentStatuses } from '../../shared/data/types';
 import type { AccountingDocument, DocumentType } from '../../shared/data/types';
-import { DataBoundary, EmptyData, PageHeading, ScopeNote, StatusTag } from '../../shared/ui/Page';
+import { DataBoundary, EmptyData, PageHeading, StatusTag } from '../../shared/ui/Page';
 import { Icon } from '../../shared/ui/Icon';
 import styles from '../../app/App.module.css';
 import { api, apiScope, downloadApi, isDemo } from '../../shared/api/client';
@@ -115,6 +115,5 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
       <div className={styles.tableTotal}><span>{serverQuery.isPending && !isDemo ? 'Đang tải…' : count} chứng từ trong toàn bộ tập lọc <small>· Tổng Nợ, gồm cả bản nháp</small></span><strong>{!isDemo && !serverQuery.data ? '—' : formatMoney(filteredTotal)}<small>VND</small></strong></div>
     </section>
     {!isDemo && selected && <section className={`${styles.panel} ${styles.documentLines}`} aria-label="Chi tiết chứng từ đang chọn"><div className={styles.panelHeader}><h2>Chi tiết · {selected.reference}</h2><Button type="link" onClick={() => openEntry(selected)}>Mở chứng từ</Button></div><Table rowKey={(_, index) => String(index)} size="small" dataSource={selected.lines} pagination={false} scroll={{ x: 850, y: 280 }} columns={[{ title: '#', width: 42, render: (_, __, index) => index + 1 }, { title: 'Diễn giải', dataIndex: 'description' }, { title: 'Tài khoản', dataIndex: 'accountId', width: 130 }, { title: 'Đối tượng', dataIndex: 'partnerId', width: 230, render: (id: string | undefined) => data.partners.find(item => item.id === id)?.name ?? '—' }, { title: 'Nợ (VND)', dataIndex: 'debit', align: 'right', width: 170, render: formatMoney }, { title: 'Có (VND)', dataIndex: 'credit', align: 'right', width: 170, render: formatMoney }]} summary={() => <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={4}>Tổng</Table.Summary.Cell><Table.Summary.Cell index={4} align="right">{formatMoney(totals(selected.lines).debit)}</Table.Summary.Cell><Table.Summary.Cell index={5} align="right">{formatMoney(totals(selected.lines).credit)}</Table.Summary.Cell></Table.Summary.Row>} /></section>}
-    <ScopeNote />
   </DataBoundary>;
 }

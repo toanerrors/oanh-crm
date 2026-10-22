@@ -148,7 +148,7 @@ Số dư được lưu để tăng tốc là dữ liệu dẫn xuất. Cần quy
 
 ## 6. Frontend nhẹ và điều hướng nhanh
 
-- Router điều hướng phía client; app shell giữ nguyên. Sáu phân hệ chứng từ dùng `ModuleLayout` và route con cho báo cáo; mua/bán có thêm công nợ, đối tượng và hàng hóa. Thanh tab/menu/breadcrumb giữ phân hệ nguồn; chỉ mount nội dung route đang mở. Đường dẫn tab gần nhất giữ trong phiên layout; tab và bộ lọc báo cáo nằm trong URL để hỗ trợ reload/Back/Forward. Các route độc lập cũ vẫn hoạt động. Chia chunk theo phân hệ; prefetch route và query theo ý định thay vì nạp toàn bộ ứng dụng.
+- Router điều hướng phía client; app shell giữ nguyên. Sáu phân hệ chứng từ dùng `ModuleLayout` và route con cho báo cáo; mua/bán có thêm công nợ, đối tượng và hàng hóa. Thanh tab/menu giữ phân hệ nguồn; chỉ mount nội dung route đang mở. Đường dẫn tab gần nhất giữ trong phiên layout; tab và bộ lọc báo cáo nằm trong URL để hỗ trợ reload/Back/Forward. Các route độc lập cũ vẫn hoạt động. Chia chunk theo phân hệ; prefetch route và query theo ý định thay vì nạp toàn bộ ứng dụng.
 - TanStack Query giữ dữ liệu server; filter/sort/page/tab có thể phản ánh trong URL; form nháp dùng state riêng có giới hạn vòng đời.
 - Số dư và báo cáo hiển thị context kỳ/as-of/revision. Background refetch không làm mất nội dung đang nhập và không hiển thị số 0 thay cho trạng thái loading/lỗi.
 - Sau mutation, invalidate đúng danh sách, chi tiết và các báo cáo bị tác động. Client của người khác hoặc tab khác dùng refetch/revision; chỉ thêm SSE nếu cần cập nhật chủ động và có bằng chứng.
