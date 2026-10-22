@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, App, Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { api, apiScope, command } from '../../shared/api/client';
 import { workspaceKey } from '../../shared/data/workspace';
@@ -28,7 +28,7 @@ function ReportAmount({ value, onChange, label, decimal = false }: { value?: str
 }
 
 export function FinancialReports() {
-  const navigate = useNavigate();
+  const [, setParams] = useSearchParams();
   const { data, period } = useWorkspace();
   const [year, setYear] = useState(period.slice(0, 4));
   const [search, setSearch] = useState('');
@@ -45,7 +45,7 @@ export function FinancialReports() {
   return <DataBoundary>
     <PageHeading title="Sổ sách & báo cáo" description="Lập và đối chiếu báo cáo tài chính từ số liệu kế toán." actions={<Button type="primary" icon={<Icon name="plus" size={16} />} disabled={!template.data || apiScope().permissions === 'viewer'} onClick={() => { form.setFieldsValue({ year: year < '2026' ? '2026' : year, b02: true, cashflow: 'B03-DN' }); setSetup(true); }}>Lập báo cáo tài chính</Button>} />
     <section className={appStyles.panel}>
-      <div className={styles.tabs}><Tabs activeKey="financial" onChange={value => navigate(`/reports?tab=${value}`)} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, { key: 'financial', label: 'Báo cáo tài chính' }]} /></div>
+      <div className={styles.tabs}><Tabs activeKey="financial" onChange={value => setParams({ tab: value })} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, { key: 'financial', label: 'Báo cáo tài chính' }]} /></div>
       <div className={styles.toolbar}><div><strong>Báo cáo tài chính</strong><p>Mẫu năm · TT99/2025/TT-BTC · Doanh nghiệp hoạt động liên tục</p></div><Space wrap><Input aria-label="Tìm BCTC" placeholder="Tìm người lập, kỳ báo cáo…" value={search} onChange={event => setSearch(event.target.value)} allowClear /><Input aria-label="Năm tra cứu BCTC" type="number" min="2026" max="9999" value={year} onChange={event => { setYear(event.target.value); }} style={{ width: 100 }} /><Button onClick={() => void list.refetch()}>Làm mới</Button></Space></div>
       {(list.error || template.error) && <Alert type="error" title={(list.error || template.error)?.message} />}
       <Table<FinancialReport> rowKey={item => item.input.id} loading={list.isPending} dataSource={(list.data ?? []).filter(item => normalizeSearch(`${item.input.from} ${item.input.preparedBy}`).includes(normalizeSearch(search)))} scroll={{ x: 850 }} pagination={{ pageSize: 10, hideOnSinglePage: true, showSizeChanger: false }} locale={{ emptyText: 'Chưa có BCTC trong năm. Chọn “Lập báo cáo tài chính” để bắt đầu.' }} columns={[

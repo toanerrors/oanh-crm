@@ -24,13 +24,17 @@ export function Component() {
   return <AutomationPage key={params.toString()} />;
 }
 
-function AutomationPage() {
+export function ItemsPage() {
+  return <AutomationPage itemsOnly />;
+}
+
+function AutomationPage({ itemsOnly = false }: { itemsOnly?: boolean }) {
   const { data, period, openDocument } = useWorkspace();
   const scope = apiScope();
   const client = useQueryClient();
   const { message, modal } = App.useApp();
   const [params] = useSearchParams();
-  const [tab, setTab] = useState(params.get('tab') === 'items' ? 'items' : 'operation');
+  const [tab, setTab] = useState(itemsOnly || params.get('tab') === 'items' ? 'items' : 'operation');
   const [form] = Form.useForm<OperationInput>();
   const [catalogForm] = Form.useForm<Item | Employee>();
   const [catalogType, setCatalogType] = useState<'item' | 'employee' | null>(null);
@@ -46,7 +50,7 @@ function AutomationPage() {
     try { await client.invalidateQueries({ queryKey: workspaceKey() }); openDocument(result.document.id); } catch { void message.warning('Đã ghi nhận thành công. Dữ liệu hiển thị chưa tải lại được, không gửi lại nghiệp vụ.'); }
   }, onError: error => void message.error(error.message) });
   const saveCatalog = useMutation({ retry: false, mutationFn: (payload: Item | Employee) => command(catalogType === 'item' ? '/items' : '/employees', payload), onSuccess: async () => { setCatalogType(null); await client.invalidateQueries({ queryKey: workspaceKey() }); void message.success('Đã lưu danh mục vào cơ sở dữ liệu.'); }, onError: error => void message.error(error.message) });
-  if (isDemo || scope.permissions === 'viewer') return <><PageHeading title="Nghiệp vụ tự động" description="Tính toán và ghi nhận theo chính sách đã xác nhận." /><Alert type="info" title={isDemo ? 'Chức năng này sử dụng backend và dữ liệu doanh nghiệp.' : 'Tài khoản chỉ xem không có quyền lập nghiệp vụ hoặc xem dữ liệu nhân sự.'} /></>;
+  if (isDemo || scope.permissions === 'viewer') return <><PageHeading title={itemsOnly ? 'Hàng hóa, dịch vụ' : 'Nghiệp vụ tự động'} description="Tính toán và ghi nhận theo chính sách đã xác nhận." /><Alert type="info" title={isDemo ? 'Chức năng này sử dụng backend và dữ liệu doanh nghiệp.' : 'Tài khoản chỉ xem không có quyền lập nghiệp vụ hoặc xem dữ liệu nhân sự.'} /></>;
   const auto = query.data;
   const partyOptions = data?.partners.filter(item => item.active).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` })) ?? [];
   function addCatalog(type: 'item' | 'employee', value?: Item | Employee) {
@@ -54,10 +58,10 @@ function AutomationPage() {
   }
   const initialKind = params.get('kind');
   return <>
-    <PageHeading title="Nghiệp vụ tự động" description="Nhập một lần, xem trước số server tính, rồi ghi nhận đồng thời vào chứng từ và phân hệ." />
+    <PageHeading title={itemsOnly ? 'Hàng hóa, dịch vụ' : 'Nghiệp vụ tự động'} description={itemsOnly ? 'Quản lý danh mục hàng hóa, dịch vụ và kho.' : 'Nhập một lần, xem trước số server tính, rồi ghi nhận đồng thời vào chứng từ và phân hệ.'} />
     {query.error && <Alert type="error" title={query.error.message} action={<Button onClick={() => void query.refetch()}>Thử lại</Button>} />}
-    {!query.isPending && !auto?.policies.length && <Alert type="warning" showIcon title="Chưa có chính sách nghiệp vụ" description={<Link to="/settings">Mở Cài đặt để xác nhận thuế suất, giá kho, lương và phân bổ trước khi tính.</Link>} style={{ marginBottom: 20 }} />}
-    <section className={styles.panel}><Tabs className={styles.adminTabs} activeKey={tab} onChange={setTab} items={[{ key: 'operation', label: 'Lập nghiệp vụ' }, { key: 'items', label: 'Hàng hóa & dịch vụ' }, ...(scope.permissions === 'owner' ? [{ key: 'employees', label: 'Nhân viên' }] : []), { key: 'assets', label: 'Tài sản & chi phí trả trước' }]} />
+    {!itemsOnly && !query.isPending && !auto?.policies.length && <Alert type="warning" showIcon title="Chưa có chính sách nghiệp vụ" description={<Link to="/settings">Mở Cài đặt để xác nhận thuế suất, giá kho, lương và phân bổ trước khi tính.</Link>} style={{ marginBottom: 20 }} />}
+    <section className={styles.panel}>{!itemsOnly && <Tabs className={styles.adminTabs} activeKey={tab} onChange={setTab} items={[{ key: 'operation', label: 'Lập nghiệp vụ' }, { key: 'items', label: 'Hàng hóa & dịch vụ' }, ...(scope.permissions === 'owner' ? [{ key: 'employees', label: 'Nhân viên' }] : []), { key: 'assets', label: 'Tài sản & chi phí trả trước' }]} />}
     <div className={styles.adminContent}>
       {tab === 'operation' && <Form<OperationInput> form={form} layout="vertical" disabled={execute.isPending} initialValues={{ originalDocumentId: params.get('original') ?? undefined, moneyAccount: params.get('account') === '1121' ? '1121' : '111', partnerId: params.get('partner') ?? undefined, amount: params.get('amount') ?? undefined, allocations: params.get('invoice') ? [{ documentId: params.get('invoice'), amount: params.get('amount') ?? '' }] : undefined, kind: initialKind && initialKind in kinds ? initialKind : 'sale', date: businessToday().startsWith(period) ? businessToday() : `${period}-01`, lines: [{ itemId: '', quantity: '1', unitPrice: '', vatRate: '' }], nonDeductible: '0', exemptIncome: '0', carriedLoss: '0', taxFrom: `${period}-01`, allowance: '0', nonTaxableAllowance: '0', overtimeHours: '0', overtimeMultiplier: '1', asset: { id: crypto.randomUUID(), kind: 'fixed', residual: '0', months: 12, startPeriod: period } }} onValuesChange={changes => { setPreview(null); if (changes.kind) form.setFieldsValue({ partnerId: undefined, allocations: undefined, counterAccount: undefined, destinationAccount: undefined }); }} onFinish={() => calculate.mutate(structuredClone(form.getFieldsValue(true)))} scrollToFirstError={{ focus: true }}>
         <div className={styles.formGrid}><Form.Item name="kind" label="Nghiệp vụ" rules={[{ required: true }]}><Select options={Object.entries(kinds).filter(([key]) => key !== 'closing' || scope.permissions === 'owner').map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item name="date" label="Ngày kế toán" rules={[{ required: true }]}><Input type="date" /></Form.Item><Form.Item name="sourceId" label="Mã nguồn / ký hiệu-số chứng từ gốc" rules={[{ required: true, message: 'Nhập mã nguồn để chống ghi trùng nghiệp vụ.' }, { pattern: /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/, message: 'Mã nguồn tối đa 100 ký tự, không có khoảng trắng hoặc dấu tiếng Việt.' }]}><Input placeholder="Mã sự kiện / hóa đơn gốc" /></Form.Item><Form.Item name="description" label="Diễn giải" rules={[{ required: true, whitespace: true }]}><AutoComplete options={suggestionOptions(data?.documents.map(item => item.description) ?? [])} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn diễn giải đã dùng" maxLength={500} /></AutoComplete></Form.Item></div>

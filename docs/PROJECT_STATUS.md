@@ -20,6 +20,13 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 
 ## Đã triển khai
 
+### Giữ tab và báo cáo trong phân hệ — 0.5.2
+
+- Thêm layout/route con chung cho Mua hàng, Bán hàng, Tiền mặt, Tiền gửi, Hàng tồn kho và Kế toán tổng hợp. Tab Báo cáo giữ thanh tab, menu và breadcrumb của phân hệ; các tab Nhật ký/Sổ cái/Cân đối/BCTC chuyển nội dung ngay tại đường dẫn con, không dẫn ra trang báo cáo độc lập.
+- Mua/bán mở Công nợ theo chứng từ, Nhà cung cấp/Khách hàng, Hàng hóa ngay trong phân hệ. Loại mua/bán theo route, danh mục lọc đúng vai trò gồm đối tượng có cả hai vai trò. Liên kết tổng hợp công nợ cũng giữ phân hệ. Các route độc lập cũ được giữ.
+- Layout nhớ đường dẫn từng tab trong phiên; bộ lọc chứng từ và tab/bộ lọc báo cáo quay lại theo URL. Chỉ mount route đang xem, giữ Query/API/phạm vi và số liệu server hiện có; không đổi schema hoặc quy tắc kế toán.
+- Validation:27 test Node, TypeScript strict và production build. Edge/backend thật trên dữ liệu giả lập: mua/bán qua công nợ/danh mục/hàng hóa/báo cáo, BCTC↔Cân đối, menu/breadcrumb, bộ lọc và tab khi quay lại/reload, Back/Forward; báo cáo trong cả sáu phân hệ và tab Kết chuyển. Bổ sung E2E cho luồng mua/bán; không chạy Playwright CLI điều khiển browser trong lượt kiểm tra Edge.
+
 ### Chứng từ khác: nhập số tiền và diễn giải một lần — 0.5.1
 
 - Mặc định mỗi dòng có TK/đối tượng Nợ và Có riêng, một số tiền và một diễn giải chung. Nhập/sửa số tiền hoặc diễn giải cập nhật đúng hai dòng ledger của cặp; thêm/xóa cả cặp. Diễn giải dòng có thể để trống để dùng diễn giải chứng từ khi xem sổ.

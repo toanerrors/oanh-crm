@@ -267,3 +267,31 @@ test('tài khoản chỉ xem không có thao tác ghi hoặc cơ sở tính lư�
   await page.goto('/settings');
   await expect(page.getByText('Tài khoản chỉ xem không có quyền truy cập cấu hình và dữ liệu nhân sự.', { exact: true })).toBeVisible();
 });
+
+
+test('tab phân hệ giữ nguyên khi mở danh mục, công nợ và các báo cáo', async ({ page }) => {
+  await login(page);
+  for (const [module, title, partner] of [['purchases', 'Mua hàng', 'Nhà cung cấp'], ['sales', 'Bán hàng', 'Khách hàng']]) {
+    await page.goto(`/${module}`);
+    const tabs = page.getByRole('navigation', { name: 'Điều hướng phân hệ', exact: true });
+    await page.getByLabel('Tìm trong danh sách chứng từ', { exact: true }).fill('giữ bộ lọc');
+    for (const [label, path] of [['Công nợ theo chứng từ', 'settlements'], [partner, 'partners'], ['Hàng hóa, dịch vụ', 'items'], ['Báo cáo', 'reports']]) {
+      await tabs.getByRole('button', { name: label, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/${module}/${path}$`));
+      await expect(tabs.getByRole('button', { name: title, exact: true })).toBeVisible();
+      await expect(tabs.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByRole('navigation', { name: 'Điều hướng chính', exact: true }).getByRole('link', { name: title, exact: true })).toHaveAttribute('aria-current', 'page');
+    }
+    await page.getByRole('tab', { name: 'Báo cáo tài chính', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/${module}/reports\\?tab=financial$`));
+    await expect(tabs).toBeVisible();
+    await page.getByRole('tab', { name: 'Cân đối phát sinh', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/${module}/reports\\?tab=trial$`));
+    await tabs.getByRole('button', { name: title, exact: true }).click();
+    await expect(page.getByLabel('Tìm trong danh sách chứng từ', { exact: true })).toHaveValue('giữ bộ lọc');
+    await tabs.getByRole('button', { name: 'Báo cáo', exact: true }).click();
+    await expect(page.getByRole('tab', { name: 'Cân đối phát sinh', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await page.reload();
+    await expect(tabs.getByRole('button', { name: 'Báo cáo', exact: true })).toHaveAttribute('aria-current', 'page');
+  }
+});

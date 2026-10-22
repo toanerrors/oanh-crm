@@ -1,6 +1,8 @@
 import { Button, Result } from 'antd';
 import { createBrowserRouter, Link, useRouteError } from 'react-router-dom';
 import { AppShell } from './App';
+import { ModuleLayout } from './ModuleLayout';
+import { accountingModules } from './module-navigation';
 
 function RouteError() {
   const error = useRouteError();
@@ -14,7 +16,15 @@ export const router = createBrowserRouter([{
   ErrorBoundary: RouteError,
   children: [
     { index: true, lazy: () => import('../features/dashboard/Dashboard') },
-    ...['documents', 'sales', 'purchases', 'cash', 'bank', 'inventory'].map(path => ({ path, lazy: () => import('../features/documents/Documents') })),
+    ...accountingModules.map(module => ({ path: module.path.slice(1), Component: ModuleLayout, children: [
+      { index: true, lazy: () => import('../features/documents/Documents') },
+      { path: 'reports', lazy: () => import('../features/reports/Reports') },
+      ...('tradeKind' in module ? [
+        { path: 'settlements', lazy: () => import('../features/documents/Settlements') },
+        { path: 'partners', lazy: () => import('../features/catalog/Catalog') },
+        { path: 'items', lazy: () => import('../features/workspace/Automation').then(({ ItemsPage }) => ({ Component: ItemsPage })) },
+      ] : []),
+    ] })),
     { path: 'settlements', lazy: () => import('../features/documents/Settlements') },
     { path: 'vouchers/new', lazy: () => import('../features/vouchers/VoucherForm') },
     { path: 'vouchers/:id', lazy: () => import('../features/vouchers/VoucherForm') },

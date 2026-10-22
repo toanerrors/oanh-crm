@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { accountingModule } from '../../app/module-navigation';
 import { Alert, App, Button, Form, Input, Modal, Select, Switch, Table, Tabs, Tag } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspace } from '../../app/WorkspaceProvider';
@@ -14,12 +16,16 @@ import { api, apiScope, command, isDemo } from '../../shared/api/client';
 const roles = { customer: 'Khách hàng', supplier: 'Nhà cung cấp', both: 'Khách hàng & NCC' };
 
 export function Component() {
+  const module = accountingModule(useLocation().pathname);
+  const moduleRole = module && 'tradeKind' in module ? module.tradeKind === 'sale' ? 'customer' : 'supplier' : undefined;
   const { data } = useWorkspace();
   const { message } = App.useApp();
   const client = useQueryClient();
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState('partners');
-  const [role, setRole] = useState('all');
+  const [selectedTab, setTab] = useState('partners');
+  const tab = moduleRole ? 'partners' : selectedTab;
+  const [selectedRole, setRole] = useState('all');
+  const role = moduleRole ?? selectedRole;
   const [editing, setEditing] = useState<Partner | null>(null);
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm<Partner>();
@@ -37,7 +43,7 @@ export function Component() {
   function edit(partner: Partner | null) {
     setEditing(partner);
     form.resetFields();
-    form.setFieldsValue(partner ?? { code: '', name: '', role: 'customer', email: '', phone: '', active: true });
+    form.setFieldsValue(partner ?? { code: '', name: '', role: moduleRole ?? 'customer', email: '', phone: '', active: true });
     setOpen(true);
   }
 
@@ -46,10 +52,10 @@ export function Component() {
   }
 
   return <DataBoundary>
-    <PageHeading title="Danh mục" description="Sắp xếp dữ liệu nền tảng để mỗi lần nhập liệu đều thuận tiện hơn." actions={<><Button icon={<Icon name="download" size={16} />} onClick={exportData}>Xuất CSV</Button>{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <Button type="primary" onClick={() => editAccount()}>Thêm tài khoản</Button>}{tab === 'partners' && canEdit && <Button type="primary" icon={<Icon name="plus" size={17} />} onClick={() => edit(null)}>Thêm đối tượng</Button>}</>} />
-    <div className={styles.catalogSummary}>{[{ label: 'Tổng đối tượng', count: data.partners.length, icon: 'users' }, { label: 'Khách hàng', count: data.partners.filter(item => item.role !== 'supplier').length, icon: 'cart' }, { label: 'Nhà cung cấp', count: data.partners.filter(item => item.role !== 'customer').length, icon: 'bag' }, { label: isDemo ? 'Tài khoản mẫu' : 'Tài khoản', count: data.accounts.length, icon: 'book' }].map(item => <div key={item.label}><span>{item.label}</span><strong>{item.count}</strong></div>)}</div>
-    <section className={styles.panel}><div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setTab(value); setSearch(''); }} items={[{ key: 'partners', label: 'Khách hàng & nhà cung cấp' }, { key: 'accounts', label: isDemo ? 'Hệ thống tài khoản mẫu' : 'Hệ thống tài khoản' }, ...(!isDemo ? [{ key: 'reference', label: 'Tài khoản từ Google Sheet' }] : [])]} /></div>
-      <div className={styles.tableToolbar}><Input prefix={<Icon name="search" size={17} />} aria-label="Tìm trong danh mục" placeholder={tab === 'partners' ? 'Tìm mã, tên hoặc thông tin liên hệ…' : 'Tìm mã hoặc tên tài khoản…'} value={search} allowClear onChange={event => setSearch(event.target.value)} className={styles.filterSearch} />{tab === 'partners' && <Select aria-label="Lọc vai trò đối tượng" value={role} onChange={setRole} style={{ minWidth: 180 }} options={[{ value: 'all', label: 'Tất cả vai trò' }, { value: 'customer', label: 'Khách hàng' }, { value: 'supplier', label: 'Nhà cung cấp' }]} />}</div>
+    <PageHeading title={moduleRole === 'supplier' ? 'Nhà cung cấp' : moduleRole === 'customer' ? 'Khách hàng' : 'Danh mục'} description="Sắp xếp dữ liệu nền tảng để mỗi lần nhập liệu đều thuận tiện hơn." actions={<><Button icon={<Icon name="download" size={16} />} onClick={exportData}>Xuất CSV</Button>{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <Button type="primary" onClick={() => editAccount()}>Thêm tài khoản</Button>}{tab === 'partners' && canEdit && <Button type="primary" icon={<Icon name="plus" size={17} />} onClick={() => edit(null)}>Thêm đối tượng</Button>}</>} />
+    {!moduleRole && <div className={styles.catalogSummary}>{[{ label: 'Tổng đối tượng', count: data.partners.length, icon: 'users' }, { label: 'Khách hàng', count: data.partners.filter(item => item.role !== 'supplier').length, icon: 'cart' }, { label: 'Nhà cung cấp', count: data.partners.filter(item => item.role !== 'customer').length, icon: 'bag' }, { label: isDemo ? 'Tài khoản mẫu' : 'Tài khoản', count: data.accounts.length, icon: 'book' }].map(item => <div key={item.label}><span>{item.label}</span><strong>{item.count}</strong></div>)}</div>}
+    <section className={styles.panel}>{!moduleRole && <div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setTab(value); setSearch(''); }} items={[{ key: 'partners', label: 'Khách hàng & nhà cung cấp' }, { key: 'accounts', label: isDemo ? 'Hệ thống tài khoản mẫu' : 'Hệ thống tài khoản' }, ...(!isDemo ? [{ key: 'reference', label: 'Tài khoản từ Google Sheet' }] : [])]} /></div>}
+      <div className={styles.tableToolbar}><Input prefix={<Icon name="search" size={17} />} aria-label="Tìm trong danh mục" placeholder={tab === 'partners' ? 'Tìm mã, tên hoặc thông tin liên hệ…' : 'Tìm mã hoặc tên tài khoản…'} value={search} allowClear onChange={event => setSearch(event.target.value)} className={styles.filterSearch} />{tab === 'partners' && !moduleRole && <Select aria-label="Lọc vai trò đối tượng" value={role} onChange={setRole} style={{ minWidth: 180 }} options={[{ value: 'all', label: 'Tất cả vai trò' }, { value: 'customer', label: 'Khách hàng' }, { value: 'supplier', label: 'Nhà cung cấp' }]} />}</div>
       {tab === 'reference' ? <ReferenceChart /> : tab === 'partners' ? <Table<Partner> rowKey="id" dataSource={partners} pagination={{ pageSize: 8, hideOnSinglePage: true }} scroll={{ x: 850 }} columns={[
         { title: 'MÃ ĐỐI TƯỢNG', dataIndex: 'code', width: 130, render: (code: string, item) => canEdit ? <button className={styles.tableLink} onClick={() => edit(item)}>{code}</button> : <strong>{code}</strong> },
         { title: 'TÊN ĐỐI TƯỢNG', dataIndex: 'name', render: (name: string, item) => <div className={styles.partnerCell}><span className={styles.partnerAvatar}>{name.replace(/^Công ty (TNHH|CP) /, '').slice(0, 1)}</span><span><strong>{name}</strong><small className={styles.cellSub}>{item.email || 'Chưa có email'}</small></span></div> },

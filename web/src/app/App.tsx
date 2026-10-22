@@ -8,6 +8,7 @@ import styles from './App.module.css';
 import { api, apiScope, isDemo } from '../shared/api/client';
 import { searchOptions } from '../shared/ui/search';
 import { DocumentSearch } from './DocumentSearch';
+import { accountingModule } from './module-navigation';
 
 const DocumentEditor = lazy(() => import('../features/documents/DocumentDrawer').then(module => ({ default: module.DocumentEditor })));
 const DocumentDetail = lazy(() => import('../features/documents/DocumentDrawer').then(module => ({ default: module.DocumentDetail })));
@@ -33,7 +34,8 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const navigationState = useNavigation();
-  const current = navigation.find(item => item.path === location.pathname)?.label ?? (location.pathname.startsWith('/vouchers/') ? 'Chứng từ' : location.pathname === '/settings' ? 'Thiết lập' : 'Trợ giúp');
+  const module = accountingModule(location.pathname);
+  const current = navigation.find(item => item.path === (module?.path ?? location.pathname))?.label ?? module?.title ?? (location.pathname.startsWith('/vouchers/') ? 'Chứng từ' : location.pathname === '/settings' ? 'Thiết lập' : 'Trợ giúp');
   const person = isDemo ? 'Minh Anh' : apiScope().name;
   const initials = person.split(' ').slice(-2).map(value => value[0]).join('').toUpperCase();
   const draftCount = data?.server?.draftCount ?? data?.documents.filter(item => item.status === 'draft' && item.date.startsWith(period)).length ?? 0;
@@ -67,7 +69,7 @@ export function AppShell() {
         </div>
       </header>
       {navigationState.state !== 'idle' && <div className={styles.routeProgress} role="progressbar" aria-label="Đang chuyển trang" />}
-      <main id="main-content" className={`${styles.main} ${!isDemo && ['/cash', '/bank', '/purchases', '/sales', '/documents', '/inventory'].includes(location.pathname) ? styles.denseWorkspace : ''}`} tabIndex={-1}>
+      <main id="main-content" className={`${styles.main} ${!isDemo && module ? styles.denseWorkspace : ''}`} tabIndex={-1}>
         <div className={styles.contextBar}><span><span className={styles.liveDot} /> Không gian kế toán của bạn</span><div>{voucherDraft && <Button type="text" onClick={() => navigate(voucherDraft.draftId ? `/vouchers/${voucherDraft.draftId}` : '/vouchers/new')}>Tiếp tục phiếu đang nhập</Button>}{draft && <Button type="text" onClick={() => setDraftOpen(true)} icon={<Icon name="file" size={14} />}>Tiếp tục nháp</Button>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch={searchOptions} aria-label="Chọn kỳ kế toán" value={period} onChange={setPeriod} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
         <Outlet />
       </main>

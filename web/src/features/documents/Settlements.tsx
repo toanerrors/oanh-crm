@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, Input, Select, Table, Tag } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { api, apiScope, isDemo } from '../../shared/api/client';
 import { workspaceKey } from '../../shared/data/workspace';
@@ -10,6 +10,7 @@ import { businessToday, formatDate, formatMoney } from '../../shared/accounting/
 import { DataBoundary, PageHeading } from '../../shared/ui/Page';
 import { searchOptions } from '../../shared/ui/search';
 import styles from '../../app/App.module.css';
+import { accountingModule } from '../../app/module-navigation';
 
 export function Component() {
   const { period } = useWorkspace();
@@ -20,7 +21,8 @@ function SettlementPage() {
   const { data, period, openDocument } = useWorkspace();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
-  const kind = params.get('kind') === 'purchase' ? 'purchase' : 'sale';
+  const module = accountingModule(useLocation().pathname);
+  const kind = module && 'tradeKind' in module ? module.tradeKind : params.get('kind') === 'purchase' ? 'purchase' : 'sale';
   const [asOf, setAsOf] = useState(businessToday().startsWith(period) ? businessToday() : `${period}-${new Date(Number(period.slice(0, 4)), Number(period.slice(5)), 0).getDate()}`);
   const [partner, setPartner] = useState('');
   const [page, setPage] = useState(1);
@@ -30,10 +32,10 @@ function SettlementPage() {
   const result = query.data;
   const pay = (invoice: TradeInvoice) => navigate(`/automation?${new URLSearchParams({ kind: kind === 'sale' ? 'receipt' : 'payment', invoice: invoice.documentId, partner: invoice.partnerId, amount: invoice.remaining })}`);
   return <DataBoundary>
-    <PageHeading title="Công nợ theo chứng từ" description="Giá trị gốc và số đã/chưa phân bổ theo từng chứng từ đến ngày tra cứu." actions={<Link to="/receivables"><Button>Tổng hợp công nợ theo đối tượng</Button></Link>} />
+    <PageHeading title="Công nợ theo chứng từ" description="Giá trị gốc và số đã/chưa phân bổ theo từng chứng từ đến ngày tra cứu." actions={<Link to={module ? `${module.path}/reports?tab=debt&debt=${kind === 'purchase' ? 'payable' : 'receivable'}` : '/receivables'}><Button>Tổng hợp công nợ theo đối tượng</Button></Link>} />
     <section className={styles.panel}>
       <div className={styles.tableToolbar}>
-        <Select aria-label="Loại chứng từ công nợ" value={kind} onChange={value => { setParams({ kind: value }); setPage(1); setPartner(''); }} options={[{ value: 'sale', label: 'Phải thu · Chứng từ bán hàng' }, { value: 'purchase', label: 'Phải trả · Chứng từ mua hàng' }]} />
+        <Select disabled={Boolean(module)} aria-label="Loại chứng từ công nợ" value={kind} onChange={value => { setParams({ kind: value }); setPage(1); setPartner(''); }} options={[{ value: 'sale', label: 'Phải thu · Chứng từ bán hàng' }, { value: 'purchase', label: 'Phải trả · Chứng từ mua hàng' }]} />
         <label>Đến ngày <Input type="date" aria-label="Ngày tra cứu công nợ" value={asOf} onChange={event => { setAsOf(event.target.value); setPage(1); }} /></label>
         <Select aria-label="Đối tượng công nợ" showSearch={searchOptions} value={partner} onChange={value => { setPartner(value); setPage(1); }} style={{ minWidth: 220 }} options={[{ value: '', label: 'Tất cả đối tượng' }, ...data?.partners.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` })) ?? []]} />
       </div>
