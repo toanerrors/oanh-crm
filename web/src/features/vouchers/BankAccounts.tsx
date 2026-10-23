@@ -11,6 +11,7 @@ import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import { Icon } from '../../shared/ui/Icon';
 import { ImportExcelButton } from '../imports/ExcelImport';
 import { searchOptions } from '../../shared/ui/search';
+import styles from '../../app/App.module.css';
 
 export function BankSelect({ value, onChange, onSelected, label, disabled, accountId }: { accountId: string | undefined; value?: string; onChange?: (value?: string) => void; onSelected?: (account?: BankAccount) => void; label: string; disabled?: boolean }) {
   const { period } = useWorkspace();
@@ -57,9 +58,11 @@ function BankDirectory({ open, onClose, onSelected, accountId }: { accountId?: s
       { title: '', width: 130, render: (_, row) => <>{canWrite && <Button type="text" onClick={() => edit(row)}>Sửa</Button>}{onSelected && row.active && <Button type="link" onClick={() => onSelected(row)}>Chọn</Button>}</> },
     ]} />
   </Modal><Modal open={Boolean(editing)} onCancel={() => setEditing(null)} title="Tài khoản ngân hàng" footer={null}><Form<BankAccount> form={form} layout="vertical" disabled={mutation.isPending} onFinish={values => mutation.mutate({ ...editing!, ...values })}>
-    <Form.Item name="number" label="Số tài khoản ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={100} disabled={referenced || mutation.isPending} /></Form.Item>
+    <div className={styles.formGrid}>
+      <Form.Item name="number" label="Số tài khoản ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={100} disabled={referenced || mutation.isPending} /></Form.Item>
+      <Form.Item name="accountId" label="Tài khoản kế toán tiền gửi" rules={[{ required: true }]}><Select disabled={referenced || mutation.isPending} showSearch={searchOptions} options={data?.accounts.filter(item => item.active && item.group === 'cash' && item.id !== '111' || item.id === editing?.accountId).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))} /></Form.Item>
+    </div>
     <Form.Item name="bankName" label="Tên ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={200} /></Form.Item>
-    <Form.Item name="accountId" label="Tài khoản kế toán tiền gửi" rules={[{ required: true }]}><Select disabled={referenced || mutation.isPending} showSearch={searchOptions} options={data?.accounts.filter(item => item.active && item.group === 'cash' && item.id !== '111' || item.id === editing?.accountId).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))} /></Form.Item>
     <Form.Item name="active" label="Đang sử dụng" valuePropName="checked"><Switch /></Form.Item>
     <p>{referenced ? 'Đã có chứng từ hoặc số dư: giữ số tài khoản và tài khoản kế toán để bảo toàn lịch sử. Bạn vẫn sửa được tên ngân hàng và trạng thái sử dụng.' : 'Chưa có chứng từ hoặc số dư: bạn có thể sửa số tài khoản, tên ngân hàng và tài khoản kế toán. Thay đổi được ghi nhật ký.'}</p>
     <Button type="primary" htmlType="submit" loading={mutation.isPending}>Lưu tài khoản ngân hàng</Button>

@@ -429,9 +429,12 @@ test('menu chức năng có nhãn, mở đúng thu chi hóa đơn, Excel và d�
   await expect(mobileSearch).toBeVisible();
   await page.getByRole('button', { name: /^Bộ lọc/ }).click();
   await expect(mobileSearch).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Thanh điều hướng dưới', exact: true })).toBeVisible();
+  const filterBox = await page.getByRole('button', { name: /^Bộ lọc/ }).boundingBox();
   const receipt = await page.getByRole('button', { name: 'Thu tiền', exact: true }).boundingBox();
   const payment = await page.getByRole('button', { name: 'Chi tiền', exact: true }).boundingBox();
-  expect(receipt).not.toBeNull(); expect(payment).not.toBeNull();
+  expect(filterBox).not.toBeNull(); expect(receipt).not.toBeNull(); expect(payment).not.toBeNull();
+  expect(Math.abs(filterBox!.y - receipt!.y)).toBeLessThanOrEqual(4);
   expect(Math.abs(receipt!.y - payment!.y)).toBeLessThan(1);
   await page.getByRole('button', { name: 'Tùy chọn Chi tiền', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Chuyển tiền nội bộ', exact: true })).toBeVisible();

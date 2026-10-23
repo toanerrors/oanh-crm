@@ -255,6 +255,16 @@ test('mobile 390px không tràn ngang và mở được điều hướng, biểu
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+  const tabBar = page.getByRole('navigation', { name: 'Thanh điều hướng dưới', exact: true });
+  await expect(tabBar).toBeVisible();
+  await tabBar.getByRole('link', { name: 'Thu chi', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tiền mặt & ngân hàng', exact: true })).toBeVisible();
+  const filterBtn = page.getByRole('button', { name: /^Bộ lọc/ });
+  const exportBtn = page.getByRole('button', { name: 'Xuất tệp', exact: true });
+  const createBtn = page.getByRole('button', { name: 'Tạo chứng từ', exact: true });
+  const [filterBox, exportBox, createBox] = await Promise.all([filterBtn.boundingBox(), exportBtn.boundingBox(), createBtn.boundingBox()]);
+  expect(Math.abs((filterBox?.y ?? 0) - (exportBox?.y ?? 999))).toBeLessThanOrEqual(4);
+  expect(Math.abs((filterBox?.y ?? 0) - (createBox?.y ?? 999))).toBeLessThanOrEqual(4);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Mở điều hướng', exact: true }).click();
   await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: /Kế toán tổng hợp/ }).click();
@@ -262,6 +272,11 @@ test('mobile 390px không tràn ngang và mở được điều hướng, biểu
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Tạo chứng từ', exact: true }).click();
   await expect(page.getByLabel('Diễn giải', { exact: true })).toBeVisible();
+  const [typeBox, partnerBox] = await Promise.all([
+    page.getByLabel('Loại chứng từ', { exact: true }).boundingBox(),
+    page.getByLabel('Đối tượng', { exact: true }).boundingBox(),
+  ]);
+  expect(Math.abs((typeBox?.y ?? 0) - (partnerBox?.y ?? 999))).toBeLessThanOrEqual(4);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Nháp đang nhập (1)', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

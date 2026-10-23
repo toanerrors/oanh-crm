@@ -16,16 +16,18 @@ export function PageToolbar({ children, actions, label = 'Công cụ bảng', ac
     {children && <div className={styles.mobileFilterBar}>
       <Button
         className={`${styles.mobileFilterToggle} ${filtersOpen || activeFilters > 0 ? styles.mobileFilterActive : ''}`}
-        icon={<Icon name="filter" size={15} />}
+        icon={<Icon name="filter" size={14} />}
         aria-expanded={filtersOpen}
         aria-controls={filterId}
         onClick={() => setFiltersOpen(value => !value)}
       >
         Bộ lọc{activeFilters > 0 ? <span className={styles.filterBadge}>{activeFilters}</span> : null}
       </Button>
-      {activeFilters > 0 && onResetFilters && <Button type="link" size="small" className={styles.mobileFilterClear} onClick={onResetFilters}>Xóa lọc</Button>}
     </div>}
-    {children && <div id={filterId} className={`${styles.toolbarFilters} ${filtersOpen ? styles.toolbarFiltersOpen : ''}`}>{children}</div>}
+    {children && <div id={filterId} className={`${styles.toolbarFilters} ${filtersOpen ? styles.toolbarFiltersOpen : ''}`}>
+      {children}
+      {activeFilters > 0 && onResetFilters && <Button type="link" size="small" className={styles.mobileFilterClear} onClick={onResetFilters}>Xóa bộ lọc</Button>}
+    </div>}
     {actions && <div className={styles.toolbarActions} role={actionsLabel ? 'group' : undefined} aria-label={actionsLabel}>{actions}</div>}
   </div>;
 }

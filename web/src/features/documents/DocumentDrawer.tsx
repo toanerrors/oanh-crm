@@ -71,7 +71,7 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
         <div className={styles.manualParty}>
           <Form.Item name="type" label="Loại chứng từ" rules={[{ required: true }]}><Select onChange={type => { if (initial.version === 0) newDraft(type); }} options={Object.entries(documentTypes).map(([value, label]) => ({ value, label }))} /></Form.Item>
           <Form.Item name="partnerId" label="Đối tượng"><Select allowClear showSearch={searchOptions} placeholder="Chọn khách hàng / nhà cung cấp" options={partnerOptions} /></Form.Item>
-          <Form.Item name="description" label="Diễn giải" rules={[{ required: true, whitespace: true, message: 'Nhập diễn giải chứng từ' }]}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn diễn giải đã dùng" maxLength={500} /></AutoComplete></Form.Item>
+          <Form.Item name="description" label="Diễn giải" className={isDemo ? styles.formFull : undefined} rules={[{ required: true, whitespace: true, message: 'Nhập diễn giải chứng từ' }]}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn diễn giải đã dùng" maxLength={500} /></AutoComplete></Form.Item>
           {!isDemo && <Form.Item name="sourceId" label="Mã chứng từ nguồn (nếu có)"><Input placeholder="Mã nguồn dùng thống nhất khi nhập tay / import" maxLength={100} /></Form.Item>}
         </div>
         <div className={styles.manualDates}><Form.Item name="date" label="Ngày chứng từ" rules={[{ required: true, message: 'Chọn ngày chứng từ' }]}><DateInput /></Form.Item><Form.Item label="Số chứng từ"><Input readOnly value={initial.reference || 'Tự cấp khi ghi sổ'} /></Form.Item></div>
