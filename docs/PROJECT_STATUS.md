@@ -10,6 +10,11 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Mã chứng từ dài không tràn cột — 0.10.2
+
+- Cố định layout bảng và bật ellipsis ở cột số chứng từ; nút mã có chiều rộng giới hạn riêng, dùng cho cả dữ liệu doanh nghiệp và demo. Hiển thị dấu … khi thiếu chỗ, title/accessible name giữ mã đầy đủ; focus nằm trong ô. Không sửa mã hoặc dữ liệu xuất.
+- Validation: production build TypeScript/Vite và diff check đạt. Edge với6mã nháp dài: nút nằm trong ô155px, cell overflow hidden, ellipsis và title đầy đủ;1024px/390px không tràn ngang toàn trang. Nhấn mã vẫn mở đúng chi tiết, console error rỗng; không đổi backend/schema hoặc số liệu thật.
+
 ## Bỏ viền xanh bên trái — 0.10.1
 
 - Bỏ vạch xanh trang trí tại thẻ số dư tiền mặt/tiền gửi và bóng đổ bên trái dòng chứng từ đang chọn; gỡ khai báo tương tự đã bị ghi đè của sidebar. Thẻ dùng viền mảnh đồng đều, dòng chọn giữ nền nhạt, không đổi focus bàn phím/nút/menu hoặc nghiệp vụ.

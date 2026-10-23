@@ -437,7 +437,8 @@
 .exportOption strong { font-size: 13px; font-weight: 500; }
 .exportOption small { color: #65776c; font-size: 12px; margin-top: 3px; }
 
-.documentList .tableLink { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+.documentReference { display: block; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+.documentReference:focus-visible { outline-offset: -2px; }
 
 .compactDocuments .documentCard > div:first-child > button { min-width: 0; }
 .documentList .tableTotal > strong { min-width: 0; overflow-wrap: anywhere; text-align: right; }
