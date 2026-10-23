@@ -33,17 +33,19 @@ type Policy struct {
 	ResidualMethod     string      `json:"residualMethod"`
 }
 type Item struct {
-	ID       string `json:"id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Unit     string `json:"unit"`
-	Tracked  bool   `json:"tracked"`
-	Active   bool   `json:"active"`
-	Quantity string `json:"quantity"`
-	Value    string `json:"value"`
-	Scale    int    `json:"scale"`
+	HasReferences bool   `json:"hasReferences,omitempty"`
+	ID            string `json:"id"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Unit          string `json:"unit"`
+	Tracked       bool   `json:"tracked"`
+	Active        bool   `json:"active"`
+	Quantity      string `json:"quantity"`
+	Value         string `json:"value"`
+	Scale         int    `json:"scale"`
 }
 type Employee struct {
+	HasReferences bool   `json:"hasReferences,omitempty"`
 	ID            string `json:"id"`
 	Code          string `json:"code"`
 	Name          string `json:"name"`

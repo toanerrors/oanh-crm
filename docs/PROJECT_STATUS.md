@@ -10,6 +10,14 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Sửa danh mục sau khi lưu — 0.15.0
+
+- Bỏ khóa theo điều kiện đã tồn tại ở ngân hàng, kho, hàng hóa/dịch vụ, nhân viên, tài khoản và đối tượng. Danh mục chưa có tham chiếu được sửa mã/thông tin; dùng cùng validator khi nhập Excel hoặc hoàn tác. API thêm hasReferences từ dữ liệu toàn kỳ, kiểm tra lại trong transaction ghi, không tin cờ client. Không đổi schema8 hoặc thêm dependency.
+- Ngân hàng đã dùng vẫn sửa được tên/trạng thái; kho và hàng vẫn sửa tên/trạng thái; nhân viên sửa thông tin cho kỳ tính tiếp theo; đối tượng sửa liên hệ/trạng thái. Chỉ giữ định danh, đơn vị/phân loại/liên kết kế toán khi đã được chứng từ hoặc số dư tham chiếu; UI giải thích ngay trong form. Giữ liên kết ngân hàng cũ đã ngừng dùng khi chỉ sửa mô tả; tài khoản mới vẫn phải còn hiệu lực.
+- Đối soát ngân hàng kiểm tra số tài khoản/liên kết kế toán; tên trên chứng từ giữ snapshot riêng, không so với tên danh mục có thể sửa. Tên mới không ghi đè chứng từ cũ. Chứng từ đã ghi sổ và số dư đã xác nhận tiếp tục qua luồng điều chỉnh/đảo hiện có; không mở sửa trực tiếp hoặc xóa thật.
+- Validation: Go test ledger/operations/sqlite/httpserver và race regression danh mục, go vet đạt; kiểm SQLite thật, retry, undo/redo, backup/stage/reopen, nháp, số dư/điều chỉnh đầu kỳ, dữ liệu khác kỳ, số tiền trên2^53 và cạnh tranh sửa liên kết ngân hàng với ghi sổ.66test Node, typecheck/build đạt. Edge trên dữ liệu giả lập: sửa số/tài khoản kế toán rồi lưu/mở lại, tạo phiếu nháp và tiếp tục sửa tên ngân hàng đã dùng; trường khóa/lý do đúng,390px không tràn, console warn/error rỗng.
+- Chưa benchmark dữ liệu lớn; metadata tham chiếu được truy vấn trong cùng read snapshot. Không tự thay thông tin danh mục thật hoặc chuyển bút toán giữa các tài khoản.
+
 ## Hiển thị mã tài khoản kế toán ngân hàng — 0.14.1
 
 - Cột TK kế toán trong danh mục ngân hàng tra accountId sang mã tài khoản đã lưu; title có mã và tên, không in UUID. Form sửa giữ option của tài khoản liên kết đã ngừng dùng để không rơi về ID. Thiếu danh mục có nhãn tải/không tìm thấy rõ ràng.

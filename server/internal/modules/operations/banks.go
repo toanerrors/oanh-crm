@@ -13,15 +13,16 @@ import (
 )
 
 type BankAccount struct {
-	ID        string `json:"id"`
-	Number    string `json:"number"`
-	BankName  string `json:"bankName"`
-	AccountID string `json:"accountId"`
-	Active    bool   `json:"active"`
-	Opening   string `json:"opening,omitempty"`
-	Receipts  string `json:"receipts,omitempty"`
-	Payments  string `json:"payments,omitempty"`
-	Closing   string `json:"closing,omitempty"`
+	HasReferences bool   `json:"hasReferences,omitempty"`
+	ID            string `json:"id"`
+	Number        string `json:"number"`
+	BankName      string `json:"bankName"`
+	AccountID     string `json:"accountId"`
+	Active        bool   `json:"active"`
+	Opening       string `json:"opening,omitempty"`
+	Receipts      string `json:"receipts,omitempty"`
+	Payments      string `json:"payments,omitempty"`
+	Closing       string `json:"closing,omitempty"`
 }
 type BankList struct {
 	ledger.Context
@@ -40,18 +41,22 @@ func (s *Service) saveBankTx(ctx context.Context, tx *sql.Tx, b BankAccount) (an
 	if !accounting.ID(b.ID) || b.Number == "" || b.Number != strings.TrimSpace(b.Number) || len(b.Number) > 100 || strings.TrimSpace(b.BankName) == "" || len(b.BankName) > 200 {
 		return nil, accounting.Fail("VALIDATION", "Nhập số tài khoản và tên ngân hàng hợp lệ.")
 	}
-	var group string
-	var active bool
-	if err := tx.QueryRowContext(ctx, "SELECT account_group,active FROM accounts WHERE id=?", b.AccountID).Scan(&group, &active); err != nil || !active || group != "cash" || b.AccountID == "111" {
-		return nil, accounting.Fail("INVALID_ACCOUNT", "Chọn tài khoản kế toán tiền gửi còn hiệu lực.")
-	}
 	var old BankAccount
 	err := tx.QueryRowContext(ctx, "SELECT number,bank_name,account_id FROM bank_accounts WHERE id=?", b.ID).Scan(&old.Number, &old.BankName, &old.AccountID)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if err == nil && (old.Number != b.Number || old.BankName != b.BankName || old.AccountID != b.AccountID) {
-		return nil, accounting.Fail("HISTORY_LOCKED", "Giữ số tài khoản, ngân hàng và tài khoản kế toán đã tạo; có thể ngừng sử dụng.")
+	var group string
+	var active bool
+	if err = tx.QueryRowContext(ctx, "SELECT account_group,active FROM accounts WHERE id=?", b.AccountID).Scan(&group, &active); err != nil || !active && old.AccountID != b.AccountID || group != "cash" || b.AccountID == "111" {
+		return nil, accounting.Fail("INVALID_ACCOUNT", "Chọn tài khoản kế toán tiền gửi còn hiệu lực.")
+	}
+	b.HasReferences, err = catalogHasReferences(ctx, tx, bankReferences, b.ID)
+	if err != nil {
+		return nil, err
+	}
+	if b.HasReferences && (old.Number != b.Number || old.AccountID != b.AccountID) {
+		return nil, accounting.Fail("HISTORY_LOCKED", "Đã có chứng từ hoặc số dư ngân hàng: giữ số tài khoản và tài khoản kế toán. Bạn vẫn sửa được tên ngân hàng và trạng thái sử dụng.")
 	}
 	var duplicate int
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM bank_accounts WHERE number=? AND id<>?", b.Number, b.ID).Scan(&duplicate); err != nil {
@@ -60,7 +65,7 @@ func (s *Service) saveBankTx(ctx context.Context, tx *sql.Tx, b BankAccount) (an
 	if duplicate > 0 {
 		return nil, accounting.Fail("DUPLICATE_CODE", "Số tài khoản ngân hàng đã tồn tại.")
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO bank_accounts VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET active=excluded.active", b.ID, b.Number, b.BankName, b.AccountID, b.Active)
+	_, err = tx.ExecContext(ctx, "INSERT INTO bank_accounts VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET number=excluded.number,bank_name=excluded.bank_name,account_id=excluded.account_id,active=excluded.active", b.ID, b.Number, b.BankName, b.AccountID, b.Active)
 	return b, err
 }
 func bankAt(ctx context.Context, q ledger.Queryer, id string) (BankAccount, error) {
@@ -102,6 +107,13 @@ func (s *Service) Banks(ctx context.Context, period string) (BankList, error) {
 	rows.Close()
 	if err != nil {
 		return result, err
+	}
+	usage, err := readCatalogReferences(ctx, tx, bankReferences)
+	if err != nil {
+		return result, err
+	}
+	for index := range result.Accounts {
+		result.Accounts[index].HasReferences = usage[result.Accounts[index].ID]
 	}
 	start, _ := time.Parse("2006-01", period)
 	end := start.AddDate(0, 1, 0).Format("2006-01-02")

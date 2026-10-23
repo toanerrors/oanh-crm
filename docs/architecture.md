@@ -286,3 +286,10 @@ Dashboard dùng server metrics và chỉ có phép trình bày chuỗi/BigInt, d
 Giữ một bảng items và ID chung cho mua/bán, với quy ước tracked=true cho hàng hóa quản lý kho và false cho dịch vụ; không thêm trường phân loại cạnh tranh hoặc migration. ItemEditor dùng chung ở danh mục và trong ItemSelect của phiếu. Lưu danh mục qua API hiện có, invalidate workspace rồi chọn phản hồi server vào dòng đang nhập; không reset hoặc lưu phiếu ngầm. Bộ lọc dùng metadata, không dựa vào tiền tố mã.
 
 saveItemTx cho sửa tracked chỉ khi chưa có tham chiếu ở operations/voucher_inputs, lô/biến động kho hoặc payload tồn kho đầu kỳ/điều chỉnh. Kiểm tra và cập nhật trong cùng Ledger.Write, nên không đua với ghi sổ. Mã/đơn vị vẫn bất biến; audit trước/sau và khôi phục dùng validator này. Thay đổi không cần schema hoặc thay snapshot cũ.
+
+
+### Quyền sửa danh mục sau khi lưu (0.15.0)
+
+Sự tồn tại của ID không phải lý do khóa form. Catalog API trả hasReferences tùy chọn (mặc định false), đọc cùng snapshot và trên mọi kỳ. Ledger tra documents/document_lines; operations tra biến động, operations/voucher_inputs, opening_balances và opening_adjustments. Mọi save vẫn xác minh trong write transaction; cờ client không quyết định quyền sửa. Không thêm bảng hoặc nguồn dữ liệu cạnh tranh.
+
+Danh mục chưa dùng được sửa mã/thông tin qua các service hiện có, kiểm trùng và ghi audit/idempotency trong cùng commit. Danh mục đã dùng giữ các trường định danh/mapping ảnh hưởng lịch sử; tên ngân hàng/kho/hàng và các trường mô tả an toàn vẫn sửa được. Đối soát ngân hàng kiểm tra ID, số và mapping với chứng từ; tên ngân hàng của chứng từ là snapshot bất biến, có thể khác tên danh mục hiện tại. Undo/redo dùng cùng validator, không vượt kiểm tra tham chiếu mới phát sinh.

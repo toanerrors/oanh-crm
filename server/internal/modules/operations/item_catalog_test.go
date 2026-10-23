@@ -108,6 +108,32 @@ func TestItemClassificationLocksReferencedCatalog(t *testing.T) {
 				in.Input.Lines = append(in.Input.Lines, openingLine("411", "", "0", "100"))
 				saveAdjustment(t, f, "save-stock-adjustment", in)
 			}
+			data, err := f.ops.Data(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, row := range data.Items {
+				if row.ID == item.ID && !row.HasReferences {
+					t.Fatal("missing item reference", source)
+				}
+			}
+			if item.Tracked {
+				warehouses, err := f.ops.Warehouses(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, row := range warehouses.Warehouses {
+					if row.ID == "default" {
+						if !row.HasReferences {
+							t.Fatal("missing warehouse reference", source)
+						}
+						row.Code = "CHANGED"
+						if _, err = f.ops.SaveWarehouse(ctx, f.cmd("change-warehouse"), row); accounting.Code(err) != "HISTORY_LOCKED" {
+							t.Fatal(err)
+						}
+					}
+				}
+			}
 			original := item.Tracked
 			item.Tracked = !item.Tracked
 			if _, err := f.ops.SaveItem(ctx, f.cmd("reclassify-used"), item); accounting.Code(err) != "HISTORY_LOCKED" {

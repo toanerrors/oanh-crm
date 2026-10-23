@@ -135,3 +135,11 @@ test('query key tách kỳ, danh tính, quyền và dataset', () => {
   assert.notDeepEqual(october, september);
   assert.deepEqual(october, ['demo-workspace', 'demo-user', 'demo-editor', 'demo-company', 'demo-2026', '2026-10']);
 });
+
+
+test('danh mục chưa dùng cho phép sửa mã và vẫn chặn mã trùng', async () => {
+  const partner = { id: 'unused-edit', code: 'EDIT001', name: 'Đối tác mới', email: '', phone: '', role: 'customer' as const, active: true };
+  await saveDemoPartners([partner]);
+  await saveDemoPartners([{ ...partner, code: 'EDIT002', name: 'Đối tác đã sửa', role: 'both' }]);
+  await assert.rejects(saveDemoPartners([{ ...partner, id: 'duplicate-edit', code: 'EDIT002' }]), /bị trùng/);
+});

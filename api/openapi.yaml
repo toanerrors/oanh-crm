@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oanh Accounting API
-  version: 0.14.1
+  version: 0.15.0
   description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
     key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
 servers:
@@ -2473,6 +2473,11 @@ components:
     Partner:
       type: object
       properties:
+        hasReferences:
+          type: boolean
+          readOnly: true
+          default: false
+          description: Có tham chiếu trong toàn bộ dữ liệu, không giới hạn kỳ. Máy chủ kiểm tra lại trong transaction khi lưu.
         id: *id002
         code: *id002
         name: *id002
@@ -2493,6 +2498,11 @@ components:
     Account:
       type: object
       properties:
+        hasReferences:
+          type: boolean
+          readOnly: true
+          default: false
+          description: Có tham chiếu trong toàn bộ dữ liệu, không giới hạn kỳ. Máy chủ kiểm tra lại trong transaction khi lưu.
         parentId:
           type: string
           description: ID tài khoản cha; rỗng là cấp1. Bỏ trường trong lệnh cũ giữ nguyên quan hệ.
@@ -2624,8 +2634,13 @@ components:
       - residualMethod
     Item:
       type: object
-      description: Danh mục dùng chung cho mua và bán. tracked=true là hàng hóa quản lý kho; false là dịch vụ không cần kho. Chỉ đổi loại khi mã chưa có chứng từ hoặc số dư kho; mã và đơn vị giữ nguyên.
+      description: Danh mục dùng chung cho mua và bán. tracked=true là hàng hóa quản lý kho; false là dịch vụ không cần kho. Mã, đơn vị và loại được sửa khi chưa có chứng từ hoặc số dư kho; tên và trạng thái vẫn sửa được sau khi sử dụng.
       properties:
+        hasReferences:
+          type: boolean
+          readOnly: true
+          default: false
+          description: Có tham chiếu trong toàn bộ dữ liệu, không giới hạn kỳ. Máy chủ kiểm tra lại trong transaction khi lưu.
         id: *id002
         code: *id002
         name: *id002
@@ -2645,6 +2660,11 @@ components:
     Employee:
       type: object
       properties:
+        hasReferences:
+          type: boolean
+          readOnly: true
+          default: false
+          description: Có tham chiếu trong toàn bộ dữ liệu, không giới hạn kỳ. Máy chủ kiểm tra lại trong transaction khi lưu.
         id: *id002
         code: *id002
         name: *id002
@@ -3154,6 +3174,11 @@ components:
     BankAccount:
       type: object
       properties:
+        hasReferences:
+          type: boolean
+          readOnly: true
+          default: false
+          description: Có tham chiếu trong toàn bộ dữ liệu, không giới hạn kỳ. Máy chủ kiểm tra lại trong transaction khi lưu.
         id: {$ref: '#/components/schemas/ID'}
         number: {type: string, minLength: 1, maxLength: 100}
         bankName: {type: string, minLength: 1, maxLength: 200}
@@ -3231,6 +3256,11 @@ components:
     Warehouse:
       type: object
       properties:
+        hasReferences:
+          type: boolean
+          readOnly: true
+          default: false
+          description: Có tham chiếu trong toàn bộ dữ liệu, không giới hạn kỳ. Máy chủ kiểm tra lại trong transaction khi lưu.
         id: {$ref: '#/components/schemas/ID'}
         code: {$ref: '#/components/schemas/ID'}
         name: {type: string, minLength: 1, maxLength: 200}

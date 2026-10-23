@@ -42,7 +42,7 @@ function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: 
     const next = account ?? { id: crypto.randomUUID(), number: '', bankName: '', accountId: '112', active: true };
     setEditing(next); form.resetFields(); form.setFieldsValue(next);
   }
-  const existing = query.data?.accounts.some(item => item.id === editing?.id);
+  const referenced = Boolean(editing?.hasReferences);
   return <><Modal open={open} onCancel={onClose} width={1100} title={`Tài khoản ngân hàng · Kỳ ${period}`} footer={<Button onClick={onClose}>Đóng</Button>}>
     {query.error && <Alert type="error" title={query.error.message} />}
     <p>Số dư chi tiết lấy từ chứng từ đã gắn tài khoản ngân hàng. Giao dịch cũ chưa gắn tài khoản vẫn nằm trong tổng sổ tiền gửi.</p>
@@ -56,12 +56,12 @@ function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: 
       { title: 'Trạng thái', dataIndex: 'active', render: value => value ? 'Đang sử dụng' : 'Ngừng sử dụng' },
       { title: '', width: 130, render: (_, row) => <>{canWrite && <Button type="text" onClick={() => edit(row)}>Sửa</Button>}{onSelected && row.active && <Button type="link" onClick={() => onSelected(row)}>Chọn</Button>}</> },
     ]} />
-  </Modal><Modal open={Boolean(editing)} onCancel={() => setEditing(null)} title="Tài khoản ngân hàng" footer={null}><Form<BankAccount> form={form} layout="vertical" onFinish={values => mutation.mutate({ ...editing!, ...values })}>
-    <Form.Item name="number" label="Số tài khoản ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={100} disabled={existing} /></Form.Item>
-    <Form.Item name="bankName" label="Tên ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={200} disabled={existing} /></Form.Item>
-    <Form.Item name="accountId" label="Tài khoản kế toán tiền gửi" rules={[{ required: true }]}><Select disabled={existing} showSearch={searchOptions} options={data?.accounts.filter(item => item.active && item.group === 'cash' && item.id !== '111' || item.id === editing?.accountId).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))} /></Form.Item>
+  </Modal><Modal open={Boolean(editing)} onCancel={() => setEditing(null)} title="Tài khoản ngân hàng" footer={null}><Form<BankAccount> form={form} layout="vertical" disabled={mutation.isPending} onFinish={values => mutation.mutate({ ...editing!, ...values })}>
+    <Form.Item name="number" label="Số tài khoản ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={100} disabled={referenced || mutation.isPending} /></Form.Item>
+    <Form.Item name="bankName" label="Tên ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={200} /></Form.Item>
+    <Form.Item name="accountId" label="Tài khoản kế toán tiền gửi" rules={[{ required: true }]}><Select disabled={referenced || mutation.isPending} showSearch={searchOptions} options={data?.accounts.filter(item => item.active && item.group === 'cash' && item.id !== '111' || item.id === editing?.accountId).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))} /></Form.Item>
     <Form.Item name="active" label="Đang sử dụng" valuePropName="checked"><Switch /></Form.Item>
-    <p>Giữ số tài khoản, tên ngân hàng và tài khoản kế toán đã tạo để bảo toàn lịch sử. Mỗi số tài khoản được khai báo một lần.</p>
+    <p>{referenced ? 'Đã có chứng từ hoặc số dư: giữ số tài khoản và tài khoản kế toán để bảo toàn lịch sử. Bạn vẫn sửa được tên ngân hàng và trạng thái sử dụng.' : 'Chưa có chứng từ hoặc số dư: bạn có thể sửa số tài khoản, tên ngân hàng và tài khoản kế toán. Thay đổi được ghi nhật ký.'}</p>
     <Button type="primary" htmlType="submit" loading={mutation.isPending}>Lưu tài khoản ngân hàng</Button>
   </Form></Modal></>;
 }

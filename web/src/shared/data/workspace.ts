@@ -48,7 +48,7 @@ export async function saveDemoPartners(partners: Partner[]): Promise<void> {
     const existing = workspace.partners.find(item => item.id === partner.id);
     const referenced = workspace.documents.some(item => item.partnerId === partner.id || item.lines.some(line => line.partnerId === partner.id));
     if (!code || !partner.name.trim()) throw new Error('Mã và tên đối tượng không được để trống.');
-    if (existing && existing.code !== code) throw new Error('Không được đổi mã đối tượng đã tạo.');
+    if (existing && referenced && existing.code !== code) throw new Error('Không được đổi mã đối tượng đã có chứng từ.');
     if (existing && referenced && (existing.name !== partner.name.trim() || existing.role !== partner.role)) throw new Error('Giữ nguyên tên và vai trò đối tượng đã có chứng từ.');
     if (ids.has(partner.id) || codes.has(code) || workspace.partners.some(item => item.code.toUpperCase() === code && item.id !== partner.id)) throw new Error(`Mã đối tượng ${code} bị trùng.`);
     if (!['customer', 'supplier', 'both'].includes(partner.role)) throw new Error('Vai trò đối tượng không hợp lệ.');

@@ -68,13 +68,13 @@ func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Wor
 	if err != nil {
 		return w, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT a.id,a.code,a.name,a.account_group,a.requires_partner,a.active,COALESCE(h.parent_id,''),COALESCE(h.revision,0) FROM accounts a LEFT JOIN account_current_parents h ON h.account_id=a.id ORDER BY a.code")
+	rows, err := tx.QueryContext(ctx, "SELECT a.id,a.code,a.name,a.account_group,a.requires_partner,a.active,COALESCE(h.parent_id,''),COALESCE(h.revision,0),r.account_id IS NOT NULL FROM accounts a LEFT JOIN account_current_parents h ON h.account_id=a.id LEFT JOIN (SELECT DISTINCT account_id FROM document_lines) r ON r.account_id=a.id ORDER BY a.code")
 	if err != nil {
 		return w, err
 	}
 	for rows.Next() {
 		var a Account
-		if err = rows.Scan(&a.ID, &a.Code, &a.Name, &a.Group, &a.RequiresPartner, &a.Active, &a.ParentID, &a.ParentRevision); err != nil {
+		if err = rows.Scan(&a.ID, &a.Code, &a.Name, &a.Group, &a.RequiresPartner, &a.Active, &a.ParentID, &a.ParentRevision, &a.HasReferences); err != nil {
 			rows.Close()
 			return w, err
 		}
@@ -85,13 +85,13 @@ func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Wor
 	if err != nil {
 		return w, err
 	}
-	rows, err = tx.QueryContext(ctx, "SELECT id,code,name,role,email,phone,active FROM partners ORDER BY code")
+	rows, err = tx.QueryContext(ctx, "SELECT p.id,p.code,p.name,p.role,p.email,p.phone,p.active,r.id IS NOT NULL FROM partners p LEFT JOIN (SELECT partner_id AS id FROM document_lines WHERE partner_id IS NOT NULL UNION SELECT partner_id FROM documents WHERE partner_id IS NOT NULL) r ON r.id=p.id ORDER BY p.code")
 	if err != nil {
 		return w, err
 	}
 	for rows.Next() {
 		var p Partner
-		if err = rows.Scan(&p.ID, &p.Code, &p.Name, &p.Role, &p.Email, &p.Phone, &p.Active); err != nil {
+		if err = rows.Scan(&p.ID, &p.Code, &p.Name, &p.Role, &p.Email, &p.Phone, &p.Active, &p.HasReferences); err != nil {
 			rows.Close()
 			return w, err
 		}
@@ -155,12 +155,13 @@ func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Par
 	if len(partners) == 0 || len(partners) > 100 {
 		return nil, accounting.Fail("VALIDATION", "Mỗi lần ghi từ 1 đến 100 đối tượng.")
 	}
-	for _, p := range partners {
+	for index, p := range partners {
 		p.Code = strings.ToUpper(strings.TrimSpace(p.Code))
 		p.Name = strings.TrimSpace(p.Name)
 		if !accounting.ID(p.ID) || !accounting.ID(p.Code) || p.Name == "" || len(p.Name) > 300 || len(p.Email) > 254 || len(p.Phone) > 40 || !strings.Contains("|customer|supplier|both|", "|"+p.Role+"|") {
 			return nil, accounting.Fail("VALIDATION", "Thông tin đối tượng không hợp lệ.")
 		}
+		partners[index].HasReferences = false
 		var old Partner
 		err := tx.QueryRowContext(ctx, "SELECT code,name,role FROM partners WHERE id=?", p.ID).Scan(&old.Code, &old.Name, &old.Role)
 		if err != nil && err != sql.ErrNoRows {
@@ -171,7 +172,8 @@ func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Par
 			if err = tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM document_lines WHERE partner_id=?)+(SELECT count(*) FROM documents WHERE partner_id=?)", p.ID, p.ID).Scan(&count); err != nil {
 				return nil, err
 			}
-			if old.Code != p.Code || count > 0 && (old.Name != p.Name || old.Role != p.Role) {
+			partners[index].HasReferences = count > 0
+			if count > 0 && (old.Code != p.Code || old.Name != p.Name || old.Role != p.Role) {
 				return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã và thông tin đã được chứng từ tham chiếu.")
 			}
 		}
@@ -182,7 +184,7 @@ func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Par
 		if duplicate > 0 {
 			return nil, accounting.Fail("DUPLICATE_CODE", "Mã đối tượng bị trùng.")
 		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO partners VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,role=excluded.role,email=excluded.email,phone=excluded.phone,active=excluded.active", p.ID, p.Code, p.Name, p.Role, p.Email, p.Phone, p.Active); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO partners VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET code=excluded.code,name=excluded.name,role=excluded.role,email=excluded.email,phone=excluded.phone,active=excluded.active", p.ID, p.Code, p.Name, p.Role, p.Email, p.Phone, p.Active); err != nil {
 			return nil, err
 		}
 	}
@@ -197,6 +199,7 @@ func (s *Service) SaveAccountTx(ctx context.Context, tx *sql.Tx, a Account) (any
 	if !accounting.ID(a.ID) || !accounting.ID(a.Code) || strings.TrimSpace(a.Name) == "" || !strings.Contains("|cash|receivable|payable|revenue|expense|inventory|capital|asset|tax|liability|wip|", "|"+a.Group+"|") {
 		return nil, accounting.Fail("VALIDATION", "Thông tin tài khoản không hợp lệ.")
 	}
+	a.HasReferences = false
 	var old Account
 	err := tx.QueryRowContext(ctx, "SELECT code,name,account_group,requires_partner FROM accounts WHERE id=?", a.ID).Scan(&old.Code, &old.Name, &old.Group, &old.RequiresPartner)
 	if err != nil && err != sql.ErrNoRows {
@@ -207,7 +210,8 @@ func (s *Service) SaveAccountTx(ctx context.Context, tx *sql.Tx, a Account) (any
 		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM document_lines WHERE account_id=?", a.ID).Scan(&n); err != nil {
 			return nil, err
 		}
-		if old.Code != a.Code || n > 0 && (old.Name != a.Name || old.Group != a.Group || old.RequiresPartner != a.RequiresPartner) {
+		a.HasReferences = n > 0
+		if n > 0 && (old.Code != a.Code || old.Name != a.Name || old.Group != a.Group || old.RequiresPartner != a.RequiresPartner) {
 			return nil, accounting.Fail("HISTORY_LOCKED", "Không đổi tài khoản đã có lịch sử. Có thể ngừng sử dụng.")
 		}
 	}
@@ -237,7 +241,7 @@ func (s *Service) SaveAccountTx(ctx context.Context, tx *sql.Tx, a Account) (any
 			return nil, err
 		}
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,account_group=excluded.account_group,requires_partner=excluded.requires_partner,active=excluded.active", a.ID, a.Code, a.Name, a.Group, a.RequiresPartner, a.Active)
+	_, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET code=excluded.code,name=excluded.name,account_group=excluded.account_group,requires_partner=excluded.requires_partner,active=excluded.active", a.ID, a.Code, a.Name, a.Group, a.RequiresPartner, a.Active)
 	if err != nil {
 		return nil, err
 	}

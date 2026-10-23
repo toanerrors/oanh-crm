@@ -14,8 +14,8 @@ export interface Policy {
   pitBrackets: { upTo: string; rate: string }[];
   depreciationMethod: 'straight_line'; residualMethod: 'last_period';
 }
-export interface Item { id: string; code: string; name: string; unit: string; tracked: boolean; active: boolean; quantity?: string; value?: string; scale?: number }
-export interface Employee { id: string; code: string; name: string; baseSalary: string; insuranceBase: string; dependents: number; active: boolean }
+export interface Item { hasReferences?: boolean; id: string; code: string; name: string; unit: string; tracked: boolean; active: boolean; quantity?: string; value?: string; scale?: number }
+export interface Employee { hasReferences?: boolean; id: string; code: string; name: string; baseSalary: string; insuranceBase: string; dependents: number; active: boolean }
 export interface Asset { id: string; code: string; name: string; kind: 'fixed' | 'prepaid'; cost: string; residual: string; months: number; startPeriod: string; allocated?: string }
 export interface AutomationData { policies: Policy[]; items: Item[]; employees: Employee[]; assets: Asset[] }
 export interface VoucherInfo {
@@ -57,11 +57,11 @@ export const executeOperation = (input: OperationInput) => command<Calculation>(
 
 export const amountLabels: Record<string, string> = { discount: 'Chiết khấu', purchaseCost: 'Chi phí mua hàng', baseSalary: 'Lương cơ sở đã áp dụng', insuranceBase: 'Cơ sở bảo hiểm đã áp dụng', base: 'Giá trị trước thuế', tax: 'Thuế', total: 'Tổng thanh toán', cost: 'Giá vốn / nguyên giá', gross: 'Tổng thu nhập', net: 'Thực lĩnh', inputTax: 'VAT đầu vào được khấu trừ', taxable: 'Thu nhập tính thuế', employeeInsurance: 'BH người lao động', employerInsurance: 'BH doanh nghiệp', overtime: 'Làm thêm', amount: 'Giá trị ghi nhận', accumulated: 'Lũy kế', remaining: 'Còn lại', result: 'Kết quả kinh doanh', profitBeforeTax: 'Lợi nhuận trước thuế' };
 
-export interface BankAccount { id: string; number: string; bankName: string; accountId: string; active: boolean; opening?: string; receipts?: string; payments?: string; closing?: string }
+export interface BankAccount { hasReferences?: boolean; id: string; number: string; bankName: string; accountId: string; active: boolean; opening?: string; receipts?: string; payments?: string; closing?: string }
 export interface BankList { accounts: BankAccount[]; revision: number; epoch: string }
 export function banksOptions(period: string) { return queryOptions({ queryKey: [...workspaceKey(), 'bank-accounts', period], queryFn: ({ signal }) => api<BankList>(`/bank-accounts?period=${period}`, { signal }), staleTime: 0, retry: false }); }
 
-export interface Warehouse { id: string; code: string; name: string; active: boolean }
+export interface Warehouse { hasReferences?: boolean; id: string; code: string; name: string; active: boolean }
 export interface WarehouseList { warehouses: Warehouse[]; stock: { warehouseId: string; itemId: string; quantity: string; value: string; scale: number }[]; revision: number; epoch: string }
 export interface PurchaseCostSource { documentId: string; reference: string; date: string; line: number; description: string; accountId: string; amount: string; remaining: string }
 export function warehousesOptions() { return queryOptions({ queryKey: [...workspaceKey(), 'warehouses'], queryFn: ({ signal }) => api<WarehouseList>('/warehouses', { signal }), staleTime: 0, retry: false }); }

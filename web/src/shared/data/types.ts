@@ -28,6 +28,7 @@ export interface AccountingDocument {
 }
 
 export interface Partner {
+  hasReferences?: boolean;
   id: string;
   code: string;
   name: string;
@@ -38,6 +39,7 @@ export interface Partner {
 }
 
 export interface Account {
+  hasReferences?: boolean;
   parentId?: string;
   parentRevision?: number;
   active?: boolean;

@@ -125,8 +125,15 @@ func TestBankPaymentRollbackAndInputValidation(t *testing.T) {
 	if err := sqlite.Check(ctx, f.store.Read); err != nil {
 		t.Fatal(err)
 	}
-	bank.BankName = "Đổi lịch sử"
-	if _, err := f.ops.SaveBank(ctx, f.cmd("rename-bank"), bank); accounting.Code(err) != "HISTORY_LOCKED" {
+	bank.BankName = "Tên ngân hàng đã hiệu chỉnh"
+	if _, err := f.ops.SaveBank(ctx, f.cmd("rename-bank"), bank); err != nil {
+		t.Fatal(err)
+	}
+	var snapshotName string
+	if err := f.store.Read.QueryRow("SELECT json_extract(payload,'$.voucher.bankName') FROM operations WHERE document_id=?", result.Document.ID).Scan(&snapshotName); err != nil || snapshotName != "Ngân hàng giả lập" {
+		t.Fatal("bank snapshot changed", snapshotName, err)
+	}
+	if err := sqlite.Check(ctx, f.store.Read); err != nil {
 		t.Fatal(err)
 	}
 }

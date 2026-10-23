@@ -26,6 +26,7 @@ type Document struct {
 	Lines       []Line `json:"lines"`
 }
 type Account struct {
+	HasReferences   bool    `json:"hasReferences,omitempty"`
 	ParentID        *string `json:"parentId,omitempty"`
 	ParentRevision  int64   `json:"parentRevision,omitempty"`
 	ID              string  `json:"id"`
@@ -36,13 +37,14 @@ type Account struct {
 	Active          bool    `json:"active"`
 }
 type Partner struct {
-	ID     string `json:"id"`
-	Code   string `json:"code"`
-	Name   string `json:"name"`
-	Role   string `json:"role"`
-	Email  string `json:"email"`
-	Phone  string `json:"phone"`
-	Active bool   `json:"active"`
+	HasReferences bool   `json:"hasReferences,omitempty"`
+	ID            string `json:"id"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Role          string `json:"role"`
+	Email         string `json:"email"`
+	Phone         string `json:"phone"`
+	Active        bool   `json:"active"`
 }
 type Period struct {
 	Period string `json:"period"`

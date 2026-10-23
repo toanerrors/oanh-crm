@@ -10,10 +10,11 @@ import (
 )
 
 type Warehouse struct {
-	ID     string `json:"id"`
-	Code   string `json:"code"`
-	Name   string `json:"name"`
-	Active bool   `json:"active"`
+	HasReferences bool   `json:"hasReferences,omitempty"`
+	ID            string `json:"id"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Active        bool   `json:"active"`
 }
 type WarehouseStock struct {
 	WarehouseID string `json:"warehouseId"`
@@ -42,8 +43,12 @@ func (s *Service) saveWarehouseTx(ctx context.Context, tx *sql.Tx, w Warehouse) 
 	if e != nil && e != sql.ErrNoRows {
 		return nil, e
 	}
-	if e == nil && (old.Code != w.Code || old.Name != w.Name) {
-		return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã và tên kho đã tạo; có thể ngừng sử dụng.")
+	w.HasReferences, e = catalogHasReferences(ctx, tx, warehouseReferences, w.ID)
+	if e != nil {
+		return nil, e
+	}
+	if w.HasReferences && old.Code != w.Code {
+		return nil, accounting.Fail("HISTORY_LOCKED", "Kho đã có chứng từ hoặc số dư: giữ mã kho. Bạn vẫn sửa được tên và trạng thái sử dụng.")
 	}
 	var count int
 	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM warehouses WHERE code=? COLLATE NOCASE AND id<>?", w.Code, w.ID).Scan(&count); e != nil {
@@ -52,7 +57,7 @@ func (s *Service) saveWarehouseTx(ctx context.Context, tx *sql.Tx, w Warehouse) 
 	if count > 0 {
 		return nil, accounting.Fail("DUPLICATE_CODE", "Mã kho đã tồn tại.")
 	}
-	_, e = tx.ExecContext(ctx, "INSERT INTO warehouses VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET active=excluded.active", w.ID, w.Code, w.Name, w.Active)
+	_, e = tx.ExecContext(ctx, "INSERT INTO warehouses VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET code=excluded.code,name=excluded.name,active=excluded.active", w.ID, w.Code, w.Name, w.Active)
 	return w, e
 }
 func (s *Service) Warehouses(ctx context.Context) (WarehouseList, error) {
@@ -82,6 +87,13 @@ func (s *Service) Warehouses(ctx context.Context) (WarehouseList, error) {
 	rows.Close()
 	if e != nil {
 		return result, e
+	}
+	usage, e := readCatalogReferences(ctx, tx, warehouseReferences)
+	if e != nil {
+		return result, e
+	}
+	for index := range result.Warehouses {
+		result.Warehouses[index].HasReferences = usage[result.Warehouses[index].ID]
 	}
 	rows, e = tx.QueryContext(ctx, "SELECT w.warehouse_id,l.item_id,l.quantity,l.value,l.scale FROM stock_lots l JOIN stock_lot_warehouses w ON w.lot_id=l.id ORDER BY w.warehouse_id,l.item_id")
 	if e != nil {

@@ -238,3 +238,10 @@ Số nháp lệch đọc tất cả dòng nháp trong kỳ bằng số nguyên c
 Trong phạm vi hiện tại, hàng hóa tracked=true có nhập/xuất và chi tiết kho; dịch vụ tracked=false dùng cho mua/bán dịch vụ, không yêu cầu kho và không tạo stock movement. Một ID danh mục dùng cho cả hai chiều mua/bán. UI chọn đúng loại và server kiểm tra lại TradeMode; không suy loại từ mã hoặc tên.
 
 Đổi loại chỉ áp dụng cho mã chưa được dùng, kiểm tra cả chứng từ nháp, nghiệp vụ đã ghi, lô/biến động và tồn kho trong số dư/điều chỉnh đầu kỳ trong cùng transaction cập nhật. Không sửa đơn vị/mã hoặc đổi cách đọc lịch sử. Regression SQLite kiểm tra mua/bán cùng mã, dịch vụ không có kho, sai loại, khóa tham chiếu, retry, audit undo/redo, backup/stage/reopen và cạnh tranh đổi loại với ghi sổ; chỉ một phía được thành công.
+
+
+## 17. Sửa danh mục đã lưu
+
+Invariant: lưu danh mục không mặc định khóa sửa. Chưa có tham chiếu được sửa mã và thông tin, chống mã trùng; ID ổn định. Có tham chiếu thì giữ trường định danh/mapping: ngân hàng giữ số và tài khoản kế toán, kho giữ mã, hàng giữ mã/đơn vị/loại, nhân viên giữ mã, tài khoản giữ mã/nhóm/yêu cầu đối tượng/tên, đối tượng giữ mã/tên/vai trò. Các mô tả an toàn, liên hệ và trạng thái vẫn sửa được theo từng danh mục. Nhân viên sửa lương/cơ sở BH cho lần tính sau, không tính lại chứng từ đã ghi.
+
+Kiểm tra tham chiếu không giới hạn kỳ/trang và thực hiện lại trong transaction save; gồm nháp và chi tiết số dư/điều chỉnh đầu kỳ. Tên ngân hàng được lưu riêng trên chứng từ, không đồng bộ ngược khi đổi tên danh mục. Đối soát tiếp tục kiểm tra số tài khoản, mapping, biến động và sổ. Hoàn tác tạo audit mới và dùng lại validator, không bỏ qua tham chiếu đã xuất hiện sau thao tác cũ. Không sửa trực tiếp số liệu posted/confirmed hoặc xóa thật danh mục.

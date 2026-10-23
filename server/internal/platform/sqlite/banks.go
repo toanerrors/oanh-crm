@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"oanh.local/accounting/internal/accounting"
 )
@@ -191,11 +192,12 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 			if id == "" {
 				return nil
 			}
-			var a, num, nm string
-			if er := db.QueryRowContext(ctx, "SELECT account_id,number,bank_name FROM bank_accounts WHERE id=?", id).Scan(&a, &num, &nm); er != nil {
+			var a, num string
+			if er := db.QueryRowContext(ctx, "SELECT account_id,number FROM bank_accounts WHERE id=?", id).Scan(&a, &num); er != nil {
 				return er
 			}
-			if a != account || num != number || nm != name {
+			// Bank names are editable; the voucher retains its original name snapshot.
+			if a != account || num != number || strings.TrimSpace(name) == "" {
 				return fmt.Errorf("bank reference differs from source snapshot")
 			}
 			return nil
