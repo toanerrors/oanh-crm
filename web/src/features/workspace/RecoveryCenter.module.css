@@ -1,0 +1,31 @@
+.root { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
+.root > * { min-width: 0; }
+.summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.metric { padding: 14px; border: 1px solid #e0e7e3; border-radius: 8px; min-width: 0; background: #fafcfb; }
+.metric > span { display: block; color: #65736c; font-size: 12px; margin-bottom: 5px; }
+.metric strong { display: block; font-size: 17px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.metric small { display: block; color: #65736c; margin-top: 5px; }
+.schedule { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 14px; border: 1px solid #e0e7e3; border-radius: 8px; }
+.schedule h3 { margin: 0 0 4px; }
+.schedule p { margin: 0; color: #65736c; }
+.schedule small { color: #65736c; display: block; margin-top: 4px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.search { max-width: 400px; flex: 1 1 240px; }
+.muted { color: #65736c; font-size: 12px; }
+.record { max-width: 330px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.help { margin: 0; color: #65736c; font-size: 12px; }
+.wizard { display: grid; gap: 16px; padding: 8px 0; }
+.upload :global(.ant-upload-drag) { height: auto; }
+.upload :global(.ant-upload-btn) { padding: 28px 16px !important; }
+.upload p { margin: 8px 0 0; }
+.comparison { overflow-x: auto; }
+.comparison table { width: 100%; border-collapse: collapse; min-width: 520px; }
+.comparison th,.comparison td { padding: 10px; text-align: left; border-bottom: 1px solid #e6ece8; vertical-align: top; }
+.comparison th { background: #f4f8f5; font-size: 12px; }
+.previewTotal { display: flex; flex-wrap: wrap; gap: 20px; padding: 12px; background: #f4f8f5; border-radius: 6px; }
+.previewTotal span { display: block; color: #65736c; font-size: 12px; }
+.previewTotal strong { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.hash { word-break: break-all; font: 12px ui-monospace,monospace; }
+@media(max-width:760px) { .summary { grid-template-columns: repeat(2,minmax(0,1fr)); } .metric { padding: 10px; } .metric strong { font-size: 14px; } .schedule { align-items: flex-start; } .toolbar .actions { width: 100%; } .search { max-width: none; } }

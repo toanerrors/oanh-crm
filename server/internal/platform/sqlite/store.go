@@ -77,6 +77,7 @@ type Store struct {
 	Read, Write                  *sql.DB
 	Root, Dataset, SQLiteVersion string
 	Gate                         sync.RWMutex
+	backupMu, scheduleMu, jobMu  sync.Mutex
 	lock                         *os.File
 }
 type pointer struct {

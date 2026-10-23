@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"oanh.local/accounting/internal/accounting"
 	"oanh.local/accounting/internal/modules/identity"
@@ -114,6 +115,13 @@ func New(store *sqlite.Store, assets string, secure bool) *Server {
 	m.HandleFunc("GET /api/v1/users", s.users)
 	m.HandleFunc("POST /api/v1/users", s.saveUser)
 	m.HandleFunc("POST /api/v1/backup", s.backup)
+	m.HandleFunc("GET /api/v1/backups", s.backups)
+	m.HandleFunc("POST /api/v1/backups", s.createBackup)
+	m.HandleFunc("GET /api/v1/backups/{id}/download", s.downloadBackup)
+	m.HandleFunc("POST /api/v1/backups/{id}/verify", s.verifyBackup)
+	m.HandleFunc("POST /api/v1/backups/{id}/restore-preview", s.previewStoredBackup)
+	m.HandleFunc("POST /api/v1/backups/schedule", s.saveBackupSchedule)
+
 	m.HandleFunc("POST /api/v1/restore/stage", s.stageRestore)
 	m.HandleFunc("POST /api/v1/restore/activate", s.activateRestore)
 	m.HandleFunc("GET /api/v1/documents/{id}/attachments", s.attachments)
@@ -602,7 +610,8 @@ func (s *Server) backup(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 func (s *Server) stageRestore(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.user(w, r, true); !ok {
+	u, ok := s.user(w, r, true)
+	if !ok {
 		return
 	}
 	dir := filepath.Join(s.Store.Root, "uploads")
@@ -626,9 +635,9 @@ func (s *Server) stageRestore(w http.ResponseWriter, r *http.Request) {
 		s.failure(w, r, accounting.Fail("BAD_REQUEST", "Gói restore lỗi hoặc vượt 128 MB."))
 		return
 	}
-	staged, e := s.Store.Stage(r.Context(), f.Name())
+	staged, e := s.Store.PrepareRestore(r.Context(), f.Name(), u.ID)
 	if e != nil {
-		s.failure(w, r, accounting.Fail("INVALID_BACKUP", "Gói backup không đạt kiểm tra checksum, schema hoặc đối soát."))
+		s.failure(w, r, e)
 		return
 	}
 	s.respond(w, 200, staged)
@@ -639,8 +648,10 @@ func (s *Server) activateRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		StageID          string `json:"stageId"`
-		ConfirmCompanyID string `json:"confirmCompanyId"`
+		StageID                  string `json:"stageId"`
+		ConfirmCompanyID         string `json:"confirmCompanyId"`
+		Reason                   string `json:"reason"`
+		ConfirmSnapshotCompanyID string `json:"confirmSnapshotCompanyId"`
 	}
 	if !s.decode(w, r, &input) {
 		return
@@ -654,7 +665,16 @@ func (s *Server) activateRestore(w http.ResponseWriter, r *http.Request) {
 		s.failure(w, r, accounting.Fail("DATASET_CHANGED", "Xác nhận đúng doanh nghiệp và phiên dữ liệu đang dùng trước restore."))
 		return
 	}
-	m, e := s.Store.Activate(r.Context(), input.StageID, u.ID)
+	preview, e := s.Store.CheckRestoreApproval(r.Context(), input.StageID, u.ID)
+	if e != nil {
+		s.failure(w, r, e)
+		return
+	}
+	if utf8.RuneCountInString(input.Reason) > 500 || input.ConfirmSnapshotCompanyID != "" && input.ConfirmSnapshotCompanyID != preview.Manifest.CompanyID {
+		s.failure(w, r, accounting.Fail("VALIDATION", "Xác nhận đúng gói và ghi lý do khôi phục hợp lệ."))
+		return
+	}
+	m, e := s.Store.Activate(r.Context(), input.StageID, u.ID, strings.TrimSpace(input.Reason), u.Name)
 	if e != nil {
 		s.failure(w, r, e)
 		return

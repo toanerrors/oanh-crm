@@ -1,14 +1,14 @@
 # Backup, chuyển dữ liệu và restore SQLite
 
-Backup/restore thủ công đã triển khai qua Cài đặt và API. Mục 0 mô tả chức năng hiện tại; các mục sau là quy tắc và tiêu chí vận hành, gồm những kiểm thử chưa hoàn tất.
+Từ0.16.0 có trung tâm sao lưu thủ công/tự động, quản lý gói và khôi phục theo bước. Schema SQLite vẫn8, định dạng ZIP vẫn1; các trường manifest mới là tùy chọn khi đọc gói cũ. Các mục sau phân biệt chức năng đã kiểm tra với tiêu chí vận hành chưa nghiệm thu.
 
 ## 0. Runbook hiện có
 
-1. Đăng nhập bằng chủ sở hữu, mở **Cài đặt → Backup / khôi phục → Tạo và tải backup**. Server tạo snapshot bằng `VACUUM INTO`, fsync file, kiểm tra schema/checksum/integrity/FK/cân đối và khớp kho/tài sản với sổ; đóng ZIP và đọc kiểm tra lại trước khi trả file.
+1. Đăng nhập bằng chủ sở hữu, mở **Cài đặt → Sao lưu & khôi phục → Tạo bản sao**. Có ghi chú, snapshot bằng `VACUUM INTO`, fsync, kiểm schema/checksum/integrity/FK/đối soát và đọc lại ZIP trước khi công bố. Danh sách có tải lại, kiểm tra lại và SHA-256 gói. Tải ZIP từ nút ở từng bản; download kiểm checksum trước khi truyền. Gói cũ chưa có metadata được đánh dấu cần kiểm tra lại.
 2. Gói ZIP chứa `manifest.json`, `accounting.sqlite` và các blob `attachments/<sha256>` được snapshot tham chiếu. Lưu thêm bản sao trên thiết bị độc lập. Gói có dữ liệu lương, tài khoản và hash mật khẩu; giữ quyền truy cập tương đương dữ liệu nguồn. Chưa có mã hóa archive trong ứng dụng.
-3. Để chuyển máy, chạy cùng phiên bản ứng dụng trên máy đích, khởi tạo tài khoản chủ sở hữu và chọn **Kiểm tra gói khôi phục**. Upload tối đa 128 MiB, tổng giải nén tối đa 256 MiB; từ chối đường dẫn thoát thư mục, symlink, tên trùng, schema khác, thiếu/sai checksum hoặc đối soát không đạt.
-4. Rà soát tên doanh nghiệp, thời điểm snapshot, số chứng từ và tổng Nợ/Có. Chỉ bấm **Khôi phục từ gói đã kiểm tra** khi muốn thay dataset đang dùng. Server kiểm tra lại file staging, tạo backup hiện tại, chuẩn bị dataset mới và đổi epoch, thu hồi phiên, đóng toàn bộ connection cũ trước khi chuyển con trỏ.
-5. Sau khi thành công, đăng nhập bằng tài khoản có trong gói khôi phục. Tài khoản chỉ tồn tại ở máy đích trước restore không được chuyển vào gói. Kiểm tra sổ, kho, tài sản và file đính kèm. Client cũ bị từ chối bởi epoch hoặc phiên.
+3. Để chuyển máy, chạy cùng phiên bản ứng dụng trên máy đích, khởi tạo tài khoản chủ sở hữu và chọn **Khôi phục dữ liệu** để tải ZIP hoặc chọn khôi phục ngay trên một bản đã lưu. Upload tối đa 128 MiB, tổng giải nén tối đa 256 MiB; từ chối đường dẫn thoát thư mục, symlink, tên trùng, schema khác, thiếu/sai checksum hoặc đối soát không đạt.
+4. Bước đối chiếu hiển thị doanh nghiệp, thời điểm, chứng từ/nháp/đã ghi sổ, đính kèm và tổng Nợ/Có chính xác. Bước xác nhận cần lý do, đúng tên doanh nghiệp đang dùng và checkbox chấp nhận thay dữ liệu. Preview gắn người kiểm tra/epoch/revision, hiệu lực30phút; có thay đổi mới thì kiểm tra lại. Server kiểm lại staging, tự tạo gói trước restore, chuẩn bị dataset mới, đổi epoch, thu hồi phiên và đóng connection cũ trước khi đổi con trỏ. API activate cũ vẫn nhận payload cũ nhưng bắt buộc stage có approval hiện hành.
+5. Sau thành công, màn đăng nhập có trạng thái đã khôi phục; dùng tài khoản trong gói. Kiểm tra sổ/kho/tài sản/đính kèm và lịch sử khôi phục. Nhãn **Trước khôi phục** trong danh sách là đường quay lại dữ liệu trước chuyển đổi, cũng đi qua quy trình xem trước/xác nhận. Với gói công ty khác, tải bản sao hiện tại ra thiết bị độc lập trước khi chuyển; danh sách sau restore chỉ hiện gói của company mới. Client cũ bị từ chối bởi epoch hoặc phiên.
 
 Thư mục dữ liệu:
 
@@ -18,14 +18,31 @@ data/
 ├── application.lock
 ├── datasets/<id>/accounting.sqlite
 ├── datasets/<id>/attachments/<sha256>
-├── backups/<id>.zip
+├── backups/backup-<id>.zip + .zip.json
 ├── staging/<id>/...
+├── backup-settings/<company-hash>.json
+├── backup-jobs/<job-hash>.json
 └── recovery/<id>.json
 ```
 
 Khởi tạo mới chỉ công bố con trỏ sau khi database được tạo và kiểm tra. Khi con trỏ đã có nhưng DB bị thiếu/hỏng, ứng dụng dừng khởi động; không tạo database rỗng thay thế. Khôi phục giữ nguyên dataset cũ và ghi nhật ký chuẩn bị/kích hoạt/rollback ngoài dataset; nếu không mở được dataset mới thì thử quay lại con trỏ cũ. Giữ cả gói backup trước restore và thư mục dữ liệu cho đến khi đối soát hoàn tất.
 
-Đã kiểm tra bằng SQLite file tạm: backup có file đính kèm, restore đúng snapshot, dữ liệu sau snapshot không còn, epoch đổi, lệnh cũ bị chặn; archive traversal và staging bị sửa bị từ chối. E2E kiểm tra upload/xem trước/xác nhận/đăng nhập lại và không còn dữ liệu/cache sau snapshot. Chưa thử cắt điện/hết đĩa tại từng điểm chuyển, rollback do lỗi filesystem giữa các bước, restore drill định kỳ hoặc RPO/RTO trên máy mục tiêu. Chưa có lịch backup, retention và dọn file staging/blob mồ côi tự động; cần quản lý dung lượng vận hành.
+Đã kiểm tra bằng SQLite file tạm: backup có file đính kèm, restore đúng snapshot, dữ liệu sau snapshot không còn, epoch đổi, lệnh cũ bị chặn; archive traversal và staging bị sửa bị từ chối. E2E kiểm tra upload/xem trước/xác nhận/đăng nhập lại và không còn dữ liệu/cache sau snapshot. Chưa thử cắt điện/hết đĩa tại từng điểm chuyển, rollback do lỗi filesystem giữa các bước, restore drill định kỳ hoặc RPO/RTO trên máy mục tiêu. Có lịch23h và giữ mọi gói; preview có approval hết hạn được dọn theo phút, không xóa dataset hoặc ZIP. Chưa dọn staging cũ thiếu approval/blob mồ côi hoặc áp retention; cần theo dõi dung lượng ổ.
+
+## 0.1. Lịch tự động và trạng thái công việc
+
+- Owner bật lịch23:00 hằng ngày, múi giờ Asia/Ho_Chi_Minh; ứng dụng nhúng tzdata để chạy trong image scratch. Giữ mọi ZIP đã công bố. Không có thao tác xóa thật bản sao trong UI.
+- Cấu hình theo company, ghi version/người/thời điểm ở root. Không nằm trong ZIP kế toán; chuyển máy cần bật lịch trên máy mới. Restore cùng company tại máy hiện tại giữ cấu hình. Thay company không thừa hưởng lịch công ty cũ.
+- Khi chạy lại sau gián đoạn, lấy hạn gần nhất đã đến sau lúc bật; chỉ tạo snapshot hiện tại, không giả lập snapshot quá khứ. Job theo company+epoch+ngày, lưu running/completed/failed và gói đích. Khóa file đầu ra xác định giúp retry/restart không tạo thêm gói; đối chiếu gói đã công bố nếu việc ghi trạng thái hoàn tất bị gián đoạn.
+- Tối đa3lần thử/hạn, chờ tối thiểu5phút; hạn tiếp theo độc lập. Có cảnh báo thất bại, tạo thủ công vẫn dùng được. Worker giữ read Gate trong lúc tạo snapshot; restore dùng exclusive Gate nên không chuyển dataset dưới tác vụ cũ. Đoạn đổi pointer dùng context riêng30giây sau khi chuẩn bị, rollback mở lại dataset cũ bằng context riêng.
+- ZIP và metadata công bố bằng ghi file/rename/fsync; `.pending-*` không hiển thị trong danh sách. Metadata có SHA-256, actor ID/tên tại lúc tạo, nguồn thủ công/tự động/trước restore và ghi chú. Gói cũ không có sidecar vẫn đọc được; cần kiểm chứng trước tải/dùng.
+- Chưa có bản sao tự động sang ổ/máy/cloud độc lập, mã hóa hoặc cảnh báo ra email. Lịch trong ứng dụng không thay cho monitor dung lượng/uptime. Không tuyên bố RPO/RTO khi chưa đo trên tải và máy mục tiêu.
+
+## 0.2. Bằng chứng kiểm tra0.16.0
+
+Go test/race/vet trên operations/sqlite/httpserver: snapshot khi ghi sổ, số tiền trên2^53, tệp đính kèm, retry/diff payload, owner/company, checksum/đường dẫn, tên công ty giả mạo, source cũ, reopen, stale/expired preview, lỗi chuẩn bị muộn giữ dataset đang dùng, backup trước restore và phục hồi ngược. Lịch thử bằng clock giả lập qua nhiều ngày/restart,5lệnh đồng thời, giới hạn3retry và gián đoạn sau công bố ZIP. Không chạy restore trên production.
+
+Edge giả lập chạy trọn tạo/xác minh/chuẩn bị/xác nhận/đăng nhập lại:130→129chứng từ, bản trước restore130chứng từ, nháp sau snapshot không còn, nhật ký người/lý do và lịch vẫn có.390px không tràn. Chưa thử mất điện/hết đĩa ở từng điểm đổi pointer; E2E đã cập nhật và parse/list, chưa chạy tự động.
 
 ## 1. Giới hạn vận hành
 

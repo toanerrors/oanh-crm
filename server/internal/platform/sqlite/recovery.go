@@ -3,7 +3,9 @@ package sqlite
 import (
 	"archive/zip"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +14,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"oanh.local/accounting/internal/accounting"
 )
+
+var ApplicationVersion = "development"
 
 type File struct {
 	Path   string `json:"path"`
@@ -20,19 +27,24 @@ type File struct {
 	Size   int64  `json:"size"`
 }
 type Manifest struct {
-	Format        int    `json:"format"`
-	SchemaHash    string `json:"schemaHash"`
-	SQLiteVersion string `json:"sqliteVersion"`
-	CompanyID     string `json:"companyId"`
-	CompanyName   string `json:"companyName"`
-	Epoch         string `json:"epoch"`
-	Revision      int64  `json:"revision"`
-	CreatedAt     string `json:"createdAt"`
-	Documents     int    `json:"documents"`
-	Posted        int    `json:"posted"`
-	Debit         string `json:"debit"`
-	Credit        string `json:"credit"`
-	Files         []File `json:"files"`
+	ApplicationVersion string `json:"appVersion,omitempty"`
+	Format             int    `json:"format"`
+	SchemaVersion      int    `json:"schemaVersion,omitempty"`
+	Attachments        *int   `json:"attachments,omitempty"`
+	FirstDate          string `json:"firstDate,omitempty"`
+	LastDate           string `json:"lastDate,omitempty"`
+	SchemaHash         string `json:"schemaHash"`
+	SQLiteVersion      string `json:"sqliteVersion"`
+	CompanyID          string `json:"companyId"`
+	CompanyName        string `json:"companyName"`
+	Epoch              string `json:"epoch"`
+	Revision           int64  `json:"revision"`
+	CreatedAt          string `json:"createdAt"`
+	Documents          int    `json:"documents"`
+	Posted             int    `json:"posted"`
+	Debit              string `json:"debit"`
+	Credit             string `json:"credit"`
+	Files              []File `json:"files,omitempty"`
 }
 type Staged struct {
 	ID       string   `json:"id"`
@@ -40,20 +52,28 @@ type Staged struct {
 }
 
 func checksumFile(path string) (string, int64, error) {
-	b, e := os.ReadFile(path)
-	if e != nil {
-		return "", 0, e
+	f, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
 	}
-	return Hash(b), int64(len(b)), nil
+	defer f.Close()
+	h := sha256.New()
+	size, err := io.Copy(h, f)
+	if err != nil {
+		return "", 0, err
+	}
+	return hex.EncodeToString(h.Sum(nil)), size, nil
 }
 func reconcile(ctx context.Context, db *sql.DB) (Manifest, error) {
 	var m Manifest
 	m.Format = 1
+	m.ApplicationVersion = ApplicationVersion
 	var version int
 	if err := db.QueryRowContext(ctx, "SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil {
 		return m, err
 	}
 	m.SchemaHash = schemaHash(version)
+	m.SchemaVersion = version
 	m.Files = []File{}
 	if err := Check(ctx, db); err != nil {
 		return m, err
@@ -64,12 +84,17 @@ func reconcile(ctx context.Context, db *sql.DB) (Manifest, error) {
 	if err := db.QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&m.SQLiteVersion); err != nil {
 		return m, err
 	}
-	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM documents").Scan(&m.Documents); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT count(*),COALESCE(min(date),''),COALESCE(max(date),'') FROM documents").Scan(&m.Documents, &m.FirstDate, &m.LastDate); err != nil {
 		return m, err
 	}
 	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE status='posted'").Scan(&m.Posted); err != nil {
 		return m, err
 	}
+	var attachmentCount int
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM attachments").Scan(&attachmentCount); err != nil {
+		return m, err
+	}
+	m.Attachments = &attachmentCount
 	rows, err := db.QueryContext(ctx, "SELECT d.id,l.debit,l.credit FROM documents d JOIN document_lines l ON l.document_id=d.id WHERE d.status='posted' ORDER BY d.id,l.position")
 	if err != nil {
 		return m, err
@@ -107,6 +132,31 @@ func reconcile(ctx context.Context, db *sql.DB) (Manifest, error) {
 	return m, nil
 }
 func (s *Store) Backup(ctx context.Context) (string, Manifest, error) {
+	return s.BackupWithOptions(ctx, BackupOptions{})
+}
+func (s *Store) BackupWithOptions(ctx context.Context, options BackupOptions) (string, Manifest, error) {
+	s.backupMu.Lock()
+	defer s.backupMu.Unlock()
+	if options.ID != "" {
+		existing, e := backupPath(s.Root, options.ID)
+		if e != nil {
+			return "", Manifest{}, e
+		}
+		if _, e = os.Stat(existing); e == nil {
+			info, e := s.backupInfo(existing)
+			if e != nil {
+				return "", Manifest{}, e
+			}
+			if info.RequestHash != options.RequestHash {
+				return "", Manifest{}, accounting.Fail("IDEMPOTENCY_CONFLICT", "Khóa tạo bản sao đã dùng với nội dung khác.")
+			}
+			path, checked, e := s.ReadBackup(ctx, options.ID, info.Manifest.CompanyID, true)
+			return path, checked.Manifest, e
+		} else if !os.IsNotExist(e) {
+			return "", Manifest{}, e
+		}
+	}
+
 	var m Manifest
 	dir, err := os.MkdirTemp(s.Root, "backup-staging-")
 	if err != nil {
@@ -193,15 +243,20 @@ func (s *Store) Backup(ctx context.Context) (string, Manifest, error) {
 	if err = os.MkdirAll(backupDir, 0700); err != nil {
 		return "", m, err
 	}
-	dest := filepath.Join(backupDir, "backup-"+ID()+".zip")
-	output, err := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	id := options.ID
+	if id == "" {
+		id = ID()
+	}
+	dest := filepath.Join(backupDir, "backup-"+id+".zip")
+	pending := filepath.Join(backupDir, ".pending-"+ID()+".tmp")
+	output, err := os.OpenFile(pending, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return "", m, err
 	}
 	ok := false
 	defer func() {
 		if !ok {
-			os.Remove(dest)
+			os.Remove(pending)
 		}
 	}()
 	archive := zip.NewWriter(output)
@@ -237,11 +292,39 @@ func (s *Store) Backup(ctx context.Context) (string, Manifest, error) {
 	if err = SyncDir(backupDir); err != nil {
 		return "", m, err
 	}
-	stage, err := s.Stage(ctx, dest)
+	stat, e := os.Stat(pending)
+	if e != nil {
+		return "", m, e
+	}
+	if stat.Size() > 128<<20 {
+		return "", m, accounting.Fail("BACKUP_TOO_LARGE", "Gói vượt giới hạn128 MB. Liên hệ quản trị để sao lưu dữ liệu lớn.")
+	}
+	stage, err := s.Stage(ctx, pending)
 	if err != nil {
 		return "", m, err
 	}
 	os.RemoveAll(filepath.Join(s.Root, "staging", stage.ID))
+	hash, size, e = checksumFile(pending)
+	if e != nil {
+		return "", m, e
+	}
+	info := BackupInfo{ID: id, Filename: filepath.Base(dest), Size: size, SHA256: hash, VerifiedAt: Now(), Kind: options.Kind, ActorID: options.ActorID, ActorName: options.ActorName, Note: options.Note, RequestHash: options.RequestHash, ScheduledFor: options.ScheduledFor, Manifest: m}
+	if info.Kind == "" {
+		info.Kind = "manual"
+	}
+	metadata, e := json.Marshal(backupMetadata{BackupInfo: info, RequestHash: options.RequestHash})
+	if e != nil {
+		return "", m, e
+	}
+	if err = WriteFile(dest+".json", metadata); err != nil {
+		return "", m, err
+	}
+	if err = os.Rename(pending, dest); err != nil {
+		return "", m, err
+	}
+	if err = SyncDir(backupDir); err != nil {
+		return "", m, err
+	}
 	ok = true
 	return dest, m, nil
 }
@@ -277,6 +360,9 @@ func (s *Store) Stage(ctx context.Context, archivePath string) (Staged, error) {
 	var total uint64
 	for _, f := range archive.File {
 		name := f.Name
+		if f.UncompressedSize64 > (256<<20)-total {
+			return staged, fmt.Errorf("backup exceeds extraction limit")
+		}
 		total += f.UncompressedSize64
 		if total > 256<<20 || f.UncompressedSize64 > 128<<20 || f.Mode()&os.ModeSymlink != 0 || f.FileInfo().IsDir() || !filepath.IsLocal(name) || strings.Contains(name, "\\") || seen[name] || name != "manifest.json" && name != "accounting.sqlite" && !(strings.HasPrefix(name, "attachments/") && len(strings.TrimPrefix(name, "attachments/")) == 64 && !strings.Contains(strings.TrimPrefix(name, "attachments/"), "/")) {
 			return staged, fmt.Errorf("invalid backup entry")
@@ -325,7 +411,7 @@ func (s *Store) Stage(ctx context.Context, archivePath string) (Staged, error) {
 		return staged, err
 	}
 	actual, err := reconcile(ctx, db)
-	if err == nil && (actual.SchemaHash != m.SchemaHash || actual.CompanyID != m.CompanyID || actual.Epoch != m.Epoch || actual.Revision != m.Revision || actual.Documents != m.Documents || actual.Posted != m.Posted || actual.Debit != m.Debit || actual.Credit != m.Credit) {
+	if err == nil && (actual.SchemaHash != m.SchemaHash || actual.CompanyID != m.CompanyID || actual.CompanyName != m.CompanyName || actual.Epoch != m.Epoch || actual.Revision != m.Revision || actual.Documents != m.Documents || actual.Posted != m.Posted || actual.Debit != m.Debit || actual.Credit != m.Credit) {
 		err = fmt.Errorf("backup reconciliation mismatch")
 	}
 	if err == nil {
@@ -356,6 +442,10 @@ func (s *Store) Stage(ctx context.Context, archivePath string) (Staged, error) {
 	if err != nil {
 		return staged, err
 	}
+	staged.Manifest.SchemaVersion = actual.SchemaVersion
+	staged.Manifest.Attachments = actual.Attachments
+	staged.Manifest.FirstDate = actual.FirstDate
+	staged.Manifest.LastDate = actual.LastDate
 	ok = true
 	return staged, nil
 }
@@ -381,7 +471,15 @@ func (s *Store) Activate(ctx context.Context, stageID string, actors ...string) 
 			return m, fmt.Errorf("staging checksum mismatch")
 		}
 	}
-	backup, _, err := s.Backup(ctx)
+	actor := ""
+	if len(actors) > 0 {
+		actor = actors[0]
+	}
+	actorName := ""
+	if len(actors) > 2 {
+		actorName = actors[2]
+	}
+	backup, _, err := s.BackupWithOptions(ctx, BackupOptions{Kind: "before_restore", ActorID: actor, ActorName: actorName, Note: "Bản sao trước khi khôi phục dữ liệu"})
 	if err != nil {
 		return m, fmt.Errorf("pre-restore backup failed: %w", err)
 	}
@@ -434,11 +532,13 @@ func (s *Store) Activate(ctx context.Context, stageID string, actors ...string) 
 	if err != nil {
 		return m, err
 	}
-	actor := ""
-	if len(actors) > 0 {
-		actor = actors[0]
+	event := map[string]string{"phase": "prepared", "actorId": actor, "stageId": stageID, "previousDataset": filepath.Base(s.Dataset), "nextDataset": next, "preRestoreBackup": filepath.Base(backup), "startedAt": Now(), "snapshotEpoch": m.Epoch, "companyId": m.CompanyID, "companyName": m.CompanyName, "snapshotCreatedAt": m.CreatedAt}
+	if len(actors) > 1 {
+		event["reason"] = actors[1]
 	}
-	event := map[string]string{"phase": "prepared", "actorId": actor, "stageId": stageID, "previousDataset": filepath.Base(s.Dataset), "nextDataset": next, "preRestoreBackup": filepath.Base(backup), "startedAt": Now(), "snapshotEpoch": m.Epoch}
+	if len(actors) > 2 {
+		event["actorName"] = actors[2]
+	}
 	journal := filepath.Join(s.Root, "recovery", ID()+".json")
 	if err = os.MkdirAll(filepath.Dir(journal), 0700); err != nil {
 		return m, err
@@ -447,26 +547,41 @@ func (s *Store) Activate(ctx context.Context, stageID string, actors ...string) 
 	if err = WriteFile(journal, data); err != nil {
 		return m, err
 	}
+	if err = ctx.Err(); err != nil {
+		event["phase"] = "cancelled"
+		event["finishedAt"] = Now()
+		data, _ = json.Marshal(event)
+		if e := WriteFile(journal, data); e != nil {
+			slog.Error("cannot finalize cancelled restore journal")
+		}
+		return m, err
+	}
+	// Once connections close, finish the pointer switch even if the HTTP client disconnects.
+	activationCtx, cancelActivation := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancelActivation()
 	if err = s.Read.Close(); err != nil {
 		return m, err
 	}
 	if err = s.Write.Close(); err != nil {
-		s.openActive(ctx)
+		s.openActive(activationCtx)
 		return m, err
 	}
 	payload, _ := json.Marshal(pointer{Dataset: next})
 	if err = WriteFile(filepath.Join(s.Root, "active-dataset.json"), payload); err == nil {
-		err = s.openActive(ctx)
+		err = s.openActive(activationCtx)
 	}
 	if err != nil {
 		rollbackErr := WriteFile(filepath.Join(s.Root, "active-dataset.json"), previous)
 		if rollbackErr == nil {
-			rollbackErr = s.openActive(ctx)
+			rollbackCtx, cancelRollback := context.WithTimeout(context.Background(), 30*time.Second)
+			rollbackErr = s.openActive(rollbackCtx)
+			cancelRollback()
 		}
 		if rollbackErr != nil {
 			return m, fmt.Errorf("restore failed and rollback requires maintenance: %w", rollbackErr)
 		}
 		event["phase"] = "rolled_back"
+		event["finishedAt"] = Now()
 		data, _ = json.Marshal(event)
 		if e := WriteFile(journal, data); e != nil {
 			slog.Error("cannot finalize restore journal")

@@ -256,8 +256,6 @@
 .policyRow > :global(.ant-form-item) { flex: 1; }
 .policyRow > :global(.ant-btn) { flex-shrink: 0; }
 .jsonPreview { max-height: 480px; overflow: auto; font-size: 12px; line-height: 1.7; background: #f4f8f4; border-radius: 8px; padding: 16px; white-space: pre-wrap; }
-.recoveryActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 0; }
-.restorePreview { padding: 12px; border: 1px solid #ead9cc; background: #fffaf5; border-radius: 8px; }
 .tradeRow { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(3, minmax(100px, 1fr)) 32px; gap: 0 12px; align-items: start; padding: 12px 0 0; }
 .tradeRow > :global(.ant-form-item) { min-width: 0; }
 .tradeDeductible { grid-column: 1 / -2; }

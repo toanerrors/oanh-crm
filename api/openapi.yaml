@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oanh Accounting API
-  version: 0.15.1
+  version: 0.16.0
   description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
     key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
 servers:
@@ -1731,6 +1731,8 @@ paths:
               properties:
                 stageId: *id002
                 confirmCompanyId: *id002
+                reason: {type: string, maxLength: 500, description: Lý do do UI mới bắt buộc; client cũ có thể bỏ qua.}
+                confirmSnapshotCompanyId: {type: string}
               required:
               - stageId
               - confirmCompanyId
@@ -2154,6 +2156,96 @@ paths:
             text/html:
               schema: {type: string}
         default: {description: Lỗi có mã ổn định}
+
+
+  /backups:
+    get:
+      summary: Danh sách bản sao của doanh nghiệp, trạng thái lịch và lịch sử khôi phục; chỉ owner
+      parameters:
+      - {in: query, name: page, schema: {type: integer, minimum: 1}}
+      - {in: query, name: pageSize, schema: {type: integer, minimum: 1, maximum: 100}}
+      - {in: query, name: q, schema: {type: string, maxLength: 200}}
+      responses:
+        '200':
+          description: Danh sách phân trang; tổng và bản gần nhất không phụ thuộc từ khóa.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BackupOverview'}
+    post:
+      summary: Tạo và kiểm tra gói, lưu trên máy chủ; retry cùng key không tạo thêm gói
+      parameters:
+      - {in: header, name: X-Dataset-Epoch, required: true, schema: {type: string}}
+      - {in: header, name: Idempotency-Key, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: {type: string, maxLength: 300}
+      responses:
+        '200':
+          description: Chỉ trả gói đã kiểm chứng và công bố bằng rename.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BackupRecord'}
+  /backups/{id}/download:
+    get:
+      summary: Tải lại gói của doanh nghiệp; kiểm checksum trước khi truyền
+      parameters:
+      - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: ZIP; header X-Backup-SHA256 chứa checksum gói.
+          content:
+            application/zip:
+              schema: {type: string, format: binary}
+  /backups/{id}/verify:
+    post:
+      summary: Kiểm tra lại cấu trúc, checksum, SQLite và đối soát gói
+      parameters:
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-Dataset-Epoch, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Kết quả kiểm tra mới, không thay dữ liệu kế toán.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BackupRecord'}
+  /backups/{id}/restore-preview:
+    post:
+      summary: Chuẩn bị khôi phục từ bản sao đã lưu; không kích hoạt dataset
+      parameters:
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-Dataset-Epoch, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Xem trước gắn người dùng, epoch, revision và thời hạn30phút.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Staged'}
+  /backups/schedule:
+    post:
+      summary: Bật/tắt lịch23h Asia/Ho_Chi_Minh, giữ mọi gói; chỉ owner
+      parameters:
+      - {in: header, name: X-Dataset-Epoch, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, version]
+              properties:
+                enabled: {type: boolean}
+                version: {type: integer, minimum: 0}
+      responses:
+        '200':
+          description: Lịch lưu bền vững ngoài dataset; stale version bị từ chối.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BackupSchedule'}
 
 components:
   securitySchemes:
@@ -3008,6 +3100,11 @@ components:
     Manifest:
       type: object
       properties:
+        appVersion: {type: string}
+        schemaVersion: {type: integer}
+        attachments: {type: integer, minimum: 0}
+        firstDate: {type: string}
+        lastDate: {type: string}
         format: *id015
         schemaHash: *id002
         companyId: *id002
@@ -3037,6 +3134,8 @@ components:
     Staged:
       type: object
       properties:
+        current: {$ref: '#/components/schemas/RecoveryCurrent'}
+        expiresAt: {type: string, format: date-time}
         id: *id002
         manifest:
           $ref: '#/components/schemas/Manifest'
@@ -3684,3 +3783,54 @@ components:
       - configuration
       - expectedRevision
       - fingerprint
+
+    RecoveryCurrent:
+      type: object
+      required: [companyId, companyName, epoch, revision, documents, posted, attachments]
+      properties:
+        companyId: {type: string}
+        companyName: {type: string}
+        epoch: {type: string}
+        revision: {type: integer}
+        documents: {type: integer}
+        posted: {type: integer}
+        attachments: {type: integer}
+    BackupRecord:
+      type: object
+      properties:
+        id: {type: string}
+        filename: {type: string}
+        size: {type: integer}
+        sha256: {type: string}
+        verifiedAt: {type: string, format: date-time}
+        kind: {type: string, enum: [manual, scheduled, before_restore]}
+        actorId: {type: string}
+        actorName: {type: string}
+        note: {type: string}
+        scheduledFor: {type: string}
+        manifest: {$ref: '#/components/schemas/Manifest'}
+      required: [id, filename, size, kind, manifest]
+    BackupSchedule:
+      type: object
+      properties:
+        enabled: {type: boolean}
+        version: {type: integer}
+        time: {const: '23:00'}
+        timeZone: {const: Asia/Ho_Chi_Minh}
+        retention: {const: all}
+        updatedAt: {type: string}
+        updatedBy: {type: string}
+    BackupOverview:
+      type: object
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/BackupRecord'}}
+        total: {type: integer, description: Tổng tập lọc}
+        count: {type: integer, description: Toàn bộ gói của doanh nghiệp}
+        totalBytes: {type: integer}
+        unreadable: {type: integer}
+        latest: {oneOf: [{$ref: '#/components/schemas/BackupRecord'}, {type: 'null'}]}
+        current: {$ref: '#/components/schemas/RecoveryCurrent'}
+        schedule: {$ref: '#/components/schemas/BackupSchedule'}
+        nextScheduledAt: {type: string}
+        job: {type: object, properties: {status: {type: string}, message: {type: string}, attempts: {type: integer}, scheduledFor: {type: string}, finishedAt: {type: string}}}
+        recoveryEvents: {type: array, items: {type: object, properties: {id: {type: string}, phase: {type: string}, actorName: {type: string}, startedAt: {type: string}, finishedAt: {type: string}, snapshotCreatedAt: {type: string}, reason: {type: string}, preRestoreBackup: {type: string}}}}

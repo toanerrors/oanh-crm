@@ -293,3 +293,12 @@ saveItemTx cho sửa tracked chỉ khi chưa có tham chiếu ở operations/vou
 Sự tồn tại của ID không phải lý do khóa form. Catalog API trả hasReferences tùy chọn (mặc định false), đọc cùng snapshot và trên mọi kỳ. Ledger tra documents/document_lines; operations tra biến động, operations/voucher_inputs, opening_balances và opening_adjustments. Mọi save vẫn xác minh trong write transaction; cờ client không quyết định quyền sửa. Không thêm bảng hoặc nguồn dữ liệu cạnh tranh.
 
 Danh mục chưa dùng được sửa mã/thông tin qua các service hiện có, kiểm trùng và ghi audit/idempotency trong cùng commit. Danh mục đã dùng giữ các trường định danh/mapping ảnh hưởng lịch sử; tên ngân hàng/kho/hàng và các trường mô tả an toàn vẫn sửa được. Đối soát ngân hàng kiểm tra ID, số và mapping với chứng từ; tên ngân hàng của chứng từ là snapshot bất biến, có thể khác tên danh mục hiện tại. Undo/redo dùng cùng validator, không vượt kiểm tra tham chiếu mới phát sinh.
+
+
+### Trung tâm sao lưu/khôi phục0.16.0
+
+`platform/sqlite/recovery.go` giữ format ZIP1 và schema8, đọc được manifest cũ; công bố ZIP sau kiểm chứng bằng rename và sidecar metadata được fsync trước đó. `backup_catalog.go` quản lý danh sách/kiểm tra/tải lại theo company, scope actor/epoch/revision của preview, hạn30phút và nhật ký ngoài dataset. Các file dữ liệu/attachment giữ nguyên các validator hiện có. Không có quyền SQL restore tùy ý từ HTTP.
+
+`backup_schedule.go` lưu cấu hình theo company và job theo company/epoch/hạn trên root, giữ mọi gói. Vòng chạy trong tiến trình Go nối tường minh tại main, có context dừng và chờ trước khi đóng Store. Worker tôn trọng Gate với activate, checksum gói hoàn tất cho replay/restart, tối đa3retry cách5phút và chạy bù hạn gần nhất sau lúc bật. Không thêm broker/cron hệ thống/dependency hoặc bảng SQLite. Tzdata dùng thư viện chuẩn và được nhúng vào binary scratch. Cấu hình/job/nhật ký vận hành nằm ngoài ZIP kế toán và cần đi cùng bản cold backup toàn root khi chuyển máy vận hành.
+
+HTTP mới `/backups` cung cấp phân trang/tìm kiếm/tổng gói, create idempotent, download/verify/restore-preview và cấu hình lịch. API `/backup` cũ giữ download ZIP; `/restore/stage` thêm current/expiresAt, `/restore/activate` kiểm approval trong exclusive Gate trước khi chuyển. Lý do được UI mới bắt buộc và lưu vào recovery journal; client cũ có thể bỏ qua trường mới. RecoveryCenter dùng Query key theo đầy đủ workspace scope; khôi phục xóa cache và về đăng nhập, không optimistic update. Chỉ hiển thị một tab nội dung, các gói nhị phân không persist vào browser storage.

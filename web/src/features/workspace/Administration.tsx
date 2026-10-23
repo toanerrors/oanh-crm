@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AuditHistory } from './AuditHistory';
-import { Alert, App, Button, Checkbox, Descriptions, Form, Input, InputNumber, Modal, Select, Switch, Table, Tabs, Upload } from 'antd';
+import { RecoveryCenter } from './RecoveryCenter';
+import { Alert, App, Button, Checkbox, Descriptions, Form, Input, InputNumber, Modal, Select, Switch, Table, Tabs } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { api, apiScope, command } from '../../shared/api/client';
@@ -17,7 +18,6 @@ import { DateInput } from '../../shared/ui/DateInput';
 import styles from '../../app/App.module.css';
 
 interface User { id: string; username: string; name: string; role: string; active: boolean; password?: string }
-interface Staged { id: string; manifest: { companyName: string; companyId: string; createdAt: string; documents: number; posted: number; debit: string; credit: string } }
 
 export function Administration() {
   const { data, period } = useWorkspace();
@@ -30,8 +30,6 @@ export function Administration() {
   const setTab = (value: string) => setParams({ tab: value });
   const [policyOpen, setPolicyOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [staged, setStaged] = useState<Staged | null>(null);
-  const [busy, setBusy] = useState(false);
   const [form] = Form.useForm<Policy>();
   const [userForm] = Form.useForm<User>();
   const automation = useQuery({ ...automationOptions(), enabled: tab === 'policies' && scope.permissions !== 'viewer' });
@@ -47,39 +45,17 @@ export function Administration() {
     if (current) { const { id: _id, version: _version, ...values } = current; form.setFieldsValue({ ...values, effectiveFrom: '', confirmed: false }); }
     setPolicyOpen(true);
   }
-  async function backup() {
-    setBusy(true);
-    try {
-      const response = await fetch('/api/v1/backup', { method: 'POST', credentials: 'same-origin', headers: { 'X-Dataset-Epoch': scope.epoch } });
-      if (!response.ok) { const body = await response.json() as { message: string }; throw new Error(body.message); }
-      const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href = url; link.download = `backup-${period}.zip`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-      void message.success('Backup đã được kiểm tra checksum, cấu trúc và đối soát trước khi tải xuống.');
-    } catch (error) { void message.error((error as Error).message); } finally { setBusy(false); }
-  }
-  async function stage(file: File) {
-    setBusy(true);
-    try { const result = await api<Staged>('/restore/stage', { method: 'POST', body: file, headers: { 'Content-Type': 'application/zip' } }); setStaged(result); } catch (error) { void message.error((error as Error).message); } finally { setBusy(false); }
-    return Upload.LIST_IGNORE;
-  }
-  async function activate() {
-    if (!staged) return;
-    setBusy(true);
-    try {
-      await api('/restore/activate', { method: 'POST', body: JSON.stringify({ stageId: staged.id, confirmCompanyId: scope.companyId }), headers: { 'X-Dataset-Epoch': scope.epoch } });
-      client.clear(); window.location.reload();
-    } catch (error) { void message.error((error as Error).message); setBusy(false); }
-  }
 
   return <>
     <PageHeading title="Cài đặt doanh nghiệp" description="Quản lý chính sách theo kỳ hiệu lực, người dùng và khả năng khôi phục dữ liệu." />
     <section className={styles.panel}><Tabs activeKey={tab} onChange={setTab} className={styles.adminTabs} items={[
-      { key: 'policies', label: 'Chính sách nghiệp vụ' }, { key: 'periods', label: 'Kỳ kế toán' }, ...(owner ? [{ key: 'users', label: 'Người dùng' }, { key: 'recovery', label: 'Backup / khôi phục' }, { key: 'audit', label: 'Nhật ký thao tác' }] : []),
+      { key: 'policies', label: 'Chính sách nghiệp vụ' }, { key: 'periods', label: 'Kỳ kế toán' }, ...(owner ? [{ key: 'users', label: 'Người dùng' }, { key: 'recovery', label: 'Sao lưu & khôi phục' }, { key: 'audit', label: 'Nhật ký thao tác' }] : []),
     ]} />
     <div className={styles.adminContent}>
       {tab === 'policies' && scope.permissions === 'viewer' && <Alert type="info" title="Tài khoản chỉ xem không có quyền truy cập cấu hình và dữ liệu nhân sự." />}{tab === 'policies' && scope.permissions !== 'viewer' && <><div className={styles.inlineNotice}><Icon name="shield" size={18} />Phiên bản mới có ngày hiệu lực riêng. Thuế suất và thông số doanh nghiệp phải được xác nhận trước khi sử dụng; ứng dụng không tự áp mức từ workbook cũ.</div>{owner && <PageToolbar label="Công cụ chính sách" actions={<ToolbarButton type="primary" onClick={newPolicy} label="Thêm phiên bản chính sách" icon="plus" />} />}<Table rowKey="id" dataSource={automation.data?.policies ?? []} loading={automation.isPending} pagination={false} style={{ marginTop: 20 }} columns={[{ title: 'PHIÊN BẢN', dataIndex: 'version' }, { title: 'HIỆU LỰC TỪ', dataIndex: 'effectiveFrom' }, { title: 'VAT', dataIndex: 'vatMethod', render: value => value === 'deduction' ? 'Khấu trừ' : 'Trực tiếp' }, { title: 'GIÁ XUẤT KHO', dataIndex: 'inventoryMethod', render: value => value === 'fifo' ? 'FIFO' : 'Bình quân sau mỗi lần nhập' }, { title: 'XEM', render: (_, record) => <Button type="link" onClick={() => modal.info({ title: `Chính sách phiên bản ${record.version}`, width: 800, content: <div><Descriptions column={2} items={[{ key: 'regime', label: 'Chế độ kế toán', children: record.regime }, { key: 'from', label: 'Hiệu lực từ', children: record.effectiveFrom }, { key: 'vat', label: 'VAT', children: record.vatMethod === 'deduction' ? 'Khấu trừ' : 'Trực tiếp' }, { key: 'rates', label: 'Tỷ lệ VAT', children: record.vatRates.map(rate => `${rate}%`).join(' · ') }, { key: 'round', label: 'Làm tròn tiền', children: { half_up: 'Nửa đơn vị làm tròn lên', half_even: 'Nửa đơn vị về số chẵn', down: 'Bỏ phần lẻ' }[record.rounding] }, { key: 'stock', label: 'Giá xuất kho', children: record.inventoryMethod === 'fifo' ? 'FIFO' : 'Bình quân sau mỗi lần nhập' }, { key: 'quantity', label: 'Chữ số lẻ số lượng', children: record.quantityScale }, { key: 'days', label: 'Ngày công chuẩn', children: record.standardDays }, { key: 'hours', label: 'Giờ làm/ngày', children: record.hoursPerDay }, { key: 'cit', label: 'Thuế suất TNDN tạm tính', children: `${record.corporateTaxRate}%` }, { key: 'personal', label: 'Giảm trừ bản thân', children: formatMoney(record.personalDeduction) }, { key: 'dependent', label: 'Giảm trừ/người phụ thuộc', children: formatMoney(record.dependentDeduction) }]} /><h4>Bảo hiểm</h4><Table size="small" rowKey="name" dataSource={record.insurance} pagination={false} columns={[{ title: 'Khoản', dataIndex: 'name' }, { title: 'Người lao động (%)', dataIndex: 'employeeRate' }, { title: 'Doanh nghiệp (%)', dataIndex: 'employerRate' }]} /><h4>Biểu thuế TNCN tháng</h4><Table size="small" rowKey={(_, index) => String(index)} dataSource={record.pitBrackets} pagination={false} columns={[{ title: 'Đến thu nhập tính thuế (VND)', dataIndex: 'upTo', render: (value: string) => value ? formatMoney(value) : 'Không giới hạn' }, { title: 'Thuế suất (%)', dataIndex: 'rate' }]} /><p>Khấu hao/phân bổ: chia nguyên đến đồng theo số tháng; phần dư vào tháng cuối.</p></div> })}>Thông số</Button> }]} />{automation.error && <Alert type="error" title={automation.error.message} />}</>}
       {tab === 'periods' && <><div className={styles.tableToolbar}><span>Kỳ đang chọn: <strong>{period}</strong></span>{owner && <ToolbarButton type="primary" onClick={() => modal.confirm({ title: `Mở kỳ ${period}?`, content: 'Kỳ mở cho phép ghi sổ vào các ngày trong kỳ này.', okText: 'Mở kỳ', cancelText: 'Hủy', onOk: async () => { await command('/periods', { period, closed: false }); await client.invalidateQueries({ queryKey: workspaceKey() }); } })} label="Mở kỳ đang chọn" icon="calendar" />}</div><Table rowKey="period" dataSource={data?.periods ?? []} pagination={{ pageSize: 12 }} columns={[{ title: 'KỲ', dataIndex: 'period' }, { title: 'TRẠNG THÁI', dataIndex: 'closed', render: value => value ? 'Đã khóa' : 'Đang mở' }, { title: 'THAO TÁC', render: (_, record) => owner && <Button onClick={() => modal.confirm({ title: `${record.closed ? 'Mở lại' : 'Khóa'} kỳ ${record.period}?`, content: record.closed ? 'Mở lại kỳ và tạo chứng từ đảo liên kết cho lần kết chuyển trước. Cần kết chuyển lại sau khi hoàn tất điều chỉnh.' : 'Thao tác được kiểm tra quyền, đối soát và ghi nhật ký.', okText: 'Xác nhận', cancelText: 'Hủy', onOk: async () => { await command(record.closed ? '/periods/reopen' : '/periods', record.closed ? { period: record.period, reason: 'Mở lại kỳ để điều chỉnh theo yêu cầu chủ sở hữu' } : { period: record.period, closed: true }); await client.invalidateQueries({ queryKey: workspaceKey() }); } })}>{record.closed ? 'Mở lại kỳ' : 'Khóa kỳ'}</Button> }]} /></>}
       {tab === 'users' && <><PageToolbar label="Công cụ người dùng" actions={<ToolbarButton type="primary" onClick={() => { const next = { id: crypto.randomUUID(), username: '', name: '', role: 'accountant', active: true }; setUser(next); userForm.resetFields(); userForm.setFieldsValue(next); }} label="Thêm người dùng" icon="plus" />} /><Table rowKey="id" dataSource={users.data} loading={users.isPending} pagination={false} columns={[{ title: 'TÊN ĐĂNG NHẬP', dataIndex: 'username' }, { title: 'HỌ TÊN', dataIndex: 'name' }, { title: 'VAI TRÒ', dataIndex: 'role', render: value => ({ owner: 'Chủ sở hữu', accountant: 'Kế toán', viewer: 'Chỉ xem' })[value as 'owner'] }, { title: 'TRẠNG THÁI', dataIndex: 'active', render: value => value ? 'Hoạt động' : 'Ngừng sử dụng' }, { title: '', render: (_, record) => <Button onClick={() => { setUser(record); userForm.resetFields(); userForm.setFieldsValue({ ...record, password: '' }); }}>Sửa quyền / mật khẩu</Button> }]} /></>}
-      {tab === 'recovery' && <><Alert showIcon type="info" title="Gói backup gồm database, file đính kèm và manifest kiểm tra" description="Lưu thêm bản sao ở thiết bị khác. Restore tạo bản sao dữ liệu hiện tại, đổi phiên dữ liệu và yêu cầu đăng nhập lại." /><div className={styles.recoveryActions}><Button type="primary" loading={busy} onClick={() => void backup()} icon={<Icon name="download" size={17} />}>Tạo và tải backup</Button><Upload accept=".zip" showUploadList={false} beforeUpload={stage}><Button loading={busy}>Kiểm tra gói khôi phục</Button></Upload></div>{staged && <div className={styles.restorePreview}><Descriptions title="Kết quả kiểm tra gói" column={1} items={[{ key: 'company', label: 'Doanh nghiệp trong gói', children: staged.manifest.companyName }, { key: 'date', label: 'Thời điểm snapshot', children: staged.manifest.createdAt }, { key: 'count', label: 'Chứng từ / đã ghi sổ', children: `${staged.manifest.documents} / ${staged.manifest.posted}` }, { key: 'totals', label: 'Tổng Nợ / Có', children: `${formatMoney(staged.manifest.debit)} / ${formatMoney(staged.manifest.credit)}` }]} /><Button danger loading={busy} onClick={() => modal.confirm({ title: 'Khôi phục và thay dữ liệu đang dùng?', content: `Gói: ${staged.manifest.companyName}. Dữ liệu hiện tại được backup trước khi chuyển. Tất cả phiên truy cập sẽ bị thu hồi.`, okText: 'Khôi phục dữ liệu', cancelText: 'Hủy', okButtonProps: { danger: true }, onOk: activate })}>Khôi phục từ gói đã kiểm tra</Button></div>}</>}
+      {tab === 'recovery' && owner && <RecoveryCenter />}
       {tab === 'audit' && owner && <AuditHistory />}
     </div></section>
     <Modal title="Phiên bản chính sách mới" width={900} open={policyOpen} onCancel={() => setPolicyOpen(false)} footer={null}>

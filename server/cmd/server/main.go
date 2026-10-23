@@ -36,6 +36,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
+	schedulerCtx, cancelScheduler := context.WithCancel(ctx)
+	schedulerDone := make(chan struct{})
+	go func() { defer close(schedulerDone); db.RunBackupScheduler(schedulerCtx) }()
+	defer func() { cancelScheduler(); <-schedulerDone }()
+
 	root, err := filepath.Abs(*assets)
 	if err != nil {
 		slog.Error("invalid assets directory")
