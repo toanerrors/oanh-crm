@@ -158,6 +158,8 @@ Bài nhắc TT133/TT200; dự án không tự đổi chế độ kế toán theo
 
 ## 10. Nháp nghiệp vụ, chiết khấu, chi phí mua hàng và nhiều kho
 
+Tự tính tiền khi nhập mua/bán dùng snapshot chỉ đọc và cùng hàm tính từng dòng/chiết khấu với ghi sổ. Không yêu cầu đủ thông tin đối tượng/hóa đơn/ngân hàng, không tạo chứng từ, biến động, audit hoặc tăng revision. Kết quả không thay bước kiểm tra ghi sổ; frontend không hiển thị kết quả thuộc nội dung cũ khi đang chờ tính lại. VAT mua đủ điều kiện khấu trừ hiển thị 1331; trường hợp không đủ điều kiện giữ quy tắc tính vào giá trị hàng mua/chi phí hiện có.
+
 - Lưu/xem trước nháp không thay counters, operations, ngân hàng, tồn kho, tài sản hoặc trạng thái kỳ; nguồn nháp được giữ chống trùng. Version cũ bị từ chối; API nhập tay không bỏ qua service nghiệp vụ để post nháp phân hệ.
 - Chiết khấu theo từng dòng hoặc % hóa đơn lấy giá trị dòng đã làm tròn theo policy, kiểm tra 0–100%, không vượt giá trị dòng. Chiết khấu tổng phải được phân bổ đủ. Giá chưa VAT: trừ CK rồi tính VAT. Giá gồm VAT: trừ CK khỏi giá thanh toán rồi tách VAT. Tổng bằng tổng các dòng chốt; thu/chi ngay đúng số này trong cùng transaction.
 - Phân bổ đồng: phần nguyên của tỷ lệ chính xác, cấp số đồng dư theo phần lẻ giảm dần, cùng phần lẻ theo thứ tự dòng. Không epsilon, float hoặc ép TEXT qua SQL REAL. Chặn phương pháp phân bổ khiến CK một dòng vượt thành tiền; người lập chuyển sang tự nhập hoặc đổi tiêu thức.

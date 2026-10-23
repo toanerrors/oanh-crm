@@ -50,7 +50,7 @@ for (const kind of ['purchase', 'sale']) test(`TK công nợ sửa được và 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài khoản', async ({ page }) => {
+test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài khoản', async ({ page }, testInfo) => {
   await page.clock.setFixedTime(new Date('2026-12-03T03:00:00Z'));
   const credentials = { username: 'e2e-owner', password: 'Synthetic-test-only-2026' };
   const session = await (await page.request.get('/api/v1/session')).json();
@@ -66,7 +66,7 @@ test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài k
     expect(response.ok(), await response.text()).toBe(true);
   }
   await command('/periods', { period: '2026-12', closed: false });
-  await command('/policies', { regime: 'Chế độ kiểm thử', effectiveFrom: '2026-12-01', confirmed: true, rounding: 'half_up', vatMethod: 'deduction', vatRates: ['0', '10'], inventoryMethod: 'fifo', quantityScale: 2, standardDays: '26', hoursPerDay: '8', personalDeduction: '100', dependentDeduction: '50', corporateTaxRate: '20', insurance: [{ name: 'Khoản BH thử', employeeRate: '10', employerRate: '20' }], pitBrackets: [{ upTo: '1000', rate: '5' }, { upTo: '', rate: '10' }], depreciationMethod: 'straight_line', residualMethod: 'last_period' });
+  await command('/policies', { regime: 'Chế độ kiểm thử', effectiveFrom: '2026-12-01', confirmed: true, rounding: 'half_up', vatMethod: 'deduction', vatRates: ['0', '8', '10'], inventoryMethod: 'fifo', quantityScale: 2, standardDays: '26', hoursPerDay: '8', personalDeduction: '100', dependentDeduction: '50', corporateTaxRate: '20', insurance: [{ name: 'Khoản BH thử', employeeRate: '10', employerRate: '20' }], pitBrackets: [{ upTo: '1000', rate: '5' }, { upTo: '', rate: '10' }], depreciationMethod: 'straight_line', residualMethod: 'last_period' });
   await command('/partners', { partners: [{ id: 'account-supplier', code: 'NCC-TK', name: 'Nhà cung cấp thử tài khoản', role: 'supplier', active: true }] });
   await command('/items', { id: 'account-goods', code: 'HH-TK', name: 'Hàng mua dùng ngay', unit: 'cái', tracked: true, active: true });
   await command('/items', { id: 'account-service', code: 'DV-TK', name: 'Thuê nhà', unit: 'tháng', tracked: false, active: true });
@@ -102,10 +102,72 @@ test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài k
   await choose(page, 'Hàng dịch vụ dòng 1', 'DV-TK');
   await choose(page, 'Tài khoản dòng 1', '154');
   await expect(page.getByLabel('Kho dòng 1', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('3000000');
+  await choose(page, 'VAT dòng 1', '8');
+  await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
+  await expect(page.getByLabel('Thành tiền dòng 1', { exact: true })).toHaveText('3.000.000');
+  await expect(page.getByLabel('Tiền thuế GTGT dòng 1', { exact: true })).toHaveText('240.000');
+  await expect(page.locator('dl').filter({ hasText: 'Tổng tiền thanh toán' })).toContainText('3.240.000 VND');
+  await page.getByRole('tab', { name: 'Thuế / hóa đơn', exact: true }).click();
+  await expect(page.getByLabel('Tài khoản thuế GTGT dòng 1', { exact: true })).toHaveValue('1331');
+  await page.screenshot({ path: testInfo.outputPath('purchase-tax-desktop.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('purchase-tax-mobile.png') });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await choose(page, 'Khấu trừ VAT dòng 1', 'Không');
+  await expect(page.getByLabel('Tài khoản thuế GTGT dòng 1', { exact: true })).toHaveValue('');
+  await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
+  await expect(page.getByLabel('Tài khoản thuế GTGT dòng 1', { exact: true })).toHaveValue('1331');
+  await page.getByLabel('Số hóa đơn', { exact: true }).fill('15');
+  await expect(page.getByLabel('Tiền thuế GTGT dòng 1', { exact: true })).toHaveText('240.000');
+  await page.getByLabel('Số hóa đơn', { exact: true }).clear();
+  await page.getByRole('tab', { name: 'Hạch toán', exact: true }).click();
+  await expect(page.getByLabel('Đơn giá dòng 1', { exact: true })).toHaveValue('3000000');
+  await page.getByLabel('Số lượng dòng 1', { exact: true }).fill('2');
+  await expect(page.getByLabel('Thành tiền dòng 1', { exact: true })).toHaveText('6.000.000');
+  await expect(page.getByLabel('Tiền thuế GTGT dòng 1', { exact: true })).toHaveText('480.000');
+  await page.getByLabel('Số lượng dòng 1', { exact: true }).fill('1');
+  let releaseOld!: () => void;
+  let oldStarted!: () => void;
+  const oldGate = new Promise<void>(resolve => { releaseOld = resolve; });
+  const oldRequest = new Promise<void>(resolve => { oldStarted = resolve; });
+  await page.route('**/api/v1/operations/trade-amounts', async route => {
+    if (route.request().postDataJSON().lines[0].unitPrice !== '2000000') { await route.continue(); return; }
+    const response = await route.fetch();
+    oldStarted();
+    await oldGate;
+    await route.fulfill({ response }).catch(() => undefined);
+  });
+  try {
+    await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('2000000');
+    await oldRequest;
+    await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('4000000');
+    await expect(page.getByLabel('Thành tiền dòng 1', { exact: true })).not.toHaveText('2.000.000');
+    await expect(page.getByLabel('Thành tiền dòng 1', { exact: true })).toHaveText('4.000.000');
+  } finally { releaseOld(); }
+  await page.unrouteAll({ behavior: 'wait' });
+  await expect(page.getByLabel('Thành tiền dòng 1', { exact: true })).toHaveText('4.000.000');
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('3000000');
+  await choose(page, 'Loại chiết khấu', 'Theo % hóa đơn');
+  await page.getByLabel('Tỷ lệ chiết khấu hóa đơn', { exact: true }).fill('10');
+  await expect(page.getByLabel('Thành tiền dòng 1', { exact: true })).toHaveText('2.700.000');
+  await expect(page.getByLabel('Tiền thuế GTGT dòng 1', { exact: true })).toHaveText('216.000');
+  await choose(page, 'Loại chiết khấu', 'Không chiết khấu');
+  await choose(page, 'Đơn giá nhập', 'Đơn giá đã gồm VAT');
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('3240000');
+  await expect(page.getByLabel('Thành tiền dòng 1', { exact: true })).toHaveText('3.000.000');
+  await expect(page.getByLabel('Tiền thuế GTGT dòng 1', { exact: true })).toHaveText('240.000');
+  await choose(page, 'Đơn giá nhập', 'Đơn giá chưa gồm VAT');
+  await choose(page, 'VAT dòng 1', '0');
+  await page.getByLabel('Số lượng dòng 1', { exact: true }).fill('10');
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('900719925474099.3');
+  await expect(page.getByLabel('Thành tiền dòng 1', { exact: true })).toHaveText('9.007.199.254.740.993');
+  await page.getByLabel('Số lượng dòng 1', { exact: true }).fill('1');
   await choose(page, 'Mã nhà cung cấp', 'NCC-TK');
   await page.getByLabel('Diễn giải', { exact: true }).fill('Mua dịch vụ thanh toán ngay');
   await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('1000');
-  await choose(page, 'VAT dòng 1', '0');
+  await choose(page, 'VAT dòng 1', '8');
   await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
   await choose(page, 'Tài khoản công nợ dòng 1', '111');
   const serviceResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/voucher-drafts') && response.request().method() === 'POST');
@@ -127,8 +189,9 @@ test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài k
   await page.getByRole('dialog').last().getByRole('button', { name: 'Ghi sổ', exact: true }).click();
   await expect(page.getByText('Đã ghi sổ', { exact: true })).toBeVisible();
   const paid = await (await page.request.get(`/api/v1/documents/${service.document.id}/voucher`)).json();
-  expect(paid.calculation.paymentDocument.lines.find((line: { accountId: string }) => line.accountId === '111').credit).toBe('1000');
-  expect(paid.calculation.paymentDocument.lines.find((line: { accountId: string }) => line.accountId === '331').debit).toBe('1000');
+  expect(paid.document.lines.find((line: { accountId: string }) => line.accountId === '1331').debit).toBe('80');
+  expect(paid.calculation.paymentDocument.lines.find((line: { accountId: string }) => line.accountId === '111').credit).toBe('1080');
+  expect(paid.calculation.paymentDocument.lines.find((line: { accountId: string }) => line.accountId === '331').debit).toBe('1080');
   await page.getByRole('tab', { name: 'Hạch toán', exact: true }).click();
   await expect(page.getByLabel('Tài khoản công nợ dòng 1', { exact: true })).toBeDisabled();
 });

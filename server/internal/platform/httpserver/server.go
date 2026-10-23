@@ -103,6 +103,7 @@ func New(store *sqlite.Store, assets string, secure bool) *Server {
 	m.HandleFunc("POST /api/v1/items", s.item)
 	m.HandleFunc("POST /api/v1/employees", s.employee)
 	m.HandleFunc("POST /api/v1/operations/preview", s.preview)
+	m.HandleFunc("POST /api/v1/operations/trade-amounts", s.tradeAmounts)
 	m.HandleFunc("POST /api/v1/operations", s.execute)
 	m.HandleFunc("POST /api/v1/voucher-drafts", s.saveVoucher)
 	m.HandleFunc("GET /api/v1/documents/{id}/voucher", s.voucher)
@@ -494,6 +495,22 @@ func (s *Server) employee(w http.ResponseWriter, r *http.Request) {
 	}
 	b, e := s.Operations.SaveEmployee(r.Context(), s.command(r, u), input)
 	s.result(w, r, b, e)
+}
+func (s *Server) tradeAmounts(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, false)
+	if !ok {
+		return
+	}
+	var input operations.Input
+	if !s.decode(w, r, &input) {
+		return
+	}
+	v, e := s.Operations.TradeAmounts(r.Context(), u, r.Header.Get("X-Dataset-Epoch"), input)
+	if e != nil {
+		s.failure(w, r, e)
+		return
+	}
+	s.respond(w, 200, v)
 }
 func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.user(w, r, false)

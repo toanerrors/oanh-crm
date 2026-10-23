@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"slices"
 	"strings"
 
 	"oanh.local/accounting/internal/accounting"
@@ -82,54 +81,14 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 		if err != nil {
 			return err
 		}
-		qtyRat, _ := accounting.Decimal(line.Quantity)
-		price, err := accounting.Decimal(line.UnitPrice)
+		base, tax, gross, err := tradeLineAmounts(line, p, in.PriceMode, discounts[index])
 		if err != nil {
 			return err
 		}
-		if !slices.Contains(p.VATRates, line.VATRate) {
-			return accounting.Fail("INVALID_RATE", "Thuế suất không thuộc chính sách đang có hiệu lực.")
-		}
-		rate, _ := accounting.Decimal(line.VATRate)
-		rate.Quo(rate, accounting.Rat(100))
-		value := new(big.Rat).Mul(qtyRat, price)
-		beforeDiscount, e := accounting.Round(value, p.Rounding)
-		if e != nil {
-			return e
-		}
-		if discounts[index] > beforeDiscount {
-			return accounting.Fail("DISCOUNT_EXCEEDS_VALUE", "Chiết khấu không được vượt thành tiền của dòng.")
-		}
-		value = accounting.Rat(beforeDiscount - discounts[index])
 		if sumDiscount, err = accounting.Add(sumDiscount, discounts[index]); err != nil {
 			return err
 		}
 		if sumPurchaseCost, err = accounting.Add(sumPurchaseCost, costs[index]); err != nil {
-			return err
-		}
-		var base, tax, gross int64
-		if in.PriceMode == "inclusive" {
-			gross, err = accounting.Round(value, p.Rounding)
-			if err != nil {
-				return err
-			}
-			if p.VATMethod == "direct" {
-				tax, err = accounting.Percent(accounting.Rat(gross), line.VATRate, p.Rounding)
-				base = gross - tax
-			} else {
-				base, err = accounting.Round(new(big.Rat).Quo(accounting.Rat(gross), new(big.Rat).Add(accounting.Rat(1), rate)), p.Rounding)
-				tax = gross - base
-			}
-		} else {
-			base, err = accounting.Round(value, p.Rounding)
-			if err == nil {
-				tax, err = accounting.Percent(accounting.Rat(base), line.VATRate, p.Rounding)
-			}
-			if err == nil {
-				gross, err = accounting.Add(base, tax)
-			}
-		}
-		if err != nil {
 			return err
 		}
 		if sumBase, err = accounting.Add(sumBase, base); err != nil {

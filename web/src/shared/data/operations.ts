@@ -52,6 +52,7 @@ export interface TradeInvoice {
 export interface InvoiceList { invoices: TradeInvoice[]; total: number; amount: string; paid: string; remaining: string; revision: number }
 export interface Voucher { replacement?: AccountingDocument; reversal?: AccountingDocument; calculation?: Calculation; input: OperationInput; document: AccountingDocument }
 export interface Calculation { lineAmounts?: { base: string; tax: string; total: string; discount?: string; purchaseCost?: string; purchaseValue?: string }[]; paymentDocument?: AccountingDocument; policyId: string; policyVersion: number; revision: number; document: AccountingDocument; amounts: Record<string, string>; notes: string[] }
+export type TradeAmounts = Pick<Calculation, 'lineAmounts' | 'amounts' | 'policyId' | 'policyVersion' | 'revision'>;
 export function automationOptions() { return queryOptions({ queryKey: [...workspaceKey(), 'automation'], queryFn: ({ signal }) => api<AutomationData>('/automation', { signal }), staleTime: 0, retry: false }); }
 export const executeOperation = (input: OperationInput) => command<Calculation>('/operations', input);
 

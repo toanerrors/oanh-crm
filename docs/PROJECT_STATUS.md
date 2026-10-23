@@ -10,6 +10,12 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Tự tính tiền mua/bán và hiển thị thuế GTGT — 0.16.7
+
+- Tiền hàng sau chiết khấu, VAT và tổng thanh toán tự cập nhật khi nhập, đổi số lượng/giá/thuế/chiết khấu hoặc cách nhập giá. `POST /operations/trade-amounts` đọc snapshot, dùng chung công thức làm tròn và chiết khấu với ghi sổ; không cần điền xong đối tượng, hóa đơn hoặc ngân hàng, không tạo chứng từ hoặc thay revision.
+- Frontend debounce 250ms và hủy yêu cầu cũ, ẩn kết quả không khớp dữ liệu đang nhập. Giữ số tiền dạng chuỗi, không tính bằng number. Tự tính chỉ hỗ trợ nhập liệu; nút ghi sổ vẫn cần xem trước và kiểm tra đầy đủ. Tab thuế có chi tiết từng dòng, VAT đủ điều kiện khấu trừ tự vào 1331, không đủ điều kiện vào giá trị mua/chi phí theo quy tắc hiện có.
+- Validation: Go race/vet cho operations/httpserver đạt. Test Go mới đối chiếu tính nháp với ghi sổ cho VAT 8%, giá gồm/chưa VAT, chiết khấu, các cách làm tròn, VAT trực tiếp và tiền trên 2^53; kiểm tra không ghi dữ liệu/revision, quyền/epoch, tràn tiền và reopen. TypeScript/Vite, OpenAPI parse/refs và 3 E2E backend thật đạt, gồm đổi giá nhanh với phản hồi cũ trả muộn, giữ dữ liệu qua tab và bút toán 1331/phiếu chi liên kết. Đã xem ảnh desktop/mobile 390px. Không đổi schema hoặc dữ liệu đã ghi sổ.
+
 ## Sửa TK công nợ và đồng bộ thanh toán ngay — 0.16.6
 
 - Cột TK công nợ trên phiếu mua/bán đổi thành ô chọn tài khoản có tìm kiếm. Chưa thanh toán dùng 331/131; thanh toán ngay hiển thị tài khoản tiền đã chọn. Sửa tại dòng hoặc phần thanh toán đồng bộ toàn bộ dòng, kể cả dòng thêm mới; đổi tài khoản xóa ngân hàng cũ và kết quả xem trước.

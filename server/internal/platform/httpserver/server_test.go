@@ -62,6 +62,9 @@ func TestHTTPAuthenticationPermissionsAndContext(t *testing.T) {
 	if status, _ := call("GET", "/api/v1/trade-invoices?asOf=2026-10-21&kind=sale", nil, nil); status != 401 {
 		t.Fatal(status)
 	}
+	if status, _ := call("POST", "/api/v1/operations/trade-amounts", map[string]any{}, nil); status != 401 {
+		t.Fatal(status)
+	}
 	setup := identity.Setup{Username: "admin", Password: "Integration-test-2026", Name: "Quản trị thử", CompanyName: "Doanh nghiệp thử", Regime: "Chính sách thử", ConfirmAccounts: true}
 	if status, _ := call("POST", "/api/v1/setup", setup, map[string]string{"Origin": "https://untrusted.invalid"}); status != 403 {
 		t.Fatal(status)
@@ -128,6 +131,9 @@ func TestHTTPAuthenticationPermissionsAndContext(t *testing.T) {
 		t.Fatal(status)
 	}
 	if status, _ = call("GET", "/api/v1/automation", nil, nil); status != 403 {
+		t.Fatal(status)
+	}
+	if status, _ = call("POST", "/api/v1/operations/trade-amounts", map[string]any{}, nil); status != 403 {
 		t.Fatal(status)
 	}
 	if status, _ = call("POST", "/api/v1/periods", map[string]any{"period": "2026-11", "closed": false}, map[string]string{"X-Dataset-Epoch": session.Context.Epoch, "Idempotency-Key": "viewer-denied"}); status != 403 {

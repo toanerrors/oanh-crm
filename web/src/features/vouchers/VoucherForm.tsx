@@ -5,7 +5,7 @@ import { useBeforeUnload, useBlocker, useLocation, useNavigate, useParams, useSe
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { api, apiScope, command, isDemo } from '../../shared/api/client';
 import { automationOptions, banksOptions } from '../../shared/data/operations';
-import type { Calculation, InvoiceList, OperationInput, PurchaseCostSource, Voucher } from '../../shared/data/operations';
+import type { Calculation, InvoiceList, OperationInput, PurchaseCostSource, TradeAmounts, Voucher } from '../../shared/data/operations';
 import type { AccountingDocument } from '../../shared/data/types';
 import { workspaceKey } from '../../shared/data/workspace';
 import { businessToday, formatMoney, isMoney } from '../../shared/accounting/money';
@@ -16,6 +16,7 @@ import { BankSelect } from './BankAccounts';
 import { WarehouseSelect } from './Warehouses';
 import { ItemSelect } from './ItemSelect';
 import { DateInput } from '../../shared/ui/DateInput';
+import { useDebouncedValue } from '../../shared/ui/useDebouncedValue';
 import { voucherReturnPath } from '../documents/list-state';
 import { editorShortcut } from './editor-shortcut';
 import { voucherDraftKey, voucherKind } from './draft-state';
@@ -107,6 +108,13 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
   const closing = kind === 'closing';
   const bank = Boolean(bankAccount) || moneyAccount === '1121' || moneyAccount === '112' || Boolean(bankQuery.data?.accounts.some(item => item.accountId === moneyAccount));
   const policy = auto.data?.policies.find(item => item.effectiveFrom <= date);
+  const tradeFields = Form.useWatch(values => ({ date: values.date, priceMode: values.priceMode, discount: values.discount, lines: values.lines, purchaseCosts: values.purchaseCosts }), { form, preserve: true }) as Pick<OperationInput, 'date' | 'priceMode' | 'discount' | 'lines' | 'purchaseCosts'> | undefined;
+  const amountsBody = JSON.stringify({ kind, ...tradeFields });
+  const delayedAmountsBody = useDebouncedValue(amountsBody);
+  const completeTrade = Boolean(tradeFields?.date && tradeFields.lines?.length && tradeFields.lines.every(line => line.quantity && line.unitPrice && line.vatRate));
+  const tradeAmounts = useQuery({ queryKey: [...workspaceKey(), 'trade-amounts', delayedAmountsBody], queryFn: ({ signal }) => api<TradeAmounts>('/operations/trade-amounts', { method: 'POST', body: delayedAmountsBody, signal, headers: { 'X-Dataset-Epoch': apiScope().epoch } }), enabled: trade && !readonly && !preview && completeTrade && amountsBody === delayedAmountsBody, staleTime: 0, gcTime: 0, retry: false });
+  const tradeCalculation = preview?.result ?? (completeTrade && amountsBody === delayedAmountsBody ? tradeAmounts.data : undefined);
+  const calculatingAmounts = trade && !readonly && !preview && completeTrade && (amountsBody !== delayedAmountsBody || tradeAmounts.isFetching);
   const partner = data?.partners.find(item => item.id === partnerId);
   const title = trade && mode === 'service' ? `Chứng từ ${kind === 'sale' ? 'bán' : 'mua'} dịch vụ` : bank && !transfer ? `${kind === 'receipt' ? 'Thu' : 'Chi'} tiền gửi` : titles[kind];
   const invoicesParams = new URLSearchParams({ asOf: date, kind: kind === 'receipt' ? 'sale' : 'purchase', partner: partnerId ?? '', pageSize: '100' });
@@ -148,7 +156,7 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
   const descriptionOptions = suggestionOptions(data?.documents.map(item => item.description) ?? []);
   const currentRows = allocate ? allocations : treasuryRows;
   const localTotal = currentRows?.every(row => isMoney(row.amount)) ? currentRows.reduce((sum, row) => sum + BigInt(row.amount), 0n).toString() : undefined;
-  const total = preview?.result.amounts.total ?? preview?.result.amounts.result ?? (transfer ? transferAmount : !trade && !closing ? localTotal : undefined);
+  const total = tradeCalculation?.amounts.total ?? preview?.result.amounts.result ?? (transfer ? transferAmount : !trade && !closing ? localTotal : undefined);
 
   function input() {
     const value: OperationInput = structuredClone(form.getFieldsValue(true));
@@ -202,8 +210,18 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
     form.setFieldsValue({ paymentAccount: account, bankAccountId: undefined });
     changed();
   }
+  function taxAccount(index: number) {
+    const line = tradeFields?.lines?.[index];
+    if (kind === 'sale') return '33311';
+    const deduction = policy?.vatMethod === 'deduction' || readonly && initialCalculation?.document.lines.some(entry => entry.accountId === '1331');
+    return deduction && line?.deductible === true ? '1331' : '';
+  }
+  function lineAmount(index: number, field: 'base' | 'tax') {
+    const value = tradeCalculation?.lineAmounts?.[index]?.[field];
+    return value === undefined ? '—' : formatMoney(value);
+  }
   const totalsBox = <dl className={styles.sums}>
-    {trade && <><div><dt>Chiết khấu</dt><dd>{preview ? formatMoney(preview.result.amounts.discount ?? '0') : 'Chưa tính'}</dd></div>{kind === 'purchase' && mode === 'goods' && <div><dt>Chi phí mua hàng</dt><dd>{preview ? formatMoney(preview.result.amounts.purchaseCost ?? '0') : 'Chưa tính'}</dd></div>}<div><dt>{mode === 'service' ? 'Tổng tiền dịch vụ' : 'Tổng tiền hàng'}</dt><dd>{preview ? formatMoney(preview.result.amounts.base) : 'Chưa tính'}</dd></div><div><dt>Thuế GTGT</dt><dd>{preview ? formatMoney(preview.result.amounts.tax) : 'Chưa tính'}</dd></div></>}
+    {trade && <><div><dt>Chiết khấu</dt><dd>{tradeCalculation ? formatMoney(tradeCalculation.amounts.discount ?? '0') : 'Chưa tính'}</dd></div>{kind === 'purchase' && mode === 'goods' && <div><dt>Chi phí mua hàng</dt><dd>{tradeCalculation ? formatMoney(tradeCalculation.amounts.purchaseCost ?? '0') : 'Chưa tính'}</dd></div>}<div><dt>{mode === 'service' ? 'Tổng tiền dịch vụ' : 'Tổng tiền hàng'}</dt><dd>{tradeCalculation ? formatMoney(tradeCalculation.amounts.base) : 'Chưa tính'}</dd></div><div><dt>Thuế GTGT</dt><dd>{tradeCalculation ? formatMoney(tradeCalculation.amounts.tax) : 'Chưa tính'}</dd></div></>}
     <div><dt>{closing ? 'Kết quả kinh doanh' : 'Tổng tiền thanh toán'}</dt><dd>{total !== undefined ? formatMoney(total) : 'Chưa tính'} VND</dd></div>
   </dl>;
 
@@ -237,7 +255,7 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
             {trade && <><Form.Item name="dueDate" label="Hạn thanh toán"><DateInput /></Form.Item><Form.Item name={['voucher', 'contractNumber']} label="Số hợp đồng / đơn hàng"><Input maxLength={100} /></Form.Item></>}
           </div>
           <div className={styles.dates}><Form.Item name="date" label="Ngày hạch toán" rules={[{ required: true }]}><DateInput /></Form.Item><Form.Item name={['voucher', 'documentDate']} label="Ngày chứng từ" rules={[{ required: true }]}><DateInput /></Form.Item><Form.Item label="Số chứng từ"><Input readOnly value={saved?.reference ?? 'Tự cấp khi ghi sổ'} /></Form.Item></div>
-          <div className={styles.total}><span>{closing ? 'Kết quả kinh doanh' : 'Tổng tiền'}</span><strong>{total !== undefined ? formatMoney(total) : '—'}</strong><small>VND{!preview && trade ? ' · Chưa tính' : ''}</small></div>
+          <div className={styles.total}><span>{closing ? 'Kết quả kinh doanh' : 'Tổng tiền'}</span><strong>{total !== undefined ? formatMoney(total) : '—'}</strong><small>VND{calculatingAmounts ? ' · Đang tính…' : !preview && tradeCalculation ? ' · Tạm tính' : !preview && trade ? ' · Chưa đủ dữ liệu' : ''}</small></div>
         </div>
 
         {trade && <div className={styles.options}>
@@ -249,6 +267,7 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
         </div>}
         {closing && <Alert className={styles.info} showIcon type="warning" title="Kết chuyển doanh thu, chi phí qua 911 và kết quả sang 421; khóa kỳ khi thành công." description="Kiểm tra thuế và đối soát trước khi ghi sổ. Ngày hạch toán phải là ngày cuối kỳ; mở lại kỳ sẽ tạo chứng từ đảo kết chuyển." />}
         <section className={styles.panel}>
+          {trade && !preview && amountsBody === delayedAmountsBody && tradeAmounts.error && <Alert type="warning" showIcon title={tradeAmounts.error.message} />}
           <Tabs className={styles.tabs} activeKey={tab} onChange={setTab} items={[{ key: 'entries', label: trade && mode === 'goods' ? 'Hàng tiền' : 'Hạch toán' }, ...(trade ? [{ key: 'tax', label: 'Thuế / hóa đơn' }, ...(kind === 'purchase' && mode === 'goods' ? [{ key: 'costs', label: 'Chi phí mua hàng' }] : [])] : []), ...(preview ? [{ key: 'preview', label: 'Bút toán server tính' }] : [])]} />
           {tab === 'entries' && kind === 'purchase' && mode === 'goods' && <small>TK 156: nhập kho. TK chi phí hoặc dở dang: không nhập kho.</small>}
           {tab === 'entries' && trade && <Form.List name="lines" rules={[{ validator: async (_, rows: unknown[]) => { if (!rows?.length) throw new Error('Thêm ít nhất một dòng hàng.'); } }]}>{(fields, { add, remove }, { errors }) => <>
@@ -262,13 +281,13 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
               { title: 'Số lượng', width: 115, render: (_, field) => <Form.Item name={[field.name, 'quantity']} rules={[{ required: true }]}><Input aria-label={`Số lượng dòng ${field.name + 1}`} inputMode="decimal" /></Form.Item> },
               { title: 'Đơn giá', width: 150, render: (_, field) => <Form.Item name={[field.name, 'unitPrice']} rules={[{ required: true }]}><Input aria-label={`Đơn giá dòng ${field.name + 1}`} inputMode="decimal" /></Form.Item> },
               ...((discountMode === 'line' || discountMode === 'total' && discountAllocation === 'manual') ? [{ title: 'Tỷ lệ CK (%)', width: 115, render: (_: unknown, field: { name: number }) => <Form.Item name={[field.name, 'discountRate']}><Input aria-label={`Tỷ lệ chiết khấu dòng ${field.name + 1}`} inputMode="decimal" onChange={() => form.setFieldValue(['lines', field.name, 'discountAmount'], undefined)} /></Form.Item> }, { title: 'Tiền chiết khấu', width: 150, render: (_: unknown, field: { name: number }) => <Form.Item name={[field.name, 'discountAmount']}><MoneyInput label={`Tiền chiết khấu dòng ${field.name + 1}`} onChange={() => form.setFieldValue(['lines', field.name, 'discountRate'], undefined)} /></Form.Item> }] : []),
-              { title: 'Thành tiền sau CK', align: 'right', width: 150, render: (_, field) => preview?.result.lineAmounts?.[field.name] ? formatMoney(preview.result.lineAmounts[field.name].base) : '—' },
+              { title: 'Thành tiền sau CK', align: 'right', width: 150, render: (_, field) => <span aria-label={`Thành tiền dòng ${field.name + 1}`}>{lineAmount(field.name, 'base')}</span> },
               { title: '% Thuế GTGT', width: 115, render: (_, field) => <Form.Item name={[field.name, 'vatRate']} rules={[{ required: true }]}><Select aria-label={`VAT dòng ${field.name + 1}`} options={policy?.vatRates.map(value => ({ value, label: value }))} /></Form.Item> },
-              { title: 'Tiền thuế GTGT', align: 'right', width: 145, render: (_, field) => preview?.result.lineAmounts?.[field.name] ? formatMoney(preview.result.lineAmounts[field.name].tax) : '—' },
+              { title: 'Tiền thuế GTGT', align: 'right', width: 145, render: (_, field) => <span aria-label={`Tiền thuế GTGT dòng ${field.name + 1}`}>{lineAmount(field.name, 'tax')}</span> },
               ...(kind === 'purchase' && policy?.vatMethod === 'deduction' ? [{ title: 'Đủ điều kiện khấu trừ', width: 180, render: (_: unknown, field: { name: number }) => <Form.Item name={[field.name, 'deductible']} rules={[{ required: true }]}><Select aria-label={`Khấu trừ VAT dòng ${field.name + 1}`} options={[{ value: true, label: 'Có' }, { value: false, label: 'Không' }]} /></Form.Item> }] : []),
               { width: 44, render: (_, field) => !readonly && <Button type="text" danger icon={<Icon name="trash" size={16} />} aria-label={`Xóa dòng ${field.name + 1}`} onClick={() => { remove(field.name); setPreview(null); setDirty(true); }} /> },
             ]} />
-            <Form.ErrorList errors={errors} />{!readonly && <div className={styles.tableActions}><Button icon={<Icon name="plus" size={15} />} onClick={() => { add({ itemId: '', quantity: '1', unitPrice: '', vatRate: '', accountId: kind === 'sale' ? '511' : mode === 'service' ? '642' : '156' }); setPreview(null); setDirty(true); }}>Thêm dòng</Button><Button danger onClick={() => { form.setFieldValue('lines', []); setPreview(null); setDirty(true); }}>Xóa hết dòng</Button><Button onClick={() => setShowNotes(true)}>Thêm ghi chú</Button><small>Tổng số: {fields.length} · Tiền sẽ được server tính khi xem trước</small></div>}
+            <Form.ErrorList errors={errors} />{!readonly && <div className={styles.tableActions}><Button icon={<Icon name="plus" size={15} />} onClick={() => { add({ itemId: '', quantity: '1', unitPrice: '', vatRate: '', accountId: kind === 'sale' ? '511' : mode === 'service' ? '642' : '156' }); setPreview(null); setDirty(true); }}>Thêm dòng</Button><Button danger onClick={() => { form.setFieldValue('lines', []); setPreview(null); setDirty(true); }}>Xóa hết dòng</Button><Button onClick={() => setShowNotes(true)}>Thêm ghi chú</Button><small>Tổng số: {fields.length} · {calculatingAmounts ? 'Đang tính…' : 'Số tiền tạm tính'}</small></div>}
           </>}</Form.List>}
           {tab === 'entries' && !trade && !closing && !transfer && !allocate && <Form.List name="treasuryLines" rules={[{ validator: async (_, rows: unknown[]) => { if (!rows?.length) throw new Error('Thêm ít nhất một dòng thu/chi.'); } }]}>{(fields, { add, remove }, { errors }) => <>
             <Table rowKey="key" dataSource={fields} pagination={false} size="small" scroll={{ x: 1100 }} columns={[
@@ -299,7 +318,17 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
             <Form.List name="lines">{fields => <Table rowKey="key" dataSource={fields} pagination={false} columns={[{ title: 'Dòng hàng nhập kho', render: (_, field) => `${field.name + 1}. ${form.getFieldValue(['lines', field.name, 'description']) ?? ''}` }, { title: 'Chi phí phân bổ vào hàng', width: 220, render: (_, field) => costAllocation === 'manual' ? <Form.Item name={[field.name, 'purchaseCost']}><MoneyInput label={`Chi phí mua hàng dòng ${field.name + 1}`} /></Form.Item> : costAllocation === 'percent' ? <Form.Item name={[field.name, 'costPercent']} rules={[{ required: true }]}><Input aria-label={`Tỷ lệ phân bổ chi phí dòng ${field.name + 1}`} inputMode="decimal" /></Form.Item> : <span>{preview?.result.lineAmounts?.[field.name]?.purchaseCost ? formatMoney(preview.result.lineAmounts[field.name].purchaseCost!) : 'Tính khi xem trước'}</span> }]} />}</Form.List>
             <p className={styles.note}>Chỉ tổng thanh toán hàng hóa ghi vào công nợ chứng từ này. Chi phí nguồn có công nợ riêng; khoản phân bổ được chuyển từ tài khoản nguồn vào giá trị kho, không ghi nhận chi phí hoặc VAT lần hai.</p>
           </div>}
-          {tab === 'tax' && trade && <div className={styles.preview}><div className={styles.party}><Form.Item name="invoiceNumber" label="Số hóa đơn"><Input maxLength={100} /></Form.Item><Form.Item name="invoiceSeries" label="Ký hiệu hóa đơn"><Input maxLength={100} /></Form.Item><Form.Item name="invoiceDate" label="Ngày hóa đơn"><DateInput /></Form.Item><Form.Item name={['voucher', 'taxCode']} label="Mã số thuế"><Input maxLength={100} /></Form.Item><Form.Item name={['voucher', 'invoiceLookupCode']} label="Mã tra cứu HĐĐT"><Input maxLength={200} /></Form.Item><Form.Item name={['voucher', 'invoiceLookupUrl']} label="Đường dẫn tra cứu HĐĐT"><Input maxLength={1000} /></Form.Item></div><p className={styles.note}>Thông tin hóa đơn dùng để đối chiếu chứng từ. Thuế suất và điều kiện khấu trừ nhập tại từng dòng; server tính lại theo chính sách hiệu lực.</p></div>}
+          {tab === 'tax' && trade && <div className={styles.preview}>
+            <Form.List name="lines">{fields => <Table rowKey="key" dataSource={fields} pagination={false} size="small" scroll={{ x: 1000 }} columns={[
+              { title: '#', width: 42, render: (_, __, index) => index + 1 },
+              { title: mode === 'service' ? 'Mã dịch vụ' : 'Mã hàng', width: 130, render: (_, field) => auto.data?.items.find(item => item.id === tradeFields?.lines?.[field.name]?.itemId)?.code },
+              { title: 'Diễn giải thuế', width: 250, render: (_, field) => `Thuế GTGT · ${tradeFields?.lines?.[field.name]?.description ?? ''}` },
+              { title: '% Thuế GTGT', width: 115, render: (_, field) => <Form.Item name={[field.name, 'vatRate']} rules={[{ required: true }]}><Select aria-label={`VAT dòng ${field.name + 1}`} options={policy?.vatRates.map(value => ({ value, label: value }))} /></Form.Item> },
+              { title: 'Tiền thuế GTGT', align: 'right', width: 150, render: (_, field) => <span aria-label={`Tiền thuế GTGT dòng ${field.name + 1}`}>{lineAmount(field.name, 'tax')}</span> },
+              { title: 'TK thuế GTGT', width: 150, render: (_, field) => <Input aria-label={`Tài khoản thuế GTGT dòng ${field.name + 1}`} readOnly value={taxAccount(field.name)} placeholder={kind === 'purchase' && tradeFields?.lines?.[field.name]?.deductible === false ? 'Không khấu trừ' : '—'} /> },
+              ...(kind === 'purchase' && policy?.vatMethod === 'deduction' ? [{ title: 'Đủ điều kiện khấu trừ', width: 180, render: (_: unknown, field: { name: number }) => <Form.Item name={[field.name, 'deductible']} rules={[{ required: true }]}><Select aria-label={`Khấu trừ VAT dòng ${field.name + 1}`} options={[{ value: true, label: 'Có' }, { value: false, label: 'Không' }]} /></Form.Item> }] : []),
+            ]} />}</Form.List>
+            <div className={styles.party}><Form.Item name="invoiceNumber" label="Số hóa đơn"><Input maxLength={100} /></Form.Item><Form.Item name="invoiceSeries" label="Ký hiệu hóa đơn"><Input maxLength={100} /></Form.Item><Form.Item name="invoiceDate" label="Ngày hóa đơn"><DateInput /></Form.Item><Form.Item name={['voucher', 'taxCode']} label="Mã số thuế"><Input maxLength={100} /></Form.Item><Form.Item name={['voucher', 'invoiceLookupCode']} label="Mã tra cứu HĐĐT"><Input maxLength={200} /></Form.Item><Form.Item name={['voucher', 'invoiceLookupUrl']} label="Đường dẫn tra cứu HĐĐT"><Input maxLength={1000} /></Form.Item></div><p className={styles.note}>{kind === 'purchase' ? 'VAT đầu vào đủ điều kiện khấu trừ tự hạch toán vào 1331; VAT không được khấu trừ tính vào giá trị hàng mua hoặc chi phí.' : 'Thuế GTGT đầu ra tự hạch toán vào 33311.'} Số tiền được kiểm tra lại khi ghi sổ.</p></div>}
           {(tab === 'preview' || closing) && <div className={styles.preview}>{preview ? <><h2>Bút toán server tính · Chính sách v{preview.result.policyVersion}</h2><Table rowKey={(_, index) => String(index)} dataSource={preview.result.document.lines} pagination={false} scroll={{ x: 850 }} columns={[{ title: '#', width: 40, render: (_, __, index) => index + 1 }, { title: 'Diễn giải', dataIndex: 'description' }, { title: 'Tài khoản', dataIndex: 'accountId', width: 100 }, { title: 'Đối tượng', dataIndex: 'partnerId', width: 130 }, { title: 'Nợ', dataIndex: 'debit', align: 'right', width: 170, render: formatMoney }, { title: 'Có', dataIndex: 'credit', align: 'right', width: 170, render: formatMoney }]} />{preview.result.paymentDocument && <><h2>Phiếu {kind === 'sale' ? 'thu' : 'chi'} liên kết {readonly ? preview.result.paymentDocument.reference : 'sẽ được ghi cùng chứng từ'}</h2><Table rowKey={(_, index) => String(index)} dataSource={preview.result.paymentDocument.lines} pagination={false} scroll={{ x: 750 }} columns={[{ title: 'Tài khoản', dataIndex: 'accountId' }, { title: 'Diễn giải', dataIndex: 'description' }, { title: 'Nợ', dataIndex: 'debit', align: 'right', render: formatMoney }, { title: 'Có', dataIndex: 'credit', align: 'right', render: formatMoney }]} />{readonly && <Button onClick={() => navigate(`/vouchers/${preview.result.paymentDocument!.id}`)}>Mở phiếu {kind === 'sale' ? 'thu' : 'chi'} liên kết</Button>}</>}{preview.result.notes.map(note => <p className={styles.note} key={note}>{note}</p>)}</> : <p className={styles.note}>Chọn “Tính và xem trước” để lấy các dòng hạch toán từ server.</p>}</div>}
           <div className={styles.bottom}><div className={styles.extras}>{showNotes && <Form.Item name={['voucher', 'notes']} label="Ghi chú"><Input.TextArea rows={2} maxLength={5000} /></Form.Item>}<h3>Đính kèm <small>· Tối đa 10 MB/tệp</small></h3><Upload.Dragger disabled={!saved || pending || readonly} showUploadList={false} beforeUpload={async file => { if (!saved) return Upload.LIST_IGNORE; try { const body = new FormData(); body.append('file', file); await api(`/documents/${saved.id}/attachments`, { method: 'POST', body, headers: { 'X-Dataset-Epoch': apiScope().epoch, 'Idempotency-Key': crypto.randomUUID() } }); await client.invalidateQueries({ queryKey: [...workspaceKey(), 'attachments', saved.id] }); void message.success('Đã lưu tệp đính kèm.'); } catch (error) { void message.error((error as Error).message); } return Upload.LIST_IGNORE; }}><Icon name="download" size={22} /><p className="ant-upload-text">Chọn tệp hoặc kéo và thả tệp vào đây</p><small>{saved ? 'Tệp được lưu cùng chứng từ đã lưu' : 'Lưu nháp trước khi thêm tệp đính kèm'}</small></Upload.Dragger>{files.data?.map(file => <p key={file.id}><a href={`/api/v1/attachments/${file.id}`} download>{file.name}</a></p>)}</div>{totalsBox}</div>
         </section>
