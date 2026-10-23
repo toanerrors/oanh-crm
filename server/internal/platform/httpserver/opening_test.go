@@ -94,7 +94,14 @@ func TestOpeningHTTPPermissionsRetryAndVersion(t *testing.T) {
 	if status, b = call("POST", "/opening-balances", input, "save-again"); status != 200 {
 		t.Fatal(status, string(b))
 	}
-	if status, b = call("POST", "/opening-balances/confirm", ledger.Post{ID: input.ID, Version: 1}, "confirm"); status != 200 {
+	var recreated operations.OpeningState
+	if e = json.Unmarshal(b, &recreated); e != nil || recreated.Document == nil || recreated.Document.Version <= 1 {
+		t.Fatal("recreated draft reused version", e)
+	}
+	if status, _ = call("POST", "/opening-balances/confirm", ledger.Post{ID: input.ID, Version: 1}, "old-confirm"); status != 409 {
+		t.Fatal(status)
+	}
+	if status, b = call("POST", "/opening-balances/confirm", ledger.Post{ID: input.ID, Version: recreated.Document.Version}, "confirm"); status != 200 {
 		t.Fatal(status, string(b))
 	}
 	if status, _ := call("POST", "/opening-balances/discard", ledger.Post{ID: input.ID, Version: 2}, "discard-posted"); status != 409 {

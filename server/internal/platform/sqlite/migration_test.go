@@ -44,7 +44,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 	defer upgraded.Close()
 	var version int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 7 {
+	if version != 8 {
 		t.Fatal(version)
 	}
 	var name string
@@ -74,7 +74,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 		t.Fatal(after, err)
 	}
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 7 {
+	if version != 8 {
 		t.Fatal(version)
 	}
 	if err = Check(ctx, upgraded.Read); err != nil {
@@ -186,7 +186,7 @@ func TestOpeningMigrationFromVersionThree(t *testing.T) {
 	defer upgraded.Close()
 	var version, count int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 7 {
+	if version != 8 {
 		t.Fatal(version)
 	}
 	if err = upgraded.Read.QueryRow("SELECT count(*) FROM financial_reports WHERE id='report' AND version=1").Scan(&count); err != nil || count != 1 {
@@ -243,7 +243,7 @@ func TestExcelMigrationPreservesVersionFourAndReopens(t *testing.T) {
 	}
 	var version, revision int
 	var epoch string
-	if err = upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 7 {
+	if err = upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 8 {
 		t.Fatal(version, err)
 	}
 	if err = upgraded.Read.QueryRow("SELECT revision,epoch FROM meta").Scan(&revision, &epoch); err != nil || revision != 9 || epoch != "before-imports" || before != schemaHash(4) {
@@ -314,7 +314,7 @@ func TestAccountHierarchyMigrationFromFivePreservesIDsAndNames(t *testing.T) {
 	if err = store.Read.QueryRow("SELECT revision FROM meta").Scan(&revision); err != nil || revision != 9 {
 		t.Fatal(revision, err)
 	}
-	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 7 || before != schemaHash(5) {
+	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 8 || before != schemaHash(5) {
 		t.Fatal(version, err)
 	}
 	if err = Check(ctx, store.Read); err != nil {
@@ -366,11 +366,105 @@ func TestOpeningAdjustmentMigrationFromSixPreservesLedger(t *testing.T) {
 	if err = store.Read.QueryRow("SELECT revision FROM meta").Scan(&revision); err != nil || revision != 11 {
 		t.Fatal(revision, err)
 	}
-	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 7 || before != schemaHash(6) {
+	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 8 || before != schemaHash(6) {
 		t.Fatal(version, err)
 	}
 	if err = store.Read.QueryRow("SELECT CAST(debit AS TEXT),account_name FROM document_lines WHERE document_id='doc' AND position=0").Scan(&money, &name); err != nil || money != "9007199254740993" || name != "Tiền lịch sử" {
 		t.Fatal(money, name, err)
+	}
+	if err = Check(ctx, store.Read); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	reopened, err := Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if err = Check(ctx, reopened.Read); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAuditMigrationFromVersionSevenPreservesHistory(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dataset := filepath.Join(root, "datasets", "seven")
+	if err := os.MkdirAll(filepath.Join(dataset, "attachments"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := Connect(ctx, filepath.Join(dataset, "accounting.sqlite"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL) STRICT"); err != nil {
+		t.Fatal(err)
+	}
+	sources := []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema}
+	for i, source := range sources {
+		if _, err = db.Exec(source); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Exec("INSERT INTO schema_migrations VALUES(?,?)", i+1, migrationChecksum(i+1, source)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, query := range []string{
+		"INSERT INTO meta VALUES(1,'company','Migration audit','seven-epoch',42,'VND','test')",
+		"INSERT INTO users VALUES('owner','owner','Tên lịch sử','owner','test',1)",
+		"INSERT INTO accounts VALUES('111','111','Tiền lịch sử','cash',0,1)",
+		"INSERT INTO accounts VALUES('411','411','Vốn lịch sử','capital',0,1)",
+		"INSERT INTO periods VALUES('2026-10',0)",
+		"INSERT INTO documents(id,reference,type,date,description,status,version,source_type,source_id) VALUES('historical','CT-2026-000001','journal','2026-10-01','Số liệu lịch sử','draft',1,'journal','historical')",
+		"INSERT INTO document_lines VALUES('historical',0,'111',NULL,'','Tiền lịch sử','Thu',9007199254740993,0)",
+		"INSERT INTO document_lines VALUES('historical',1,'411',NULL,'','Vốn lịch sử','Vốn',0,9007199254740993)",
+		"UPDATE documents SET status='posted' WHERE id='historical'",
+		"INSERT INTO audit(actor_id,action,entity_id,occurred_at,revision) VALUES('owner','document.post','old-post','2026-10-01T00:00:00Z',42)",
+	} {
+		if _, err = db.Exec(query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = WriteFile(filepath.Join(root, "active-dataset.json"), []byte(`{"dataset":"seven"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var amount string
+	if err = store.Read.QueryRow("SELECT CAST(debit AS TEXT) FROM document_lines WHERE document_id='historical' AND position=0").Scan(&amount); err != nil || amount != "9007199254740993" {
+		t.Fatal(amount, err)
+	}
+	var count, revision int
+	if err = store.Read.QueryRow("SELECT revision FROM meta").Scan(&revision); err != nil || revision != 42 {
+		t.Fatal(revision, err)
+	}
+	if err = store.Read.QueryRow("SELECT count(*) FROM audit").Scan(&count); err != nil || count != 1 {
+		t.Fatal(count, err)
+	}
+	if err = store.Read.QueryRow("SELECT count(*) FROM audit_details").Scan(&count); err != nil || count != 0 {
+		t.Fatal("fabricated old snapshot", count, err)
+	}
+	for i, source := range sources {
+		var hash string
+		if err = store.Read.QueryRow("SELECT checksum FROM schema_migrations WHERE version=?", i+1).Scan(&hash); err != nil || hash != migrationChecksum(i+1, source) {
+			t.Fatal(i+1, err)
+		}
+	}
+	archive, _, err := store.Backup(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staged, err := store.Stage(ctx, archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = store.Activate(ctx, staged.ID); err != nil {
+		t.Fatal(err)
 	}
 	if err = Check(ctx, store.Read); err != nil {
 		t.Fatal(err)

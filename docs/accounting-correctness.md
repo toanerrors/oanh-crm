@@ -218,3 +218,11 @@ SQLite thật kiểm tra seed theo ID khác mã, bảo toàn tên, migration5→
 ## 18. Xuất số liệu đa định dạng (0.10.0)
 
 Invariant: xuất đọc toàn bộ tập lọc cùng snapshot với tổng; GET không ghi số liệu hoặc tăng revision. Revision/version cũ bị từ chối thay vì xuất dữ liệu khác bản đang xem. Mã luôn text; số nguyên tối đa15chữ số dùng int64, lớn hơn/decimal dùng text, không qua float; ô trống giữ trống. Formula injection không tạo công thức/link/macro trong XLSX; HTML dùng html/template và CSV giữ sanitizer. BCTC giữ trạng thái nháp/biểu mẫu/phiên bản nguồn/chỉ tiêu/thuyết minh theo bản lưu, không nhập lại các tổng từ client. Regression HTTP/SQLite và mở lại XLSX bao phủ2^53, int64,30chữ số, số âm/decimal/0/ô trống, phân trang, quyền, phiên bản và không đổi revision. Không thay quy tắc kế toán hoặc báo cáo pháp định.
+
+## Khôi phục thao tác qua nhật ký (0.12.0)
+
+Invariant: preview không thay revision/số liệu/audit; confirm lưu nghiệp vụ, audit trước/sau và idempotency trong một transaction. Thao tác thất bại không để lại snapshot/context. Sự kiện chỉ khôi phục nếu dữ liệu liên quan còn đúng trạng thái sau thao tác, chưa có thay đổi mới hơn và fingerprint/revision khớp. Giữ chính xác chuỗi tiền tới int64, kiểm tra lại tài khoản/đối tượng/kỳ/quyền bằng validator hiện có.
+
+Chứng từ đã ghi sổ và số dư đã xác nhận bất biến; khôi phục không gọi đường ghi sổ ngầm. Dùng điều chỉnh/đảo có liên kết để sửa số liệu đã xác nhận. Khôi phục nháp bị bỏ phải tăng version vượt mọi bản đã tồn tại; client trước khi bỏ bị từ chối. Khôi phục danh mục mới chuyển active=false, không xóa/reuse mã lịch sử. Audit chỉ giúp truy vết thay đổi đã commit, không chứng minh nghiệp vụ ban đầu đúng tài khoản hoặc kỳ.
+
+Regression bao gồm tiền lớn hơn 2^53, undo/redo, preview read-only, request gửi lại, lỗi ghi audit cuối transaction, hai người khôi phục đồng thời, client cũ, posted guard, owner/epoch, đầu kỳ/điều chỉnh nháp, BCTC và backup/restore. Nhật ký cơ bản thiếu snapshot không đủ bằng chứng khôi phục tự động.

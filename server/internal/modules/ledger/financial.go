@@ -267,39 +267,48 @@ func (s *Service) SaveFinancial(ctx context.Context, cmd Command, input Financia
 		return nil, err
 	}
 	return s.Write(ctx, cmd, "financial.save", input, func(tx *sql.Tx) (any, error) {
-		var old int
-		err := tx.QueryRowContext(ctx, "SELECT version FROM financial_reports WHERE id=?", input.ID).Scan(&old)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, err
-		}
-		if old != input.Version {
-			return nil, accounting.Fail("VERSION_CONFLICT", "BCTC đã thay đổi. Mở lại bản đã lưu trước khi sửa.")
-		}
-		var revision int64
-		var company string
-		if err = tx.QueryRowContext(ctx, "SELECT revision,company_name FROM meta").Scan(&revision, &company); err != nil {
-			return nil, err
-		}
-		if input.SourceRevision > revision {
-			return nil, accounting.Fail("VERSION_CONFLICT", "Phiên bản nguồn không hợp lệ.")
-		}
-		if input.SourceRevision == revision {
-			input.SourceRevision++
-		}
-		input.Version++
-		out, err := CalculateFinancial(input)
-		if err != nil {
-			return nil, err
-		}
-		out.CompanyName = company
-		out.UpdatedAt = sqlite.Now()
-		b, err := json.Marshal(input)
-		if err != nil {
-			return nil, err
-		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO financial_reports VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,from_date=excluded.from_date,to_date=excluded.to_date,updated_at=excluded.updated_at,actor_id=excluded.actor_id,data=excluded.data`, input.ID, input.Version, input.From, input.To, out.UpdatedAt, cmd.Actor, string(b))
-		return out, err
+		return s.SaveFinancialTx(ctx, tx, cmd.Actor, input)
 	})
+}
+func (s *Service) SaveFinancialTx(ctx context.Context, tx *sql.Tx, actor string, input FinancialInput) (any, error) {
+	var old int
+	err := tx.QueryRowContext(ctx, "SELECT version FROM financial_reports WHERE id=?", input.ID).Scan(&old)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if old != input.Version {
+		return nil, accounting.Fail("VERSION_CONFLICT", "BCTC đã thay đổi. Mở lại bản đã lưu trước khi sửa.")
+	}
+	var revision int64
+	var company string
+	if err = tx.QueryRowContext(ctx, "SELECT revision,company_name FROM meta").Scan(&revision, &company); err != nil {
+		return nil, err
+	}
+	if input.SourceRevision > revision {
+		return nil, accounting.Fail("VERSION_CONFLICT", "Phiên bản nguồn không hợp lệ.")
+	}
+	if input.SourceRevision == revision {
+		input.SourceRevision++
+	}
+	if old == 0 {
+		input.Version, err = sqlite.RecoveryVersion(ctx, tx, "financial_reports", input.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	input.Version++
+	out, err := CalculateFinancial(input)
+	if err != nil {
+		return nil, err
+	}
+	out.CompanyName = company
+	out.UpdatedAt = sqlite.Now()
+	b, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO financial_reports VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,from_date=excluded.from_date,to_date=excluded.to_date,updated_at=excluded.updated_at,actor_id=excluded.actor_id,data=excluded.data`, input.ID, input.Version, input.From, input.To, out.UpdatedAt, actor, string(b))
+	return out, err
 }
 func (s *Service) FinancialReports(ctx context.Context, year, id string) ([]FinancialReport, error) {
 	if id != "" && !accounting.ID(id) || id == "" && (!accounting.Period(year+"-01")) {

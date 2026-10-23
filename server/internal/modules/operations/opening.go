@@ -334,26 +334,29 @@ func (s *Service) PostOpening(ctx context.Context, cmd ledger.Command, in ledger
 
 func (s *Service) DiscardOpening(ctx context.Context, cmd ledger.Command, in ledger.Post) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "admin.opening.discard", in, func(tx *sql.Tx) (any, error) {
-		state, err := openingAt(ctx, tx)
-		if err != nil {
+		return s.discardOpeningTx(ctx, tx, in)
+	})
+}
+func (s *Service) discardOpeningTx(ctx context.Context, tx *sql.Tx, in ledger.Post) (any, error) {
+	state, err := openingAt(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	if state.Document == nil || state.Document.ID != in.ID {
+		return nil, accounting.Fail("NOT_FOUND", "Không tìm thấy nháp số dư.")
+	}
+	if state.Document.Status == "posted" {
+		return nil, accounting.Fail("OPENING_LOCKED", "Số dư đã xác nhận không được xóa.")
+	}
+	if state.Document.Version != in.Version {
+		return nil, accounting.Fail("VERSION_CONFLICT", "Bản nhập số dư đã thay đổi.")
+	}
+	for _, query := range []string{"DELETE FROM opening_balances WHERE document_id=?", "DELETE FROM document_lines WHERE document_id=?", "DELETE FROM documents WHERE id=?"} {
+		if _, err = tx.ExecContext(ctx, query, in.ID); err != nil {
 			return nil, err
 		}
-		if state.Document == nil || state.Document.ID != in.ID {
-			return nil, accounting.Fail("NOT_FOUND", "Không tìm thấy nháp số dư.")
-		}
-		if state.Document.Status == "posted" {
-			return nil, accounting.Fail("OPENING_LOCKED", "Số dư đã xác nhận không được xóa.")
-		}
-		if state.Document.Version != in.Version {
-			return nil, accounting.Fail("VERSION_CONFLICT", "Bản nhập số dư đã thay đổi.")
-		}
-		for _, query := range []string{"DELETE FROM opening_balances WHERE document_id=?", "DELETE FROM document_lines WHERE document_id=?", "DELETE FROM documents WHERE id=?"} {
-			if _, err = tx.ExecContext(ctx, query, in.ID); err != nil {
-				return nil, err
-			}
-		}
-		state, err = openingAt(ctx, tx)
-		state.Revision++
-		return state, err
-	})
+	}
+	state, err = openingAt(ctx, tx)
+	state.Revision++
+	return state, err
 }

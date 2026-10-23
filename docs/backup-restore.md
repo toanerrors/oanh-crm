@@ -127,3 +127,9 @@ Backup chứa toàn bộ `account_hierarchy`, phiên bản và view hiện hành
 Backup schema1–6 vẫn được kiểm tra theo schema/hash gốc, sau đó nâng trong staging. Schema7 kiểm chứng chuỗi phiên bản đầu kỳ, snapshot trước/sau, dòng đảo đúng gốc, dòng mới đúng snapshot, biến động kho của từng lần đổi, ngân hàng và tài sản hiệu lực cộng khấu hao. Kiểm tra bản gốc vẫn giữ metadata opening_assets ban đầu. Phiếu tiền thay thế phải có gốc cùng loại và chứng từ đảo cùng ngày, trước bản mới; mọi dữ liệu ghi trong một transaction.
 
 Không bỏ lịch sử điều chỉnh khi backup/restore; không lấy riêng view hoặc tài sản hiện hành để chuyển dữ liệu. Binary trước0.8.0 không đọc schema7. Cold backup trước nâng giữ cả active-dataset.json, datasets, attachments và được kiểm tra bằng verifier mới trước release. Restore tiếp tục đổi epoch, xóa cache và từ chối lệnh của dataset cũ.
+
+## Nhật ký và phục hồi nháp — schema8 (0.12.0)
+
+Snapshot gồm audit_details/audit_changes và audit_recovery_versions, không chỉ bản ghi hiện hành. Kiểm chứng thêm audit_context rỗng, số thay đổi khớp metadata, liên kết khôi phục về sự kiện trước với cùng loại nghiệp vụ và version bản phục hồi vượt tombstone. Backup/Stage hỗ trợ schema1–8, giữ hash và checksum1–7. Migration7→8 không tự tạo snapshot cho lịch sử cũ và không thay số liệu đã ghi sổ.
+
+Trước release dừng container, sao chép toàn bộ volume và kiểm chứng bản sao schema7. Binary trước0.12.0 không đọc schema8. Không hạ schema hoặc tự chép đè volume. Restore dữ liệu vẫn qua vùng staging, đối soát và đổi dataset_epoch; khôi phục một thao tác trong nhật ký là nghiệp vụ riêng, không thay dataset và không xóa lịch sử.

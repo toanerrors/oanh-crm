@@ -42,6 +42,10 @@ func (s *Service) Write(ctx context.Context, cmd Command, operation string, payl
 	if err != sql.ErrNoRows {
 		return nil, err
 	}
+	auditID, err := sqlite.BeginAudit(ctx, tx, cmd.Actor)
+	if err != nil {
+		return nil, err
+	}
 	value, err := apply(tx)
 	if err != nil {
 		return nil, err
@@ -53,7 +57,11 @@ func (s *Service) Write(ctx context.Context, cmd Command, operation string, payl
 	if _, err = tx.ExecContext(ctx, "UPDATE meta SET revision=revision+1 WHERE id=1"); err != nil {
 		return nil, err
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO audit(actor_id,action,entity_id,occurred_at,revision) SELECT ?,?,?,?,revision FROM meta", cmd.Actor, operation, cmd.Key, sqlite.Now()); err != nil {
+	metadata, err := auditMetadata(ctx, tx, auditID, operation)
+	if err != nil {
+		return nil, err
+	}
+	if err = sqlite.FinishAudit(ctx, tx, auditID, cmd.Actor, operation, cmd.Key, metadata); err != nil {
 		return nil, err
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO commands VALUES(?,?,?,?,?,?)", cmd.Actor, operation, cmd.Key, hash, string(b), sqlite.Now()); err != nil {
@@ -144,6 +152,12 @@ func (s *Service) saveTx(ctx context.Context, tx *sql.Tx, doc Document, historic
 	}
 	if (err == sql.ErrNoRows && doc.Version != 0) || (err == nil && version != doc.Version) {
 		return doc, accounting.Fail("VERSION_CONFLICT", "Nháp đã thay đổi. Tải lại và đối chiếu nội dung.")
+	}
+	if err == sql.ErrNoRows {
+		doc.Version, err = sqlite.RecoveryVersion(ctx, tx, "documents", doc.ID)
+		if err != nil {
+			return doc, err
+		}
 	}
 	var duplicate string
 	err = tx.QueryRowContext(ctx, "SELECT id FROM documents WHERE source_type=? AND source_id=? AND id<>?", doc.SourceType, doc.SourceID, doc.ID).Scan(&duplicate)

@@ -10,6 +10,14 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Nhật ký và khôi phục thao tác — 0.12.0
+
+- Có mã schema8, ảnh chụp trước/sau trong cùng transaction ghi, nhật ký bất biến/nhãn Việt/người thực hiện tại thời điểm ghi, lọc/phân trang máy chủ và chi tiết từng thay đổi. Mật khẩu/token không lưu vào ảnh chụp; chỉ đánh dấu sự kiện đổi mật khẩu. Nhật ký cơ bản trước nâng cấp/khởi tạo nền tảng không tự suy đoán dữ liệu cũ.
+- Có xem trước/xác nhận khôi phục dành cho owner, bắt buộc lý do/epoch/idempotency/revision/fingerprint, kiểm tra dữ liệu mới hơn và tái sử dụng validator nghiệp vụ. Nháp tạo phiên bản mới; bỏ/khôi phục lại nháp giữ lịch sử và sàn phiên bản chống ghi đè từ trình duyệt cũ. Danh mục vừa tạo được ngừng dùng; chứng từ/số dư đã ghi nhận, kỳ/chính sách, quyền/mật khẩu và nhập hàng loạt đi qua nghiệp vụ chuyên biệt.
+- Validation: Go test/race/vet ledger/operations/sqlite/httpserver và test identity đạt; gồm migration7→8 giữ nguyên số liệu/checksum cũ, backup/restore/reopen, exact tiền trên2^53, undo/redo nháp/voucher/đầu kỳ/điều chỉnh/BCTC/danh mục/quan hệ cha, lỗi cuối transaction, cạnh tranh, replay, quyền/epoch, bản xem trước thay đổi và posted guard.53test Node, TypeScript/Vite và OpenAPI parse đạt. Cập nhật và parse/list13test live; chưa chạy E2E tự động.
+- Edge trên dataset giả lập: tìm kiếm,240sự kiện, chi tiết số tiền trước/sau, lý do bắt buộc, xem trước/xác nhận khôi phục và liên kết về thao tác gốc hoạt động.390px không tràn toàn trang, bảng chi tiết cuộn riêng; console error rỗng. Không thử hoàn tác trên dữ liệu thật. Truy cập nhanh từ menu người dùng → Nhật ký thao tác.
+- Giới hạn: chỉ owner; chưa hoàn tác tự động chính sách/quyền/khóa kỳ/nhập hàng loạt và số liệu posted/confirmed. Lịch sử cũ thiếu snapshot không thể tự phục hồi. Nhật ký lưu các thay đổi nghiệp vụ đã commit, không ghi mọi lần xem/truy cập hoặc lần đăng nhập thất bại. Chưa đo tải lịch sử hàng triệu sự kiện.
+
 ## Giữ đăng nhập trên thiết bị — 0.11.0
 
 - Nguyên nhân yêu cầu đăng nhập lại: session DB và cookie đều có hạn cố định12giờ; không có refresh token. Form đăng nhập thêm “Giữ đăng nhập30ngày”, chọn sẵn và có thể bỏ chọn. API nhận remember=true cho30ngày; false/bỏ qua và API Login cũ vẫn12giờ. Không áp dụng tự động cho phiên cũ hoặc luồng khởi tạo doanh nghiệp.

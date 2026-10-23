@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oanh Accounting API
-  version: 0.11.0
+  version: 0.12.0
   description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
     key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
 servers:
@@ -1529,6 +1529,93 @@ paths:
                   password:
                     type: string
                     writeOnly: true
+  /audit/events:
+    get:
+      summary: Nhật ký có bộ lọc và phân trang phía server
+      description: 'Quyền owner. Ngày lọc theo Asia/Ho_Chi_Minh; metadata và danh sách đọc cùng snapshot. Không giới hạn ở 200 sự kiện.'
+      parameters:
+      - {in: query, name: q, schema: {type: string, maxLength: 200}}
+      - {in: query, name: actor, schema: {type: string}}
+      - {in: query, name: action, schema: {type: string}}
+      - {in: query, name: from, schema: {type: string, format: date}}
+      - {in: query, name: to, schema: {type: string, format: date}}
+      - {in: query, name: page, schema: {type: integer, minimum: 1, maximum: 1000000, default: 1}}
+      - {in: query, name: pageSize, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200':
+          description: Context, items, total, actors và actions; ID sự kiện là chuỗi.
+          content:
+            application/json:
+              schema: {type: object}
+        default:
+          description: Lỗi quyền hoặc bộ lọc.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /audit/detail:
+    get:
+      summary: Nội dung trước/sau và khả năng khôi phục
+      description: 'Quyền owner. Thay đổi được phân trang riêng. Nhật ký cơ bản không có snapshot và không được tự suy đoán để khôi phục.'
+      parameters:
+      - {in: query, name: id, required: true, schema: {type: string, pattern: '^[1-9][0-9]*$'}}
+      - {in: query, name: page, schema: {type: integer, minimum: 1, maximum: 1000000, default: 1}}
+      - {in: query, name: pageSize, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200':
+          description: Sự kiện, changes, changesTotal, targetExists, canRestore và restoreReason; snapshot giữ tiền dưới dạng chuỗi.
+          content:
+            application/json:
+              schema: {type: object}
+        default:
+          description: Lỗi quyền, ID hoặc phân trang.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /audit/restore/preview:
+    post:
+      summary: Kiểm tra và xem trước khôi phục; không commit
+      description: 'Quyền owner, yêu cầu X-Dataset-Epoch. Chạy đúng validator nghiệp vụ trong transaction rồi rollback; không tăng revision hoặc tạo nhật ký.'
+      parameters:
+      - {in: header, name: X-Dataset-Epoch, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuditRestoreInput'}
+      responses:
+        '200':
+          description: auditId, revision, fingerprint và changes thực tế nếu xác nhận.
+          content:
+            application/json:
+              schema: {type: object}
+        default:
+          description: Thiếu lý do, dữ liệu đã thay đổi hoặc nghiệp vụ không hỗ trợ.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /audit/restore:
+    post:
+      summary: Khôi phục qua nghiệp vụ và ghi nhật ký liên kết
+      description: 'Quyền owner. Bắt buộc expectedRevision và fingerprint từ preview cùng lý do. Kiểm tra lại quyền/epoch/trạng thái/phiên bản trong transaction; trả auditId và value sau commit. Không sửa chứng từ đã ghi sổ; dùng luồng đảo/điều chỉnh hiện có. Gửi lại cùng key và payload khi lỗi mạng chưa rõ kết quả.'
+      parameters:
+      - {in: header, name: X-Dataset-Epoch, required: true, schema: {type: string}}
+      - {in: header, name: Idempotency-Key, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuditRestoreInput'}
+      responses:
+        '200':
+          description: Đã commit; kết quả có auditId và value.
+          content:
+            application/json:
+              schema: {type: object}
+        default:
+          description: Lỗi quyền, epoch, phiên bản hoặc nghiệp vụ.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
   /audit:
     get:
       summary: 200 sự kiện gần nhất
@@ -2090,6 +2177,15 @@ components:
         $ref: '#/components/schemas/ID'
       description: Một khóa cho một ý định; cùng key khác payload bị 409.
   schemas:
+    AuditRestoreInput:
+      type: object
+      additionalProperties: false
+      required: [auditId, reason]
+      properties:
+        auditId: {type: string, pattern: '^[1-9][0-9]*$'}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        expectedRevision: {type: integer, minimum: 0}
+        fingerprint: {type: string}
     OpeningPost:
       type: object
       additionalProperties: false

@@ -496,3 +496,33 @@ test('menu xuất Excel, CSV và bản in giữ toàn bộ bộ lọc trong phâ
   await expect(page).toHaveURL(/\/sales$/);
   await print.close();
 });
+
+test('nhật ký dễ đọc, xem trước và khôi phục có liên kết', async ({ page }) => {
+  await login(page);
+  const session = await (await page.request.get('/api/v1/session')).json(); epoch = session.context.epoch;
+  const customer = { id: 'audit-e2e-customer', code: 'AUDITE2E', name: 'Khách hàng kiểm thử lịch sử', role: 'customer', email: 'before@example.invalid', phone: '', active: true };
+  await command(page.request, '/partners', { partners: [customer] });
+  await command(page.request, '/partners', { partners: [{ ...customer, email: 'after@example.invalid' }] });
+  const events = await (await page.request.get('/api/v1/audit/events?q=AUDITE2E')).json();
+  const event = events.items[0];
+  await page.goto('/settings?tab=audit');
+  await page.getByRole('textbox', { name: 'Tìm nhật ký thao tác', exact: true }).fill('AUDITE2E');
+  await expect(page.getByText('2 thao tác', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: `Xem chi tiết thao tác #${event.id}`, exact: true }).click();
+  await expect(page.getByText('before@example.invalid', { exact: true })).toBeVisible();
+  await expect(page.getByText('after@example.invalid', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Xem trước khôi phục', exact: true })).toBeDisabled();
+  await page.getByRole('textbox', { name: 'Lý do khôi phục', exact: true }).fill('Sửa nhầm email trong kiểm thử');
+  await page.getByRole('button', { name: 'Xem trước khôi phục', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Bản xem trước · Chưa áp dụng', exact: true })).toBeVisible();
+  const unchanged = await (await page.request.get(`/api/v1/audit/detail?id=${event.id}`)).json();
+  expect(unchanged.restoredBy).toBeUndefined();
+  await page.getByRole('button', { name: 'Xác nhận khôi phục', exact: true }).click();
+  await page.getByRole('dialog').filter({ hasText: 'Xác nhận khôi phục thao tác?' }).getByRole('button', { name: 'Xác nhận khôi phục', exact: true }).click();
+  await expect(page.getByRole('button', { name: `Thao tác gốc · #${event.id}`, exact: true })).toBeVisible();
+  const restored = await (await page.request.get(`/api/v1/audit/detail?id=${event.id}`)).json();
+  expect(restored.restoredBy).toBeTruthy();
+  const recovery = await (await page.request.get(`/api/v1/audit/detail?id=${restored.restoredBy}`)).json();
+  expect(recovery.restoredFrom).toBe(event.id);
+  expect(recovery.changes[0].after.email).toBe('before@example.invalid');
+});

@@ -60,7 +60,10 @@ func schemaHash(version int) string {
 	if version == 6 {
 		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema))
 	}
-	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema))
+	if version == 7 {
+		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema))
+	}
+	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema + auditSchema))
 }
 
 func migrationChecksum(version int, source string) string {
@@ -212,7 +215,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
 		return err
 	}
-	if maximum > 7 {
+	if maximum > 8 {
 		return fmt.Errorf("database schema is newer than this application")
 	}
 	if maximum > 0 {
@@ -220,7 +223,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema} {
+	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema, auditSchema} {
 		version := index + 1
 		if version <= maximum {
 			continue
@@ -264,6 +267,9 @@ func migrate(ctx context.Context, db *sql.DB) error {
 }
 func Check(ctx context.Context, db *sql.DB) error {
 	if err := verifySchema(ctx, db); err != nil {
+		return err
+	}
+	if err := verifyAudit(ctx, db); err != nil {
 		return err
 	}
 	if err := verifyAccountHierarchy(ctx, db); err != nil {

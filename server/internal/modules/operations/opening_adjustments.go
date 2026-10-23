@@ -96,65 +96,68 @@ func (s *Service) adjustmentDocument(ctx context.Context, tx *sql.Tx, state Open
 }
 func (s *Service) SaveOpeningAdjustment(ctx context.Context, cmd ledger.Command, in OpeningAdjustmentInput) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "admin.opening.adjustment.save", in, func(tx *sql.Tx) (any, error) {
-		state, err := openingAt(ctx, tx)
-		if err != nil {
-			return nil, err
-		}
-		if state.Document == nil || state.Document.Status != "posted" {
-			return nil, accounting.Fail("OPENING_REQUIRED", "Xác nhận số dư ban đầu trước khi lập điều chỉnh.")
-		}
-		if in.BaseVersion != state.BalanceVersion {
-			return nil, accounting.Fail("VERSION_CONFLICT", "Đã có phiên bản số dư mới. Mở lại để đối chiếu.")
-		}
-		if in.Input.Cutoff != state.Input.Cutoff {
-			return nil, accounting.Fail("VALIDATION", "Điều chỉnh giữ nguyên mốc chuyển đổi ban đầu.")
-		}
-		if strings.TrimSpace(in.Reason) == "" || utf8.RuneCountInString(in.Reason) > 1000 {
-			return nil, accounting.Fail("VALIDATION", "Nhập lý do điều chỉnh (tối đa 1000 ký tự).")
-		}
-		if state.Adjustment != nil && state.Adjustment.Input.ID != in.Input.ID {
-			return nil, accounting.Fail("VERSION_CONFLICT", "Đang có bản nháp điều chỉnh khác. Tiếp tục bản nháp đã lưu.")
-		}
-		if state.Adjustment == nil {
-			var count int
-			if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE id=?", in.Input.ID).Scan(&count); err != nil {
-				return nil, err
-			}
-			if count > 0 {
-				return nil, accounting.Fail("DUPLICATE_SOURCE", "Mã bản điều chỉnh thuộc chứng từ khác.")
-			}
-		}
-		if in.Input.Lines == nil {
-			in.Input.Lines = []OpeningLine{}
-		}
-		if in.Input.Stocks == nil {
-			in.Input.Stocks = []OpeningStock{}
-		}
-		if in.Input.Assets == nil {
-			in.Input.Assets = []Asset{}
-		}
-		doc, _, err := s.adjustmentDocument(ctx, tx, state, in.Input)
-		if err != nil {
-			return nil, err
-		}
-		doc, err = s.Ledger.SaveTx(ctx, tx, doc)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = tx.ExecContext(ctx, "UPDATE documents SET policy_id=? WHERE id=?", doc.PolicyID, doc.ID); err != nil {
-			return nil, err
-		}
-		in.Input.Version = doc.Version
-		before, _ := json.Marshal(state.Input)
-		after, _ := json.Marshal(in.Input)
-		_, err = tx.ExecContext(ctx, `INSERT INTO opening_adjustments(document_id,opening_document_id,before_document_id,base_version,reason,before_payload,after_payload,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(document_id) DO UPDATE SET reason=excluded.reason,after_payload=excluded.after_payload`, doc.ID, state.RootID, state.Document.ID, in.BaseVersion, in.Reason, string(before), string(after), cmd.Actor, sqlite.Now())
-		if err != nil {
-			return nil, err
-		}
-		state, err = openingAt(ctx, tx)
-		state.Revision++
-		return state, err
+		return s.saveOpeningAdjustmentTx(ctx, tx, cmd.Actor, in)
 	})
+}
+func (s *Service) saveOpeningAdjustmentTx(ctx context.Context, tx *sql.Tx, actor string, in OpeningAdjustmentInput) (any, error) {
+	state, err := openingAt(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	if state.Document == nil || state.Document.Status != "posted" {
+		return nil, accounting.Fail("OPENING_REQUIRED", "Xác nhận số dư ban đầu trước khi lập điều chỉnh.")
+	}
+	if in.BaseVersion != state.BalanceVersion {
+		return nil, accounting.Fail("VERSION_CONFLICT", "Đã có phiên bản số dư mới. Mở lại để đối chiếu.")
+	}
+	if in.Input.Cutoff != state.Input.Cutoff {
+		return nil, accounting.Fail("VALIDATION", "Điều chỉnh giữ nguyên mốc chuyển đổi ban đầu.")
+	}
+	if strings.TrimSpace(in.Reason) == "" || utf8.RuneCountInString(in.Reason) > 1000 {
+		return nil, accounting.Fail("VALIDATION", "Nhập lý do điều chỉnh (tối đa 1000 ký tự).")
+	}
+	if state.Adjustment != nil && state.Adjustment.Input.ID != in.Input.ID {
+		return nil, accounting.Fail("VERSION_CONFLICT", "Đang có bản nháp điều chỉnh khác. Tiếp tục bản nháp đã lưu.")
+	}
+	if state.Adjustment == nil {
+		var count int
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE id=?", in.Input.ID).Scan(&count); err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			return nil, accounting.Fail("DUPLICATE_SOURCE", "Mã bản điều chỉnh thuộc chứng từ khác.")
+		}
+	}
+	if in.Input.Lines == nil {
+		in.Input.Lines = []OpeningLine{}
+	}
+	if in.Input.Stocks == nil {
+		in.Input.Stocks = []OpeningStock{}
+	}
+	if in.Input.Assets == nil {
+		in.Input.Assets = []Asset{}
+	}
+	doc, _, err := s.adjustmentDocument(ctx, tx, state, in.Input)
+	if err != nil {
+		return nil, err
+	}
+	doc, err = s.Ledger.SaveTx(ctx, tx, doc)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, "UPDATE documents SET policy_id=? WHERE id=?", doc.PolicyID, doc.ID); err != nil {
+		return nil, err
+	}
+	in.Input.Version = doc.Version
+	before, _ := json.Marshal(state.Input)
+	after, _ := json.Marshal(in.Input)
+	_, err = tx.ExecContext(ctx, `INSERT INTO opening_adjustments(document_id,opening_document_id,before_document_id,base_version,reason,before_payload,after_payload,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(document_id) DO UPDATE SET reason=excluded.reason,after_payload=excluded.after_payload`, doc.ID, state.RootID, state.Document.ID, in.BaseVersion, in.Reason, string(before), string(after), actor, sqlite.Now())
+	if err != nil {
+		return nil, err
+	}
+	state, err = openingAt(ctx, tx)
+	state.Revision++
+	return state, err
 }
 func (s *Service) OpeningAdjustment(ctx context.Context, id string) (OpeningAdjustment, error) {
 	tx, err := s.Ledger.Store.Read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -266,25 +269,28 @@ func (s *Service) OpeningHistory(ctx context.Context, page, size int) (any, erro
 }
 func (s *Service) DiscardOpeningAdjustment(ctx context.Context, cmd ledger.Command, in ledger.Post) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "admin.opening.adjustment.discard", in, func(tx *sql.Tx) (any, error) {
-		a, err := readOpeningAdjustment(ctx, tx, in.ID)
-		if err != nil {
+		return s.discardOpeningAdjustmentTx(ctx, tx, in)
+	})
+}
+func (s *Service) discardOpeningAdjustmentTx(ctx context.Context, tx *sql.Tx, in ledger.Post) (any, error) {
+	a, err := readOpeningAdjustment(ctx, tx, in.ID)
+	if err != nil {
+		return nil, err
+	}
+	if a.Document.Status != "draft" || a.ConfirmedVersion != nil {
+		return nil, accounting.Fail("DOCUMENT_POSTED", "Bản điều chỉnh đã xác nhận không được xóa.")
+	}
+	if a.Document.Version != in.Version {
+		return nil, accounting.Fail("VERSION_CONFLICT", "Bản nháp đã thay đổi.")
+	}
+	for _, q := range []string{"DELETE FROM opening_adjustments WHERE document_id=?", "DELETE FROM document_lines WHERE document_id=?", "DELETE FROM documents WHERE id=?"} {
+		if _, err = tx.ExecContext(ctx, q, in.ID); err != nil {
 			return nil, err
 		}
-		if a.Document.Status != "draft" || a.ConfirmedVersion != nil {
-			return nil, accounting.Fail("DOCUMENT_POSTED", "Bản điều chỉnh đã xác nhận không được xóa.")
-		}
-		if a.Document.Version != in.Version {
-			return nil, accounting.Fail("VERSION_CONFLICT", "Bản nháp đã thay đổi.")
-		}
-		for _, q := range []string{"DELETE FROM opening_adjustments WHERE document_id=?", "DELETE FROM document_lines WHERE document_id=?", "DELETE FROM documents WHERE id=?"} {
-			if _, err = tx.ExecContext(ctx, q, in.ID); err != nil {
-				return nil, err
-			}
-		}
-		state, err := openingAt(ctx, tx)
-		state.Revision++
-		return state, err
-	})
+	}
+	state, err := openingAt(ctx, tx)
+	state.Revision++
+	return state, err
 }
 func (s *Service) ConfirmOpeningAdjustment(ctx context.Context, cmd ledger.Command, in OpeningAdjustmentPost) (json.RawMessage, error) {
 	return s.Ledger.Write(ctx, cmd, "admin.opening.adjustment.confirm", in, func(tx *sql.Tx) (any, error) {
