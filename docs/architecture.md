@@ -280,3 +280,9 @@ Owner xem lịch sử qua `/audit/events` và `/audit/detail` có phân trang ph
 Metrics vẫn đọc cùng transaction của `ledger.Snapshot`, thêm moneyBalance/inventoryBalance/payable/unbalancedDraftCount dưới dạng chuỗi tiền hoặc số đếm. Money/inventory lấy tổng các dòng trực tiếp của nhóm tài khoản từ ledger; payable cộng dư Có dương từng đối tượng theo cùng cách tổng hợp của sổ công nợ. Nháp lệch tính bằng math/big trên toàn kỳ. Danh sách100chứng từ workspace tách opening/adjustment/reversal đầu kỳ giống bộ lọc Documents, không dùng làm nguồn tính tổng.
 
 Dashboard dùng server metrics và chỉ có phép trình bày chuỗi/BigInt, demo giữ helper tính từ toàn bộ dữ liệu mẫu. Thiếu trường trên API cũ được thể hiện rõ; không lấy trang chứng từ để bù hoặc coi thiếu là0. Biểu đồ SVG và CSS Module riêng, không thêm thư viện biểu đồ/cache. Mã chứng từ dài được giới hạn trong ô; bảng gần đây chỉ hiển thị4dòng, link mở danh sách có phân trang toàn bộ.
+
+## Danh mục hàng hóa và dịch vụ dùng chung (0.14.0)
+
+Giữ một bảng items và ID chung cho mua/bán, với quy ước tracked=true cho hàng hóa quản lý kho và false cho dịch vụ; không thêm trường phân loại cạnh tranh hoặc migration. ItemEditor dùng chung ở danh mục và trong ItemSelect của phiếu. Lưu danh mục qua API hiện có, invalidate workspace rồi chọn phản hồi server vào dòng đang nhập; không reset hoặc lưu phiếu ngầm. Bộ lọc dùng metadata, không dựa vào tiền tố mã.
+
+saveItemTx cho sửa tracked chỉ khi chưa có tham chiếu ở operations/voucher_inputs, lô/biến động kho hoặc payload tồn kho đầu kỳ/điều chỉnh. Kiểm tra và cập nhật trong cùng Ledger.Write, nên không đua với ghi sổ. Mã/đơn vị vẫn bất biến; audit trước/sau và khôi phục dùng validator này. Thay đổi không cần schema hoặc thay snapshot cũ.

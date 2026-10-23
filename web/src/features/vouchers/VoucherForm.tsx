@@ -14,6 +14,7 @@ import { Icon } from '../../shared/ui/Icon';
 import { searchOptions, suggestionOptions } from '../../shared/ui/search';
 import { BankSelect } from './BankAccounts';
 import { WarehouseSelect } from './Warehouses';
+import { ItemSelect } from './ItemSelect';
 import { DateInput } from '../../shared/ui/DateInput';
 import { voucherReturnPath } from '../documents/list-state';
 import { editorShortcut } from './editor-shortcut';
@@ -143,7 +144,6 @@ function VoucherForm({ initial, initialAllocate, initialDocument, initialCalcula
   const partyOptions = data?.partners.filter(item => item.active && (!trade || item.role === 'both' || item.role === (kind === 'sale' ? 'customer' : 'supplier'))).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` })) ?? [];
   const moneyOptions = data?.accounts.filter(item => item.active && (['111', '1121', '112'].includes(item.id) || bankQuery.data?.accounts.some(bank => bank.accountId === item.id))).map(item => ({ value: item.id, label: `${item.code} · ${item.name}`, code: item.code }));
   const counterOptions = data?.accounts.filter(item => item.active && !['cash', 'inventory', 'asset', 'receivable', 'payable'].includes(item.group)).map(item => ({ value: item.id, label: `${item.code} · ${item.name}`, code: item.code }));
-  const itemOptions = auto.data?.items.filter(item => item.active && (mode === 'service' ? !item.tracked : item.tracked)).map(item => ({ value: item.id, label: `${item.code} · ${item.name}`, code: item.code }));
   const descriptionOptions = suggestionOptions(data?.documents.map(item => item.description) ?? []);
   const currentRows = allocate ? allocations : treasuryRows;
   const localTotal = currentRows?.every(row => isMoney(row.amount)) ? currentRows.reduce((sum, row) => sum + BigInt(row.amount), 0n).toString() : undefined;
@@ -244,7 +244,7 @@ function VoucherForm({ initial, initialAllocate, initialDocument, initialCalcula
           {tab === 'entries' && trade && <Form.List name="lines" rules={[{ validator: async (_, rows: unknown[]) => { if (!rows?.length) throw new Error('Thêm ít nhất một dòng hàng.'); } }]}>{(fields, { add, remove }, { errors }) => <>
             <Table dataSource={fields} rowKey="key" pagination={false} size="small" scroll={{ x: showAccounts ? 1560 : 1250 }} columns={[
               { title: '#', width: 42, render: (_, __, index) => index + 1 },
-              { title: mode === 'service' ? 'Mã dịch vụ' : 'Mã hàng', width: 230, render: (_, field) => <Form.Item name={[field.name, 'itemId']} rules={[{ required: true, message: 'Chọn hàng/dịch vụ' }]}><Select aria-label={`Hàng dịch vụ dòng ${field.name + 1}`} showSearch={searchOptions} options={itemOptions} onChange={id => { const item = auto.data?.items.find(item => item.id === id); form.setFieldValue(['lines', field.name, 'description'], item?.name ?? ''); }} /></Form.Item> },
+              { title: mode === 'service' ? 'Mã dịch vụ' : 'Mã hàng', width: 230, render: (_, field) => <Form.Item name={[field.name, 'itemId']} rules={[{ required: true, message: 'Chọn hàng/dịch vụ' }]}><ItemSelect label={`Hàng dịch vụ dòng ${field.name + 1}`} kind={mode === 'service' ? 'service' : 'goods'} disabled={readonly || pending} onSelected={item => { form.setFieldValue(['lines', field.name, 'description'], item.name); setPreview(null); setDirty(true); }} /></Form.Item> },
               { title: mode === 'service' ? 'Tên dịch vụ / diễn giải' : 'Tên hàng / diễn giải', width: 260, render: (_, field) => <Form.Item name={[field.name, 'description']}><Input aria-label={`Diễn giải dòng ${field.name + 1}`} maxLength={1000} /></Form.Item> },
               ...(showAccounts ? [{ title: kind === 'sale' ? 'TK doanh thu' : mode === 'goods' ? 'TK kho' : 'TK chi phí', width: 180, render: (_: unknown, field: { name: number }) => <Form.Item name={[field.name, 'accountId']}><Select aria-label={`Tài khoản dòng ${field.name + 1}`} showSearch={searchOptions} options={data?.accounts.filter(a => a.active && (kind === 'sale' ? a.group === 'revenue' : mode === 'goods' ? a.id === '156' : ['expense', 'wip'].includes(a.group))).map(a => ({ value: a.id, label: `${a.code} · ${a.name}` }))} /></Form.Item> }, { title: 'TK công nợ', width: 95, render: () => kind === 'sale' ? '131' : '331' }] : []),
               ...(mode === 'goods' ? [{ title: 'Kho', width: 210, render: (_: unknown, field: { name: number }) => <Form.Item name={[field.name, 'warehouseId']} initialValue="default" rules={[{ required: true }]}><WarehouseSelect label={`Kho dòng ${field.name + 1}`} disabled={readonly || pending} /></Form.Item> }] : []),

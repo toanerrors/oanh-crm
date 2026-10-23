@@ -10,6 +10,14 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Danh mục hàng hóa / dịch vụ dùng chung — 0.14.0
+
+- Chọn rõ Hàng hóa hoặc Dịch vụ khi tạo/sửa mã, có nhãn loại và bộ lọc/tìm kiếm trong danh mục. Giữ mô hình hiện có: tracked=true là hàng hóa quản lý kho, false là dịch vụ. Cùng một ID dùng cho mua và bán, không cần khai báo lại theo phân hệ; không tự đổi loại theo tên/mã hoặc sửa dữ liệu thật.
+- Cho sửa loại mã chưa được dùng trong transaction có audit/idempotency; giữ mã và đơn vị. Khóa đổi loại khi có voucher nháp, operations đã ghi, stock_lots/stock_movements hoặc tồn kho trong số dư/điều chỉnh đầu kỳ. Dùng lại validator cho nhập Excel và khôi phục nhật ký. Không đổi schema (vẫn 8), tiền hoặc quy tắc ghi sổ.
+- Ô chọn trong phiếu lọc đúng loại, có trạng thái tải/không tìm thấy và nút + tạo mã ngay trong phiếu. Form mới mặc định đúng loại chứng từ; sau khi lưu, tải lại danh mục rồi chọn mã/điền diễn giải và đơn vị. Phím Ctrl/⌘ S trong form danh mục không gửi phiếu bên dưới; giữ nội dung phiếu đang nhập.
+- Validation: Go test operations/httpserver, race regression phân loại và go vet operations đạt; SQLite thật kiểm tra sửa loại, replay, undo/redo, backup/stage/reopen, khóa các nguồn tham chiếu và cạnh tranh với ghi sổ. Mua/bán cùng mã, dịch vụ không tạo biến động kho và mã sai loại bị chặn. 65 test Node, typecheck/build và diff check đạt.
+- Edge trên dữ liệu giả lập: sửa mã thuê nhà chưa dùng sang dịch vụ; mua/bán dịch vụ cùng thấy mã, không có ô kho; tạo mã ngay trong phiếu bằng Ctrl S và được chọn sau lưu, diễn giải/đơn vị điền đúng; hàng hóa có kho và không thấy mã dịch vụ. Form tạo mã ở 390px không tràn; console warn/error rỗng. Không đổi tự động các mã đã tạo nhầm hoặc mã có lịch sử trên dữ liệu thật.
+
 ## Sửa bố cục đính kèm phiếu — 0.13.2
 
 - Khung Upload.Dragger dùng chiều cao nội dung, wrapper dạng block và cột đính kèm có min-width 0. Tránh chiều cao 100% cộng thêm tiêu đề/ghi chú làm tràn rồi bị panel cắt đáy; dùng chung cho các loại phiếu.

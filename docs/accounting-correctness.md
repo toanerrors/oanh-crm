@@ -232,3 +232,9 @@ Regression bao gồm tiền lớn hơn 2^53, undo/redo, preview read-only, reque
 Tổng quan giữ cùng nguồn/snapshot với workspace. Tổng tiền và tồn kho là tổng Nợ−Có trực tiếp theo nhóm tài khoản tới cuối kỳ, gồm lịch sử số dư/điều chỉnh. Không cộng giá trị cha đã tổng hợp với con, không suy diễn tồn kho vật chất. Phải trả là tổng dư Có của từng đối tượng, không bù với ứng trước đối tượng khác; phải thu giữ quy tắc sổ công nợ hiện có. Doanh thu/chi phí không cộng số dư đầu kỳ hoặc bút toán kết chuyển/đảo kết chuyển. Chênh lệch hiển thị chưa thay báo cáo kết quả kinh doanh.
 
 Số nháp lệch đọc tất cả dòng nháp trong kỳ bằng số nguyên chính xác, không dựa vào100chứng từ workspace. Các chứng từ đầu kỳ/điều chỉnh/đảo đầu kỳ không vào số đếm hoạt động hoặc danh sách gần đây, vẫn tham gia số dư. Regression kiểm tra tổng tiền18446744073709551534đồng,127chứng từ kỳ/121nháp với bản lệch ngoài100dòng gần nhất; nguồn kho và điều chỉnh qua service thật, dữ liệu giữ sau reopen. Biểu đồ giữ đường0 cho số âm; số tiền ở chỉ số và nút tháng giữ chuỗi đầy đủ.
+
+## Phân loại hàng hóa / dịch vụ dùng chung (0.14.0)
+
+Trong phạm vi hiện tại, hàng hóa tracked=true có nhập/xuất và chi tiết kho; dịch vụ tracked=false dùng cho mua/bán dịch vụ, không yêu cầu kho và không tạo stock movement. Một ID danh mục dùng cho cả hai chiều mua/bán. UI chọn đúng loại và server kiểm tra lại TradeMode; không suy loại từ mã hoặc tên.
+
+Đổi loại chỉ áp dụng cho mã chưa được dùng, kiểm tra cả chứng từ nháp, nghiệp vụ đã ghi, lô/biến động và tồn kho trong số dư/điều chỉnh đầu kỳ trong cùng transaction cập nhật. Không sửa đơn vị/mã hoặc đổi cách đọc lịch sử. Regression SQLite kiểm tra mua/bán cùng mã, dịch vụ không có kho, sai loại, khóa tham chiếu, retry, audit undo/redo, backup/stage/reopen và cạnh tranh đổi loại với ghi sổ; chỉ một phía được thành công.

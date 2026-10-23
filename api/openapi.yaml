@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oanh Accounting API
-  version: 0.13.2
+  version: 0.14.0
   description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
     key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
 servers:
@@ -2624,6 +2624,7 @@ components:
       - residualMethod
     Item:
       type: object
+      description: Danh mục dùng chung cho mua và bán. tracked=true là hàng hóa quản lý kho; false là dịch vụ không cần kho. Chỉ đổi loại khi mã chưa có chứng từ hoặc số dư kho; mã và đơn vị giữ nguyên.
       properties:
         id: *id002
         code: *id002

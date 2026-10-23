@@ -146,8 +146,24 @@ func (s *Service) saveItemTx(ctx context.Context, tx *sql.Tx, item Item) (any, e
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if err == nil && (code != item.Code || tracked != item.Tracked || unit != item.Unit) {
-		return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã, đơn vị và loại hàng hóa đã tạo.")
+	if err == nil && (code != item.Code || unit != item.Unit) {
+		return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã và đơn vị hàng hóa/dịch vụ đã tạo.")
+	}
+	if err == nil && tracked != item.Tracked {
+		var used bool
+		err = tx.QueryRowContext(ctx, `SELECT
+            EXISTS(SELECT 1 FROM stock_movements WHERE item_id=?) OR
+            EXISTS(SELECT 1 FROM stock_lots WHERE item_id=?) OR
+            EXISTS(SELECT 1 FROM operations o,json_each(o.payload,'$.lines') l WHERE json_extract(l.value,'$.itemId')=?) OR
+            EXISTS(SELECT 1 FROM voucher_inputs v,json_each(v.payload,'$.lines') l WHERE json_extract(l.value,'$.itemId')=?) OR
+            EXISTS(SELECT 1 FROM opening_balances o,json_each(o.payload,'$.stocks') l WHERE json_extract(l.value,'$.itemId')=?) OR
+            EXISTS(SELECT 1 FROM opening_adjustments o,json_each(o.after_payload,'$.stocks') l WHERE json_extract(l.value,'$.itemId')=?)`, item.ID, item.ID, item.ID, item.ID, item.ID, item.ID).Scan(&used)
+		if err != nil {
+			return nil, err
+		}
+		if used {
+			return nil, accounting.Fail("HISTORY_LOCKED", "Mã đã có chứng từ hoặc số dư kho, không thể đổi giữa hàng hóa và dịch vụ. Giữ loại hiện tại và tạo mã khác nếu cần.")
+		}
 	}
 	var duplicate int
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM items WHERE code=? COLLATE NOCASE AND id<>?", item.Code, item.ID).Scan(&duplicate); err != nil {
@@ -156,7 +172,7 @@ func (s *Service) saveItemTx(ctx context.Context, tx *sql.Tx, item Item) (any, e
 	if duplicate > 0 {
 		return nil, accounting.Fail("DUPLICATE_CODE", "Mã hàng hóa/dịch vụ đã tồn tại.")
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO items VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,unit=excluded.unit,active=excluded.active", item.ID, item.Code, item.Name, item.Unit, item.Tracked, item.Active)
+	_, err = tx.ExecContext(ctx, "INSERT INTO items VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,unit=excluded.unit,tracked=excluded.tracked,active=excluded.active", item.ID, item.Code, item.Name, item.Unit, item.Tracked, item.Active)
 	return item, err
 }
 func (s *Service) SaveEmployee(ctx context.Context, cmd ledger.Command, e Employee) (json.RawMessage, error) {
