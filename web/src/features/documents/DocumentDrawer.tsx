@@ -29,7 +29,7 @@ export function DocumentEditor() {
 }
 
 function DraftForm({ initial }: { initial: AccountingDocument }) {
-  const { data, setDraft, setDraftOpen, openDocument } = useWorkspace();
+  const { data, setDraft, setDraftOpen, openDocument, newDraft } = useWorkspace();
   const { message, modal } = App.useApp();
   const [form] = Form.useForm<AccountingDocument>();
   const [sides, setSides] = useState(() => journalEntrySides(initial.lines));
@@ -66,10 +66,10 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
 
   return <>
     {isDemo && <Alert type="info" showIcon title={isDemo ? 'Đang làm việc với dữ liệu mẫu' : 'Chứng từ nháp chưa tác động đến sổ'} description={isDemo ? 'Nháp chỉ được giữ trong phiên trình duyệt. Xuất file nháp trước khi tải lại hoặc đóng ứng dụng. Chức năng ghi sổ cần backend kiểm tra và lưu dữ liệu.' : 'Lưu nháp để bảo toàn dữ liệu, sau đó kiểm tra và ghi sổ tại chi tiết chứng từ. Dữ liệu đang nhập chưa lưu vẫn được giữ khi chuyển trang trong phiên.'} className={styles.formAlert} />}
-    <Form form={form} layout="vertical" initialValues={initial} onValuesChange={() => setDraft({ ...initial, ...form.getFieldsValue(true) })} onFinish={() => mutation.mutate({ ...initial, ...form.getFieldsValue(true), reference: initial.reference || `NHAP-${initial.id.slice(0, 8).toUpperCase()}`, lines: (form.getFieldValue('lines') as JournalLine[]).map(line => ({ ...line, debit: line.debit || '0', credit: line.credit || '0' })) })}>
+    <Form form={form} layout="vertical" initialValues={initial} onValuesChange={changed => { if (initial.version === 0 && 'type' in changed) return; setDraft({ ...initial, ...form.getFieldsValue(true) }); }} onFinish={() => mutation.mutate({ ...initial, ...form.getFieldsValue(true), reference: initial.reference || `NHAP-${initial.id.slice(0, 8).toUpperCase()}`, lines: (form.getFieldValue('lines') as JournalLine[]).map(line => ({ ...line, debit: line.debit || '0', credit: line.credit || '0' })) })}>
       <div className={styles.manualHeader}>
         <div className={styles.manualParty}>
-          <Form.Item name="type" label="Loại chứng từ" rules={[{ required: true }]}><Select options={Object.entries(documentTypes).map(([value, label]) => ({ value, label }))} /></Form.Item>
+          <Form.Item name="type" label="Loại chứng từ" rules={[{ required: true }]}><Select onChange={type => { if (initial.version === 0) newDraft(type); }} options={Object.entries(documentTypes).map(([value, label]) => ({ value, label }))} /></Form.Item>
           <Form.Item name="partnerId" label="Đối tượng"><Select allowClear showSearch={searchOptions} placeholder="Chọn khách hàng / nhà cung cấp" options={partnerOptions} /></Form.Item>
           <Form.Item name="description" label="Diễn giải" rules={[{ required: true, whitespace: true, message: 'Nhập diễn giải chứng từ' }]}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn diễn giải đã dùng" maxLength={500} /></AutoComplete></Form.Item>
           {!isDemo && <Form.Item name="sourceId" label="Mã chứng từ nguồn (nếu có)"><Input placeholder="Mã nguồn dùng thống nhất khi nhập tay / import" maxLength={100} /></Form.Item>}

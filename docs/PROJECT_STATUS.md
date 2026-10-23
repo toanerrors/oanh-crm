@@ -10,6 +10,13 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Nháp riêng theo chức năng — 0.16.1
+
+- Tách nháp UI theo loại Thu/Chi/Chuyển tiền, Tiền mặt/Tiền gửi, Mua/Bán hàng hóa/dịch vụ và thu/chi theo chứng từ. Chỉ khôi phục khóa khớp chức năng đang mở; bỏ fallback lấy nháp khác loại và tự chuyển từ phiếu mới sang chứng từ đã lưu. Nháp sửa theo document ID/version; bản thay thế theo phiếu gốc, không chặn hoặc ghi đè nháp thường.
+- Đổi loại phiếu, hàng hóa/dịch vụ và chế độ thu/chi trên phiếu mới chuyển đúng ngữ cảnh, giữ nháp trước đó. Cất/bỏ/ghi sổ chỉ xóa nội dung của form tương ứng. Nháp chứng từ nhập tay cũng tách phiếu mới theo loại và phiếu sửa theo ID; đổi loại nháp mới mở nội dung riêng. Danh sách “Nháp đang nhập” có tên/nội dung rõ ràng và chỉ hiển thị trong đúng phân hệ.
+- Chỉ giữ state trong phiên bộ nhớ hiện tại; không thêm localStorage, dependency, API hoặc migration (schema8). AuthGate tiếp tục xóa state khi đổi danh tính/quyền/epoch; cảnh báo đóng hoặc tải lại khi còn nội dung chưa cất.
+- Validation:71test Node, TypeScript typecheck/build và diff check đạt; cập nhật regression E2E và parse/list15test live/16test mẫu, chưa chạy E2E tự động. Edge giả lập: Chi5.000.000→Bán hàng trống→quay lại Chi nguyên nội dung; Thu và Chi tiền gửi riêng; Bán hàng/Bán dịch vụ đồng thời; mở phiếu đã ghi sổ và lập nháp thay thế không lấy nội dung từ nháp mới. Nháp nhập tay mới và sửa ID cũ giữ riêng. Không thay chứng từ thật; chưa benchmark số lượng nháp lớn.
+
 ## Trung tâm sao lưu và khôi phục — 0.16.0
 
 - Cài đặt → Sao lưu & khôi phục có danh sách theo doanh nghiệp, phân trang/tìm ghi chú-người tạo, dung lượng, thời điểm, trạng thái kiểm tra, ghi chú và các thao tác chi tiết/tải lại/kiểm tra lại/chuẩn bị khôi phục. Giữ API tải ZIP cũ; API mới tạo gói có idempotency, không tạo thêm gói khi retry cùng ý định. Gói chỉ công bố sau snapshot, fsync, kiểm tra ZIP/SQLite/đối soát; checksum đọc streaming và được kiểm lại trước download. Manifest thêm app/schema version, khoảng ngày và số đính kèm; archive cũ vẫn đọc được. Không đổi schema8 hoặc dependency.
