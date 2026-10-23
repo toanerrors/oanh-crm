@@ -526,3 +526,35 @@ test('nhật ký dễ đọc, xem trước và khôi phục có liên kết', as
   expect(recovery.restoredFrom).toBe(event.id);
   expect(recovery.changes[0].after.email).toBe('before@example.invalid');
 });
+
+test('ngân hàng lọc theo tài khoản hạch toán và đổi tài khoản xóa lựa chọn cũ', async ({ page }) => {
+  await login(page);
+  epoch = (await (await page.request.get('/api/v1/session')).json()).context.epoch;
+  for (const [id, number, accountId] of [['filter-bank-a', 'E2E-1121-A', '1121'], ['filter-bank-b', 'E2E-1121-B', '1121'], ['filter-bank-other', 'E2E-112-OTHER', '112']]) {
+    await command(page.request, '/bank-accounts', { id, number, accountId, bankName: 'Ngân hàng kiểm thử bộ lọc', active: true });
+  }
+  await page.goto('/vouchers/new?kind=transfer');
+  const dropdown = page.locator('.ant-select-dropdown:visible');
+  const source = page.getByRole('combobox', { name: 'Tài khoản hạch toán chuyển đi', exact: true });
+  await source.click();
+  await dropdown.locator('.ant-select-item-option').filter({ hasText: '1121 ·' }).click();
+  const sourceBank = page.getByRole('combobox', { name: 'Tài khoản ngân hàng chuyển đi', exact: true });
+  await sourceBank.click();
+  await expect(dropdown).toContainText('E2E-1121-A');
+  await expect(dropdown).toContainText('E2E-1121-B');
+  await expect(dropdown).not.toContainText('E2E-112-OTHER');
+  await dropdown.locator('.ant-select-item-option').filter({ hasText: 'E2E-1121-A' }).click();
+  await source.click();
+  await dropdown.locator('.ant-select-item-option').filter({ hasText: '112 ·' }).click();
+  await expect(page.locator('.ant-select-selection-item').filter({ hasText: 'E2E-1121-A' })).toHaveCount(0);
+  await sourceBank.click();
+  await expect(dropdown).toContainText('E2E-112-OTHER');
+  await expect(dropdown).not.toContainText('E2E-1121-A');
+  await expect(dropdown).not.toContainText('E2E-1121-B');
+  await sourceBank.press('Escape');
+  const destination = page.getByRole('combobox', { name: 'Tài khoản ngân hàng chuyển đến', exact: true });
+  await destination.click();
+  await expect(dropdown).toContainText('E2E-1121-A');
+  await expect(dropdown).not.toContainText('E2E-112-OTHER');
+  await destination.press('Escape');
+});

@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOMAXPROCS=2 go build -trimpath -ldflags="-s -w" -o /out/oanh-
 FROM scratch
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="Oanh Accounting" \
-    org.opencontainers.image.version="0.15.0" \
+    org.opencontainers.image.version="0.15.1" \
     org.opencontainers.image.revision=$VCS_REF
 COPY --from=server-build /out/oanh-server /oanh-server
 COPY --from=server-build /out/healthcheck /healthcheck

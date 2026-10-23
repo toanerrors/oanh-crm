@@ -12,12 +12,12 @@ import { Icon } from '../../shared/ui/Icon';
 import { ImportExcelButton } from '../imports/ExcelImport';
 import { searchOptions } from '../../shared/ui/search';
 
-export function BankSelect({ value, onChange, onSelected, label, disabled }: { value?: string; onChange?: (value?: string) => void; onSelected?: (account?: BankAccount) => void; label: string; disabled?: boolean }) {
+export function BankSelect({ value, onChange, onSelected, label, disabled, accountId }: { accountId: string | undefined; value?: string; onChange?: (value?: string) => void; onSelected?: (account?: BankAccount) => void; label: string; disabled?: boolean }) {
   const { period } = useWorkspace();
   const query = useQuery(banksOptions(period));
   const [open, setOpen] = useState(false);
-  const choose = (id?: string) => { onChange?.(id); onSelected?.(query.data?.accounts.find(item => item.id === id)); };
-  return <div style={{ display: 'flex', gap: 4, minWidth: 0 }}><Select style={{ minWidth: 0, flex: 1 }} value={value} disabled={disabled} aria-label={label} loading={query.isPending} showSearch={searchOptions} placeholder="Chọn tài khoản ngân hàng" options={query.data?.accounts.filter(item => item.active || item.id === value).map(item => ({ value: item.id, label: `${item.number} · ${item.bankName}`, disabled: !item.active }))} onChange={choose} /><Button disabled={disabled} icon={<Icon name="plus" size={14} />} aria-label={`Quản lý ${label}`} onClick={() => setOpen(true)} /><BankDirectory open={open} onClose={() => setOpen(false)} onSelected={account => { onChange?.(account.id); onSelected?.(account); setOpen(false); }} /></div>;
+  const choose = (account?: BankAccount) => { if (!account?.active || account.accountId !== accountId) return; onChange?.(account.id); onSelected?.(account); setOpen(false); };
+  return <div style={{ display: 'flex', gap: 4, minWidth: 0 }}><Select style={{ minWidth: 0, flex: 1 }} value={value} disabled={disabled || !accountId} aria-label={label} loading={query.isPending} popupMatchSelectWidth={420} styles={{ popup: { root: { maxWidth: 'calc(100vw - 16px)' } } }} showSearch={searchOptions} placeholder={accountId ? 'Chọn tài khoản ngân hàng' : 'Chọn tài khoản kế toán trước'} notFoundContent={query.isPending ? 'Đang tải danh mục…' : query.error ? 'Không tải được danh mục ngân hàng. Thử lại sau.' : 'Chưa có ngân hàng thuộc tài khoản kế toán đã chọn'} options={query.data?.accounts.filter(item => item.accountId === accountId && (item.active || item.id === value)).map(item => ({ value: item.id, label: `${item.number} · ${item.bankName}`, disabled: !item.active }))} onChange={id => choose(query.data?.accounts.find(item => item.id === id))} /><Button disabled={disabled || !accountId} icon={<Icon name="plus" size={14} />} aria-label={`Quản lý ${label}`} onClick={() => setOpen(true)} /><BankDirectory open={open} onClose={() => setOpen(false)} accountId={accountId} onSelected={choose} /></div>;
 }
 
 export function BankAccountsButton() {
@@ -25,7 +25,7 @@ export function BankAccountsButton() {
   return <><ToolbarButton onClick={() => setOpen(true)} label="Tài khoản ngân hàng" icon="building" /><BankDirectory open={open} onClose={() => setOpen(false)} /></>;
 }
 
-function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: () => void; onSelected?: (account: BankAccount) => void }) {
+function BankDirectory({ open, onClose, onSelected, accountId }: { accountId?: string; open: boolean; onClose: () => void; onSelected?: (account: BankAccount) => void }) {
   const { period, data } = useWorkspace();
   const { message } = App.useApp();
   const client = useQueryClient();
@@ -39,7 +39,7 @@ function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: 
     onSelected?.(result);
   }, onError: error => void message.error(error.message) });
   function edit(account?: BankAccount) {
-    const next = account ?? { id: crypto.randomUUID(), number: '', bankName: '', accountId: '112', active: true };
+    const next = account ?? { id: crypto.randomUUID(), number: '', bankName: '', accountId: accountId ?? '112', active: true };
     setEditing(next); form.resetFields(); form.setFieldsValue(next);
   }
   const referenced = Boolean(editing?.hasReferences);
@@ -47,7 +47,7 @@ function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: 
     {query.error && <Alert type="error" title={query.error.message} />}
     <p>Số dư chi tiết lấy từ chứng từ đã gắn tài khoản ngân hàng. Giao dịch cũ chưa gắn tài khoản vẫn nằm trong tổng sổ tiền gửi.</p>
     {canWrite && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><ImportExcelButton kind="banks" /><ToolbarButton label="Thêm tài khoản ngân hàng" icon="plus" onClick={() => edit()} /></div>}
-    <Table<BankAccount> rowKey="id" loading={query.isPending} dataSource={query.data?.accounts} scroll={{ x: 950 }} pagination={{ pageSize: 10 }} columns={[
+    <Table<BankAccount> rowKey="id" loading={query.isPending} dataSource={query.data?.accounts.filter(item => !accountId || item.accountId === accountId)} scroll={{ x: 950 }} pagination={{ pageSize: 10 }} columns={[
       { title: 'Số tài khoản', dataIndex: 'number' }, { title: 'Ngân hàng', dataIndex: 'bankName' }, { title: 'TK kế toán', dataIndex: 'accountId', width: 100, render: (id: string) => { const account = data?.accounts.find(item => item.id === id); return <span title={account ? `${account.code} · ${account.name}` : undefined}>{account?.code ?? (data ? 'Không tìm thấy tài khoản' : 'Đang tải…')}</span>; } },
       { title: 'Dư đầu', dataIndex: 'opening', align: 'right', render: value => value === undefined ? '—' : formatMoney(value) },
       { title: 'Thu', dataIndex: 'receipts', align: 'right', render: value => value === undefined ? '—' : formatMoney(value) },

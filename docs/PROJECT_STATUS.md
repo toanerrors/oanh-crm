@@ -10,6 +10,12 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Lọc ngân hàng theo tài khoản hạch toán — 0.15.1
+
+- BankSelect nhận accountId và chỉ hiển thị ngân hàng khớp ID chính xác, cho thu/chi, chuyển tiền đi/đến và thanh toán mua/bán ngay. Không suy từ mã/tiền tố; chọn ngân hàng không đổi sang tài khoản khác. Đổi tài khoản xóa lựa chọn/tên ngân hàng cũ; tài khoản tiền gửi tự khai báo vẫn giữ ô ngân hàng khi chưa chọn lại.
+- Danh mục mở bằng dấu + lọc cùng phạm vi và tạo mới mặc định theo tài khoản đang chọn; danh mục tổng giữ toàn bộ ngân hàng. Chỉ chọn ngân hàng còn sử dụng, giữ nhãn lựa chọn cũ ngừng dùng để đọc lịch sử. Popup rộng420px, giới hạn theo viewport, có trạng thái tải/lỗi/trống. Không đổi backend/schema hoặc dữ liệu ngân hàng/bút toán.
+- Validation:66test Node, TypeScript typecheck/build và diff check đạt. Thêm regression E2E chọn ngân hàng/đổi tài khoản/chuyển tiền hai chiều; parse/list14test live, chưa chạy E2E tự động. Edge trên dữ liệu giả lập:1121 có đúng hai ngân hàng,1122 chỉ một ngân hàng; đổi tài khoản xóa ngân hàng/tên cũ, ô thu tiền vẫn hiện; kiểm chuyển tiền hai chiều, thanh toán ngay và mặc định tạo ngân hàng theo tài khoản.390px không tràn, console warn/error rỗng. Chưa benchmark tập danh mục lớn.
+
 ## Sửa danh mục sau khi lưu — 0.15.0
 
 - Bỏ khóa theo điều kiện đã tồn tại ở ngân hàng, kho, hàng hóa/dịch vụ, nhân viên, tài khoản và đối tượng. Danh mục chưa có tham chiếu được sửa mã/thông tin; dùng cùng validator khi nhập Excel hoặc hoàn tác. API thêm hasReferences từ dữ liệu toàn kỳ, kiểm tra lại trong transaction ghi, không tin cờ client. Không đổi schema8 hoặc thêm dependency.
