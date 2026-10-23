@@ -48,7 +48,7 @@ function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: 
     <p>Số dư chi tiết lấy từ chứng từ đã gắn tài khoản ngân hàng. Giao dịch cũ chưa gắn tài khoản vẫn nằm trong tổng sổ tiền gửi.</p>
     {canWrite && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><ImportExcelButton kind="banks" /><ToolbarButton label="Thêm tài khoản ngân hàng" icon="plus" onClick={() => edit()} /></div>}
     <Table<BankAccount> rowKey="id" loading={query.isPending} dataSource={query.data?.accounts} scroll={{ x: 950 }} pagination={{ pageSize: 10 }} columns={[
-      { title: 'Số tài khoản', dataIndex: 'number' }, { title: 'Ngân hàng', dataIndex: 'bankName' }, { title: 'TK kế toán', dataIndex: 'accountId', width: 100 },
+      { title: 'Số tài khoản', dataIndex: 'number' }, { title: 'Ngân hàng', dataIndex: 'bankName' }, { title: 'TK kế toán', dataIndex: 'accountId', width: 100, render: (id: string) => { const account = data?.accounts.find(item => item.id === id); return <span title={account ? `${account.code} · ${account.name}` : undefined}>{account?.code ?? (data ? 'Không tìm thấy tài khoản' : 'Đang tải…')}</span>; } },
       { title: 'Dư đầu', dataIndex: 'opening', align: 'right', render: value => value === undefined ? '—' : formatMoney(value) },
       { title: 'Thu', dataIndex: 'receipts', align: 'right', render: value => value === undefined ? '—' : formatMoney(value) },
       { title: 'Chi', dataIndex: 'payments', align: 'right', render: value => value === undefined ? '—' : formatMoney(value) },
@@ -59,7 +59,7 @@ function BankDirectory({ open, onClose, onSelected }: { open: boolean; onClose: 
   </Modal><Modal open={Boolean(editing)} onCancel={() => setEditing(null)} title="Tài khoản ngân hàng" footer={null}><Form<BankAccount> form={form} layout="vertical" onFinish={values => mutation.mutate({ ...editing!, ...values })}>
     <Form.Item name="number" label="Số tài khoản ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={100} disabled={existing} /></Form.Item>
     <Form.Item name="bankName" label="Tên ngân hàng" rules={[{ required: true, whitespace: true }]}><Input maxLength={200} disabled={existing} /></Form.Item>
-    <Form.Item name="accountId" label="Tài khoản kế toán tiền gửi" rules={[{ required: true }]}><Select disabled={existing} showSearch={searchOptions} options={data?.accounts.filter(item => item.active && item.group === 'cash' && item.id !== '111').map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))} /></Form.Item>
+    <Form.Item name="accountId" label="Tài khoản kế toán tiền gửi" rules={[{ required: true }]}><Select disabled={existing} showSearch={searchOptions} options={data?.accounts.filter(item => item.active && item.group === 'cash' && item.id !== '111' || item.id === editing?.accountId).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))} /></Form.Item>
     <Form.Item name="active" label="Đang sử dụng" valuePropName="checked"><Switch /></Form.Item>
     <p>Giữ số tài khoản, tên ngân hàng và tài khoản kế toán đã tạo để bảo toàn lịch sử. Mỗi số tài khoản được khai báo một lần.</p>
     <Button type="primary" htmlType="submit" loading={mutation.isPending}>Lưu tài khoản ngân hàng</Button>

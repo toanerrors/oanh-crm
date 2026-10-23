@@ -10,6 +10,11 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Hiển thị mã tài khoản kế toán ngân hàng — 0.14.1
+
+- Cột TK kế toán trong danh mục ngân hàng tra accountId sang mã tài khoản đã lưu; title có mã và tên, không in UUID. Form sửa giữ option của tài khoản liên kết đã ngừng dùng để không rơi về ID. Thiếu danh mục có nhãn tải/không tìm thấy rõ ràng.
+- Validation: TypeScript typecheck, production build và diff check đạt; tái hiện lỗi trên Edge và đối chiếu sau phát hành. Chỉ đổi nhãn giao diện, không sửa accountId, ngân hàng, bút toán, số dư hoặc schema.
+
 ## Danh mục hàng hóa / dịch vụ dùng chung — 0.14.0
 
 - Chọn rõ Hàng hóa hoặc Dịch vụ khi tạo/sửa mã, có nhãn loại và bộ lọc/tìm kiếm trong danh mục. Giữ mô hình hiện có: tracked=true là hàng hóa quản lý kho, false là dịch vụ. Cùng một ID dùng cho mua và bán, không cần khai báo lại theo phân hệ; không tự đổi loại theo tên/mã hoặc sửa dữ liệu thật.
