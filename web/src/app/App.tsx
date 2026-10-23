@@ -2,6 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react
 import { Avatar, Badge, Button, Drawer, Dropdown, Modal, Select, Spin, Tooltip } from 'antd';
 import { Link, NavLink, Outlet, useBeforeUnload, useLocation, useNavigate, useNavigation } from 'react-router-dom';
 import { useWorkspace } from './WorkspaceProvider';
+import { voucherDraftLabel, voucherDraftModule } from '../features/vouchers/draft-state';
+import { documentTypes } from '../shared/data/types';
 import { Icon } from '../shared/ui/Icon';
 import styles from './App.module.css';
 import { api, apiScope, isDemo } from '../shared/api/client';
@@ -32,7 +34,7 @@ const navigation: SidebarItem[] = [
 ];
 
 export function AppShell() {
-  const { period, setPeriod, data, draft, voucherDraft, setDraftOpen, detailId, refresh, newDraft } = useWorkspace();
+  const { period, setPeriod, data, draft, documentDrafts, resumeDocumentDraft, voucherDrafts, detailId, refresh, newDraft } = useWorkspace();
   const scope = apiScope();
   const shortcuts = useMemo(() => sidebarShortcuts(navigation, isDemo ? 'owner' : scope.permissions, isDemo), [scope.permissions]);
   const pins = useSidebarPins(sidebarPinsKey(isDemo ? 'demo' : scope.companyId, isDemo ? 'demo' : scope.actor), shortcuts);
@@ -40,10 +42,14 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
-  useBeforeUnload(useCallback((event: BeforeUnloadEvent) => { if (voucherDraft) { event.preventDefault(); event.returnValue = ''; } }, [voucherDraft]));
+  useBeforeUnload(useCallback((event: BeforeUnloadEvent) => { if (Object.keys(voucherDrafts).length || Object.keys(documentDrafts).length) { event.preventDefault(); event.returnValue = ''; } }, [voucherDrafts, documentDrafts]));
   const navigate = useNavigate();
   const navigationState = useNavigation();
   const module = accountingModule(location.pathname);
+  const moduleDrafts = [
+    ...Object.entries(voucherDrafts).filter(([, value]) => voucherDraftModule(value) === module?.path).map(([key, value]) => ({ key: `voucher:${key}`, label: voucherDraftLabel(value), onClick: () => navigate(value.route, { state: { returnTo: value.returnTo } }) })),
+    ...Object.entries(documentDrafts).filter(([, value]) => ({ receipt: '/cash', payment: '/cash', sale: '/sales', purchase: '/purchases', journal: '/documents' }[value.type]) === module?.path).map(([key, value]) => ({ key: `journal:${key}`, label: `${documentTypes[value.type]} · ${value.reference || value.description || 'Nháp mới'}`, onClick: () => resumeDocumentDraft(key) })),
+  ];
   const current = navigation.find(item => item.path === (module?.path ?? location.pathname))?.label ?? module?.title ?? (location.pathname.startsWith('/vouchers/') ? 'Chứng từ' : location.pathname === '/settings' ? 'Thiết lập' : 'Trợ giúp');
   const companyName = isDemo ? 'Không gian mẫu' : data?.companyName ?? 'Doanh nghiệp';
   const person = isDemo ? 'Minh Anh' : apiScope().name;
@@ -81,7 +87,7 @@ export function AppShell() {
       </header>
       {navigationState.state !== 'idle' && <div className={styles.routeProgress} role="progressbar" aria-label="Đang chuyển trang" />}
       <main id="main-content" className={`${styles.main} ${!isDemo && module ? styles.denseWorkspace : ''}`} tabIndex={-1}>
-        <div className={styles.contextBar}><div>{voucherDraft && <Button type="text" onClick={() => navigate(voucherDraft.draftId ? `/vouchers/${voucherDraft.draftId}` : '/vouchers/new', { state: { returnTo: location.pathname + location.search } })}>Tiếp tục phiếu đang nhập</Button>}{draft && <Button type="text" onClick={() => setDraftOpen(true)} icon={<Icon name="file" size={14} />}>Tiếp tục nháp</Button>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch={searchOptions} aria-label="Chọn kỳ kế toán" value={period} onChange={value => { if (value === period) return; setPeriod(value); const params = new URLSearchParams(location.search); if (params.has('page')) { params.delete('page'); navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true, state: location.state }); } }} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
+        <div className={styles.contextBar}><div>{moduleDrafts.length > 0 && <Dropdown trigger={['click']} menu={{ items: moduleDrafts }}><Button type="text" icon={<Icon name="file" size={14} />}>Nháp đang nhập ({moduleDrafts.length}) <Icon name="down" size={12} /></Button></Dropdown>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch={searchOptions} aria-label="Chọn kỳ kế toán" value={period} onChange={value => { if (value === period) return; setPeriod(value); const params = new URLSearchParams(location.search); if (params.has('page')) { params.delete('page'); navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true, state: location.state }); } }} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
         <Outlet />
       </main>
     </div>

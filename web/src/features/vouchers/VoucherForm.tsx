@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, App, AutoComplete, Button, ConfigProvider, Form, Input, Modal, Radio, Select, Switch, Table, Tabs, Tag, Upload } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Navigate, useBeforeUnload, useBlocker, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useBeforeUnload, useBlocker, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { api, apiScope, command, isDemo } from '../../shared/api/client';
 import { automationOptions, banksOptions } from '../../shared/data/operations';
@@ -18,6 +18,7 @@ import { ItemSelect } from './ItemSelect';
 import { DateInput } from '../../shared/ui/DateInput';
 import { voucherReturnPath } from '../documents/list-state';
 import { editorShortcut } from './editor-shortcut';
+import { voucherDraftKey, voucherKind } from './draft-state';
 import styles from './VoucherForm.module.css';
 
 type Kind = OperationInput['kind'];
@@ -29,20 +30,21 @@ export function Component() {
   const [params] = useSearchParams();
   const routeInput = params.toString();
   const generatedSource = useMemo(() => crypto.randomUUID(), [id, routeInput]);
-  const { period, voucherDraft, setVoucherDraft } = useWorkspace();
+  const { period, voucherDrafts, setVoucherDraft } = useWorkspace();
+  const location = useLocation();
+  const draftKey = voucherDraftKey(id, params);
   const query = useQuery({ queryKey: [...workspaceKey(), 'voucher', id], queryFn: ({ signal }) => api<Voucher>(`/documents/${id}/voucher`, { signal }), enabled: Boolean(id) && !isDemo, staleTime: Infinity, retry: false });
   const navigate = useNavigate();
   if (isDemo) return <Alert type="info" title="Biểu mẫu nghiệp vụ dùng dữ liệu doanh nghiệp và backend." />;
   if (id && !query.data) return <Alert type={query.error ? 'error' : 'info'} title={query.error?.message ?? 'Đang tải chứng từ…'} action={<Button onClick={() => navigate('/documents')}>Về danh sách</Button>} />;
-  const requested = params.get('kind') as Kind;
-  const kind: Kind = requested && requested in titles ? requested : 'receipt';
+  const kind = voucherKind(params);
   const date = businessToday().startsWith(period) ? businessToday() : `${period}-01`;
   const monthEnd = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).toISOString().slice(0, 10);
-  const resumed = voucherDraft && (!id || voucherDraft.draftId === id) ? voucherDraft : null;
-  if (!id && resumed?.draftId) return <ResumeVoucher id={resumed.draftId} />;
-  if (resumed && query.data?.document.status === 'posted') return <Alert type="warning" title="Nháp đã được ghi sổ từ một phiên khác" description="Nội dung đang nhập vẫn được giữ để xuất và đối chiếu với bản đã ghi sổ." action={<><Button onClick={() => exportInput(resumed)}>Xuất nội dung đang nhập</Button><Button onClick={() => setVoucherDraft(null)}>Xem bản đã ghi sổ</Button></>} />;
+  const retained = voucherDrafts[draftKey];
+  const resumed = retained?.input;
+  if (resumed && query.data?.document.status === 'posted') return <Alert type="warning" title="Nháp đã được ghi sổ từ một phiên khác" description="Nội dung đang nhập vẫn được giữ để xuất và đối chiếu với bản đã ghi sổ." action={<><Button onClick={() => exportInput(resumed)}>Xuất nội dung đang nhập</Button><Button onClick={() => setVoucherDraft(draftKey, null)}>Xem bản đã ghi sổ</Button></>} />;
   const stale = Boolean(resumed && query.data && resumed.draftVersion !== query.data.document.version);
-  const initial: OperationInput = structuredClone(resumed ?? query.data?.input ?? voucherDraft ?? {
+  const initial: OperationInput = structuredClone(resumed ?? query.data?.input ?? {
     kind, sourceId: generatedSource, date: kind === 'closing' ? monthEnd : date,
     description: kind === 'closing' ? `Kết chuyển lãi lỗ kỳ ${period}` : '',
     voucher: { documentDate: kind === 'closing' ? monthEnd : date }, tradeMode: params.get('service') === '1' ? 'service' : 'goods',
@@ -53,12 +55,7 @@ export function Component() {
   if ((initial.kind === 'receipt' || initial.kind === 'payment') && !initial.treasuryLines?.length && !initial.allocations?.length && initial.counterAccount && initial.amount) {
     initial.treasuryLines = [{ counterAccount: initial.counterAccount, amount: initial.amount, description: initial.description, partnerId: initial.partnerId }];
   }
-  return <VoucherForm key={id ? `${id}-${resumed?.draftVersion ?? query.data?.document.version}` : generatedSource} initial={initial} initialAllocate={!id && !resumed && (kind === 'receipt' || kind === 'payment') && params.get('settlement') === '1'} resuming={Boolean(resumed)} stale={stale} onReload={() => setVoucherDraft(null)} initialDocument={query.data ? { ...query.data.document, version: resumed?.draftVersion ?? query.data.document.version } : undefined} initialCalculation={resumed ? undefined : query.data?.calculation} replacement={query.data?.replacement} reversal={query.data?.reversal} />;
-}
-
-function ResumeVoucher({ id }: { id: string }) {
-  const { state } = useLocation();
-  return <Navigate to={`/vouchers/${id}`} replace state={state} />;
+  return <VoucherForm key={id ? `${id}-${resumed?.draftVersion ?? query.data?.document.version}` : generatedSource} initial={initial} draftKey={draftKey} draftRoute={location.pathname + location.search} initialAllocate={retained?.allocate ?? (!id && (kind === 'receipt' || kind === 'payment') && params.get('settlement') === '1')} resuming={Boolean(resumed)} stale={stale} onReload={() => setVoucherDraft(draftKey, null)} initialDocument={query.data ? { ...query.data.document, version: resumed?.draftVersion ?? query.data.document.version } : undefined} initialCalculation={resumed ? undefined : query.data?.calculation} replacement={query.data?.replacement} reversal={query.data?.reversal} />;
 }
 
 function exportInput(input: OperationInput) {
@@ -66,8 +63,8 @@ function exportInput(input: OperationInput) {
   const link = document.createElement('a'); link.href = url; link.download = `nhap-${input.sourceId}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function VoucherForm({ initial, initialAllocate, initialDocument, initialCalculation, resuming, stale, onReload, replacement, reversal }: { initial: OperationInput; initialAllocate: boolean; initialDocument?: AccountingDocument; initialCalculation?: Calculation; replacement?: AccountingDocument; reversal?: AccountingDocument; resuming: boolean; stale: boolean; onReload: () => void }) {
-  const { data, voucherDraft, setVoucherDraft, period, openDocument } = useWorkspace();
+function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDocument, initialCalculation, resuming, stale, onReload, replacement, reversal }: { initial: OperationInput; draftKey: string; draftRoute: string; initialAllocate: boolean; initialDocument?: AccountingDocument; initialCalculation?: Calculation; replacement?: AccountingDocument; reversal?: AccountingDocument; resuming: boolean; stale: boolean; onReload: () => void }) {
+  const { data, voucherDrafts, setVoucherDraft, period, openDocument } = useWorkspace();
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -118,7 +115,7 @@ function VoucherForm({ initial, initialAllocate, initialDocument, initialCalcula
   const calculate = useMutation({ retry: false, mutationFn: (input: OperationInput) => api<Calculation>('/operations/preview', { method: 'POST', body: JSON.stringify(input), headers: { 'X-Dataset-Epoch': apiScope().epoch } }), onSuccess: (result, requestedInput) => { try { if (JSON.stringify(input()) === JSON.stringify(requestedInput)) { setPreview({ input: requestedInput, result }); if (!closing) setTab('preview'); } } catch { setPreview(null); } }, onError: error => void message.error(error.message) });
   const save = useMutation({ retry: false, mutationFn: (input: OperationInput) => command<Voucher>('/voucher-drafts', input), onSuccess: async result => {
     client.setQueryData([...workspaceKey(), 'voucher', result.document.id], result);
-    setSaved(result.document); form.setFieldsValue(result.input); setDirty(false); setPreview(null); setVoucherDraft(null);
+    setSaved(result.document); form.setFieldsValue(result.input); setDirty(false); setPreview(null); setVoucherDraft(draftKey, null);
     void message.success('Đã lưu nháp. Sổ kế toán và tồn kho chưa thay đổi.');
     allowNavigation.current = true;
     navigate(`/vouchers/${result.document.id}`, { replace: true, state: { returnTo } });
@@ -126,7 +123,7 @@ function VoucherForm({ initial, initialAllocate, initialDocument, initialCalcula
   }, onError: error => void message.error(error.message) });
   const execute = useMutation({ retry: false, mutationFn: (input: OperationInput) => command<Calculation>('/operations', input), onSuccess: async result => {
     client.setQueryData([...workspaceKey(), 'voucher', result.document.id], { input: preview!.input, document: result.document, calculation: result });
-    setSaved(result.document); setDirty(false); setVoucherDraft(null); setPreview({ input: preview!.input, result });
+    setSaved(result.document); setDirty(false); setVoucherDraft(draftKey, null); setPreview({ input: preview!.input, result });
     allowNavigation.current = true;
     navigate(`/vouchers/${result.document.id}`, { replace: true, state: { returnTo } });
     void message.success(`Đã ghi sổ ${result.document.reference}${result.paymentDocument ? ` và ${result.paymentDocument.reference}` : ''}.`);
@@ -139,10 +136,10 @@ function VoucherForm({ initial, initialAllocate, initialDocument, initialCalcula
   useEffect(() => {
     if (blocker.state !== 'blocked') return;
     if (pending) { blocker.reset(); void message.info('Đang xử lý chứng từ. Vui lòng chờ phản hồi trước khi chuyển màn hình.'); return; }
-    setVoucherDraft({ ...form.getFieldsValue(true), draftId: saved?.id, draftVersion: saved?.version });
+    setVoucherDraft(draftKey, { input: { ...form.getFieldsValue(true), draftId: saved?.id, draftVersion: saved?.version }, allocate, route: draftRoute, returnTo });
     allowNavigation.current = true;
     blocker.proceed();
-  }, [blocker, pending, form, saved?.id, saved?.version, setVoucherDraft, message]);
+  }, [blocker, pending, form, saved?.id, saved?.version, setVoucherDraft, draftKey, draftRoute, allocate, returnTo, message]);
   const partyOptions = data?.partners.filter(item => item.active && (!trade || item.role === 'both' || item.role === (kind === 'sale' ? 'customer' : 'supplier'))).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` })) ?? [];
   const moneyOptions = data?.accounts.filter(item => item.active && (['111', '1121', '112'].includes(item.id) || bankQuery.data?.accounts.some(bank => bank.accountId === item.id))).map(item => ({ value: item.id, label: `${item.code} · ${item.name}`, code: item.code }));
   const counterOptions = data?.accounts.filter(item => item.active && !['cash', 'inventory', 'asset', 'receivable', 'payable'].includes(item.group)).map(item => ({ value: item.id, label: `${item.code} · ${item.name}`, code: item.code }));
@@ -181,14 +178,18 @@ function VoucherForm({ initial, initialAllocate, initialDocument, initialCalcula
   }
   function correct() {
     if (!saved) return;
-    if (voucherDraft) { void message.warning('Đang có nháp chưa hoàn tất. Đóng và xử lý bản nháp trước khi lập điều chỉnh.'); return; }
     const next = structuredClone(initial);
     delete next.draftId; delete next.draftVersion; delete next.expectedRevision; delete next.expectedPolicyId;
     next.sourceId = crypto.randomUUID(); next.replacementOf = saved.id; next.replacementReason = '';
     const currentDate = businessToday().startsWith(period) ? businessToday() : `${period}-01`;
     next.date = currentDate < saved.date ? saved.date : currentDate;
     next.voucher = { ...next.voucher, documentDate: next.date, reference: '' };
-    setVoucherDraft(next); navigate(`/vouchers/new?kind=${kind}`, { state: { returnTo } });
+    const params = new URLSearchParams({ kind, replacement: saved.id });
+    if (bank) params.set('account', '1121');
+    const route = `/vouchers/new?${params}`;
+    const replacementKey = voucherDraftKey(undefined, params);
+    if (!voucherDrafts[replacementKey]) setVoucherDraft(replacementKey, { input: next, allocate, route, returnTo });
+    navigate(route, { state: { returnTo } });
   }
   function confirmPosting() {
     if (!preview) return;
@@ -206,7 +207,7 @@ function VoucherForm({ initial, initialAllocate, initialDocument, initialCalcula
     event.preventDefault();
     if (!readonly && !pending && policy && !stale && !(closing && action === 'save')) void submit(action);
   }}>
-    <header className={styles.titlebar}><h1 id="voucher-title">{title} {saved?.reference}</h1>{(kind === 'receipt' || kind === 'payment') && !readonly && <Form.Item noStyle><Select aria-label="Loại phiếu" disabled={pending || Boolean(saved)} value={kind} options={[{ value: 'receipt', label: bank ? 'Thu tiền gửi' : 'Phiếu thu' }, { value: 'payment', label: bank ? 'Chi tiền gửi' : 'Phiếu chi' }]} onChange={value => { form.setFieldValue('kind', value); setPreview(null); setDirty(true); }} /></Form.Item>}{trade && <Select aria-label="Loại hàng hóa dịch vụ" disabled={readonly || pending || Boolean(saved)} value={mode} options={[{ value: 'goods', label: kind === 'sale' ? 'Bán hàng hóa trong nước' : 'Mua hàng trong nước' }, { value: 'service', label: kind === 'sale' ? 'Bán dịch vụ' : 'Mua dịch vụ' }]} onChange={value => { form.setFieldsValue({ tradeMode: value, lines: [{ itemId: '', quantity: '1', unitPrice: '', vatRate: '', accountId: kind === 'sale' ? '511' : value === 'service' ? '642' : '156' }] }); setPreview(null); setDirty(true); }} />}{!trade && !transfer && !closing && <div className={styles.modeSelect}><Select aria-label="Nội dung thu chi" disabled={readonly || pending} value={allocate ? 'invoice' : 'other'} options={[{ value: 'other', label: kind === 'receipt' ? 'Thu khác' : 'Chi khác' }, { value: 'invoice', label: kind === 'receipt' ? 'Thu công nợ theo chứng từ' : 'Trả công nợ theo chứng từ' }]} onChange={value => { setAllocate(value === 'invoice'); form.setFieldsValue({ allocations: [], treasuryLines: [{ counterAccount: '', description: '', amount: '' }] }); setPreview(null); setDirty(true); }} /></div>}{readonly && <Tag color="green">{saved?.status === 'posted' ? 'Đã ghi sổ' : 'Chỉ xem'}</Tag>}<Button type="text" icon={<Icon name="close" />} aria-label="Đóng chứng từ" disabled={pending} onClick={close} /></header>
+    <header className={styles.titlebar}><h1 id="voucher-title">{title} {saved?.reference}</h1>{(kind === 'receipt' || kind === 'payment') && !readonly && <Form.Item noStyle><Select aria-label="Loại phiếu" disabled={pending || Boolean(saved) || Boolean(initial.replacementOf)} value={kind} options={[{ value: 'receipt', label: bank ? 'Thu tiền gửi' : 'Phiếu thu' }, { value: 'payment', label: bank ? 'Chi tiền gửi' : 'Phiếu chi' }]} onChange={value => { const params = new URLSearchParams(location.search); params.set('kind', value); navigate(`/vouchers/new?${params}`, { state: { returnTo } }); }} /></Form.Item>}{trade && <Select aria-label="Loại hàng hóa dịch vụ" disabled={readonly || pending || Boolean(saved)} value={mode} options={[{ value: 'goods', label: kind === 'sale' ? 'Bán hàng hóa trong nước' : 'Mua hàng trong nước' }, { value: 'service', label: kind === 'sale' ? 'Bán dịch vụ' : 'Mua dịch vụ' }]} onChange={value => { const params = new URLSearchParams(location.search); if (value === 'service') params.set('service', '1'); else params.delete('service'); navigate(`/vouchers/new?${params}`, { state: { returnTo } }); }} />}{!trade && !transfer && !closing && <div className={styles.modeSelect}><Select aria-label="Nội dung thu chi" disabled={readonly || pending} value={allocate ? 'invoice' : 'other'} options={[{ value: 'other', label: kind === 'receipt' ? 'Thu khác' : 'Chi khác' }, { value: 'invoice', label: kind === 'receipt' ? 'Thu công nợ theo chứng từ' : 'Trả công nợ theo chứng từ' }]} onChange={value => { if (!saved) { const params = new URLSearchParams(location.search); if (value === 'invoice') params.set('settlement', '1'); else params.delete('settlement'); navigate(`/vouchers/new?${params}`, { state: { returnTo } }); return; } setAllocate(value === 'invoice'); form.setFieldsValue({ allocations: [], treasuryLines: [{ counterAccount: '', description: '', amount: '' }] }); setPreview(null); setDirty(true); }} /></div>}{readonly && <Tag color="green">{saved?.status === 'posted' ? 'Đã ghi sổ' : 'Chỉ xem'}</Tag>}<Button type="text" icon={<Icon name="close" />} aria-label="Đóng chứng từ" disabled={pending} onClick={close} /></header>
     <div className={styles.body}>
       {saved?.status === 'posted' && (replacement || reversal) && <Alert className={styles.info} showIcon type="info" title={replacement ? `Đã thay thế bằng ${replacement.reference}` : `Đã đảo bằng ${reversal!.reference}`} action={<Button onClick={() => replacement ? navigate(`/vouchers/${replacement.id}`) : openDocument(reversal!.id)}>{replacement ? 'Mở phiếu đã sửa' : 'Xem nghiệp vụ đảo'}</Button>} />}
       {initial.replacementOf && <Alert className={styles.info} showIcon type="info" title={saved?.status === 'posted' ? 'Phiếu thay thế đã ghi sổ' : 'Bản sửa thay thế phiếu đã ghi sổ'} description={saved?.status === 'posted' ? 'Phiếu này thay thế phiếu gốc; lý do và chứng từ đảo được giữ trong lịch sử.' : 'Các giá trị cũ đã được điền sẵn. Chọn ngày hạch toán hợp lệ, sửa nội dung và nhập lý do. Chỉ khi ghi sổ, hệ thống mới đảo phiếu cũ và ghi phiếu mới cùng lúc.'} action={<Button onClick={() => navigate(`/vouchers/${initial.replacementOf}`)}>Xem phiếu gốc</Button>} />}
@@ -298,6 +299,6 @@ function VoucherForm({ initial, initialAllocate, initialDocument, initialCalcula
         </section>
       </Form>
     </div>
-    <footer className={styles.footer}><small>{policy ? `Chính sách v${policy.version} · Kỳ ${period}` : preview ? `Chính sách v${preview.result.policyVersion} · Kỳ ${period}` : auto.isFetching ? 'Đang tải chính sách…' : auto.error ? 'Chưa tải được chính sách' : 'Chưa có chính sách hiệu lực'}{dirty && !readonly ? ' · Nội dung chưa lưu' : ''}</small><div>{trade && <Button onClick={() => setShowAccounts(value => !value)}>{showAccounts ? 'Ẩn tài khoản' : 'Hiện tài khoản'}</Button>}{dirty && !readonly && <Button onClick={() => exportInput(form.getFieldsValue(true))}>Xuất nháp</Button>}{dirty && !readonly && <Button danger type="text" disabled={pending} onClick={() => modal.confirm({ title: 'Bỏ nội dung chưa lưu?', content: 'Chứng từ đã cất nháp vẫn được giữ trên máy chủ.', okText: 'Bỏ nội dung', cancelText: 'Tiếp tục nhập', onOk: () => { allowNavigation.current = true; setVoucherDraft(null); setDirty(false); navigate(returnTo); } })}>Bỏ nội dung chưa lưu</Button>}<Button disabled={pending} onClick={close}>Đóng</Button>{saved && <Button disabled={dirty} onClick={() => window.open(`/api/v1/documents/${saved.id}/print`, '_blank', 'noopener,noreferrer')}>In chứng từ</Button>}{saved?.status === 'posted' && !saved.reversalOf && !reversal && !replacement && ['receipt', 'payment', 'transfer'].includes(kind) && apiScope().permissions !== 'viewer' && <Button type="primary" onClick={correct}>Sửa / thay thế phiếu</Button>}{!readonly && <>{!closing && <Button title="Ctrl/⌘ S · Lưu nháp" loading={save.isPending} disabled={pending || !policy} onClick={() => void submit('save')}>Cất nháp <kbd aria-hidden="true" className={styles.shortcut}>Ctrl/⌘ S</kbd></Button>}<Button title="Ctrl/⌘ Enter · Tính và xem trước" loading={calculate.isPending} disabled={pending || !policy} onClick={() => void submit('preview')}>Tính và xem trước <kbd aria-hidden="true" className={styles.shortcut}>Ctrl/⌘ ↵</kbd></Button>{preview && <Button type="primary" loading={execute.isPending} disabled={pending || closing && apiScope().permissions !== 'owner'} onClick={confirmPosting}>Ghi sổ</Button>}</>}</div></footer>
+    <footer className={styles.footer}><small>{policy ? `Chính sách v${policy.version} · Kỳ ${period}` : preview ? `Chính sách v${preview.result.policyVersion} · Kỳ ${period}` : auto.isFetching ? 'Đang tải chính sách…' : auto.error ? 'Chưa tải được chính sách' : 'Chưa có chính sách hiệu lực'}{dirty && !readonly ? ' · Nội dung chưa lưu' : ''}</small><div>{trade && <Button onClick={() => setShowAccounts(value => !value)}>{showAccounts ? 'Ẩn tài khoản' : 'Hiện tài khoản'}</Button>}{dirty && !readonly && <Button onClick={() => exportInput(form.getFieldsValue(true))}>Xuất nháp</Button>}{dirty && !readonly && <Button danger type="text" disabled={pending} onClick={() => modal.confirm({ title: 'Bỏ nội dung chưa lưu?', content: 'Chứng từ đã cất nháp vẫn được giữ trên máy chủ.', okText: 'Bỏ nội dung', cancelText: 'Tiếp tục nhập', onOk: () => { allowNavigation.current = true; setVoucherDraft(draftKey, null); setDirty(false); navigate(returnTo); } })}>Bỏ nội dung chưa lưu</Button>}<Button disabled={pending} onClick={close}>Đóng</Button>{saved && <Button disabled={dirty} onClick={() => window.open(`/api/v1/documents/${saved.id}/print`, '_blank', 'noopener,noreferrer')}>In chứng từ</Button>}{saved?.status === 'posted' && !saved.reversalOf && !reversal && !replacement && ['receipt', 'payment', 'transfer'].includes(kind) && apiScope().permissions !== 'viewer' && <Button type="primary" onClick={correct}>Sửa / thay thế phiếu</Button>}{!readonly && <>{!closing && <Button title="Ctrl/⌘ S · Lưu nháp" loading={save.isPending} disabled={pending || !policy} onClick={() => void submit('save')}>Cất nháp <kbd aria-hidden="true" className={styles.shortcut}>Ctrl/⌘ S</kbd></Button>}<Button title="Ctrl/⌘ Enter · Tính và xem trước" loading={calculate.isPending} disabled={pending || !policy} onClick={() => void submit('preview')}>Tính và xem trước <kbd aria-hidden="true" className={styles.shortcut}>Ctrl/⌘ ↵</kbd></Button>{preview && <Button type="primary" loading={execute.isPending} disabled={pending || closing && apiScope().permissions !== 'owner'} onClick={confirmPosting}>Ghi sổ</Button>}</>}</div></footer>
   </section></Modal></ConfigProvider>;
 }

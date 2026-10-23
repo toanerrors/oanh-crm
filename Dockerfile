@@ -1,4 +1,4 @@
-ARG APP_VERSION=0.16.0
+ARG APP_VERSION=0.16.2
 FROM node:26.5.1-alpine@sha256:233761595746769ebfdb6090f44fc7cdf818ae0ce62d2b37e0367723b9823e36 AS web-build
 WORKDIR /src/web
 RUN npm install --global --ignore-scripts pnpm@10.34.7

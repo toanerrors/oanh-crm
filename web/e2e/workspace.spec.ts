@@ -74,7 +74,15 @@ test('gợi ý không dấu, nhập tự do và chiều cao control thống nh�
   ]) expect((await control.boundingBox())?.height).toBe(32);
 
   await page.locator('.ant-drawer-close').click();
-  await page.getByRole('button', { name: 'Tiếp tục nháp', exact: true }).click();
+  await page.getByRole('button', { name: 'Nháp đang nhập (1)', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^Chứng từ khác/ }).click();
+  await expect(description).toHaveValue('Diễn giải mới chưa có trong lịch sử');
+  await page.getByLabel('Loại chứng từ', { exact: true }).click();
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Phiếu chi' }).click();
+  await expect(description).toHaveValue('');
+  await description.fill('Nháp phiếu chi riêng');
+  await page.getByLabel('Loại chứng từ', { exact: true }).click();
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Chứng từ khác' }).click();
   await expect(description).toHaveValue('Diễn giải mới chưa có trong lịch sử');
 });
 
@@ -166,7 +174,10 @@ test('tiền lớn, thêm/xóa dòng và nháp giữ qua chuyển route, không 
   await expect(page.getByText('Cân đối Nợ / Có', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Tổng quan', exact: true }).click();
-  await page.getByRole('button', { name: 'Tiếp tục nháp', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Nháp đang nhập/ })).toHaveCount(0);
+  await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: /Kế toán tổng hợp/ }).click();
+  await page.getByRole('button', { name: 'Nháp đang nhập (1)', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^Chứng từ khác/ }).click();
   await expect(page.getByLabel('Diễn giải', { exact: true })).toHaveValue('Kiểm tra số tiền lớn');
   await expect(page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true })).toHaveValue('9.007.199.254.740.993');
   await page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true }).press('ArrowUp');
@@ -246,7 +257,7 @@ test('mobile 390px không tràn ngang và mở được điều hướng, biểu
   await page.getByRole('button', { name: 'Tạo chứng từ', exact: true }).click();
   await expect(page.getByLabel('Diễn giải', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Tiếp tục nháp', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nháp đang nhập (1)', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

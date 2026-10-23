@@ -10,11 +10,18 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
-## Chọn tài khoản trên dòng mua hàng
+## Chọn tài khoản trên dòng mua hàng — 0.16.2
 
 - Cột TK hạch toán cho phép chọn tài khoản chi phí/dở dang còn sử dụng, ví dụ621,6427,154; hàng hóa vẫn chọn được156. Server giữ tài khoản được chọn khi lưu nháp, xem trước và ghi sổ. Không đổi schema hoặc dependency.
 - Mua hàng vào156 tạo tồn kho như trước; mua dùng ngay vào chi phí/dở dang không tạo lô hoặc biến động kho. UI hiện Không nhập kho trên dòng tương ứng; chặn phân bổ chi phí nhập kho vào các dòng này. Tài khoản tài sản/242 và tài khoản kho khác156 vẫn cần nghiệp vụ phân hệ riêng, chưa mở trong thay đổi này.
 - Validation: regression SQLite thật với tiền trên2^53, nháp không tác động kho, chọn tài khoản, retry/khác payload, rollback khi dòng sau sai và reopen; Go race cho các test mua hàng/chứng từ kho và go vet operations đạt. TypeScript strict, production build và E2E backend thật chọn156↔6427, lưu/mở lại nháp, ghi sổ đúng6427 và dịch vụ chọn154 đạt. Nội dung UI không có lỗi/cảnh báo tiếng Việt; cảnh báo chunk lớn hiện có vẫn còn.
+
+## Nháp riêng theo chức năng — 0.16.1
+
+- Tách nháp UI theo loại Thu/Chi/Chuyển tiền, Tiền mặt/Tiền gửi, Mua/Bán hàng hóa/dịch vụ và thu/chi theo chứng từ. Chỉ khôi phục khóa khớp chức năng đang mở; bỏ fallback lấy nháp khác loại và tự chuyển từ phiếu mới sang chứng từ đã lưu. Nháp sửa theo document ID/version; bản thay thế theo phiếu gốc, không chặn hoặc ghi đè nháp thường.
+- Đổi loại phiếu, hàng hóa/dịch vụ và chế độ thu/chi trên phiếu mới chuyển đúng ngữ cảnh, giữ nháp trước đó. Cất/bỏ/ghi sổ chỉ xóa nội dung của form tương ứng. Nháp chứng từ nhập tay cũng tách phiếu mới theo loại và phiếu sửa theo ID; đổi loại nháp mới mở nội dung riêng. Danh sách “Nháp đang nhập” có tên/nội dung rõ ràng và chỉ hiển thị trong đúng phân hệ.
+- Chỉ giữ state trong phiên bộ nhớ hiện tại; không thêm localStorage, dependency, API hoặc migration (schema8). AuthGate tiếp tục xóa state khi đổi danh tính/quyền/epoch; cảnh báo đóng hoặc tải lại khi còn nội dung chưa cất.
+- Validation:71test Node, TypeScript typecheck/build và diff check đạt; cập nhật regression E2E và parse/list15test live/16test mẫu, chưa chạy E2E tự động. Edge giả lập: Chi5.000.000→Bán hàng trống→quay lại Chi nguyên nội dung; Thu và Chi tiền gửi riêng; Bán hàng/Bán dịch vụ đồng thời; mở phiếu đã ghi sổ và lập nháp thay thế không lấy nội dung từ nháp mới. Nháp nhập tay mới và sửa ID cũ giữ riêng. Không thay chứng từ thật; chưa benchmark số lượng nháp lớn.
 
 ## Trung tâm sao lưu và khôi phục — 0.16.0
 
