@@ -10,6 +10,11 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Bỏ viền xanh bên trái — 0.10.1
+
+- Bỏ vạch xanh trang trí tại thẻ số dư tiền mặt/tiền gửi và bóng đổ bên trái dòng chứng từ đang chọn; gỡ khai báo tương tự đã bị ghi đè của sidebar. Thẻ dùng viền mảnh đồng đều, dòng chọn giữ nền nhạt, không đổi focus bàn phím/nút/menu hoặc nghiệp vụ.
+- Phạm vi chỉ CSS dùng chung và metadata phát hành. Kiểm tra bằng production build và đối chiếu Edge desktop/mobile sau phát hành; không cần sửa backend/schema hay thêm test logic.
+
 ## Xuất đa định dạng — 0.10.0
 
 - Menu Xuất tệp thống nhất Excel (.xlsx), CSV UTF-8 và Bản in/Lưu PDF tại chứng từ, sổ sách/công nợ, danh mục và BCTC. Toàn bộ bộ lọc, không chỉ trang đang xem; giữ tab phân hệ, có loading/lỗi và focus bàn phím. Sửa hiển thị mã nháp dài và độ rộng cột tiền trong danh sách.

@@ -22,7 +22,7 @@
 .navLink { position: relative; white-space: nowrap; display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 6px 10px; border-radius: 6px; font-size: 13px; color: #d2dfd8; margin-bottom: 2px; transition: background .15s; }
 .navLink:hover { color: #fff; background: #28493d; }
 .navLink svg { color: #a4c4b5; }
-.activeNav { color: #fff; background: #2a5847; box-shadow: inset 3px 0 #79d4b2; font-weight: 600; }
+.activeNav { color: #fff; background: #2a5847; font-weight: 600; }
 .activeNav svg { color: #9aebcc; }
 .navCount { margin-left: auto; background: #3a6754; color: #e2f7e9; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
 .sidebarBottom { margin-top: auto; padding-top: 12px; }
@@ -349,7 +349,6 @@
 .documentList :global(.ant-table-thead > tr > th), .documentLines :global(.ant-table-thead > tr > th) { background: #dce8e2; color: #23372d; border-bottom: 1px solid #b8c9c0; padding: 9px 12px; }
 .documentList :global(.ant-table-tbody > tr > td), .documentLines :global(.ant-table-tbody > tr > td) { border-bottom: 1px solid #d5d9d6 !important; border-right: 1px dotted #d1d8d3; }
 .documentList :global(.ant-table-tbody > .selectedDocument > td) { background: #e0f0e8 !important; }
-.documentList :global(.ant-table-tbody > .selectedDocument > td:first-child) { box-shadow: inset 3px 0 #4a9b70; }
 .documentLines { margin-top: 10px; border: 1px solid #d4dbd7; box-shadow: none; overflow: hidden; }
 .documentLines .panelHeader { padding: 4px 12px; }
 .documentLines .panelHeader h2 { font-size: 13px; }
@@ -365,7 +364,7 @@
 .denseWorkspace .contextBar { position: absolute; right: 16px; top: 5px; margin: 0; z-index: 2; }
 .denseWorkspace .contextBar > span { display: none; }
 .denseWorkspace .moduleNavigation { padding-right: 240px; min-height: 44px; }
-.denseWorkspace .accountCard { padding: 7px 16px; min-height: 56px; border-left: 2px solid #539b70; }
+.denseWorkspace .accountCard { padding: 7px 16px; min-height: 56px; }
 .denseWorkspace .accountCard strong { font-size: 16px; }
 .denseWorkspace .accountCard > div > span { margin-bottom: 1px; }
 .documentList .tableToolbar { padding: 7px 12px; gap: 8px; flex-wrap: wrap; }
