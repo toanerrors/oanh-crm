@@ -10,6 +10,11 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Bỏ nhãn không gian kế toán — 0.13.1
+
+- Bỏ dòng “Không gian kế toán của bạn” và chấm xanh trong app shell; gỡ CSS không còn dùng, giữ bộ chọn kỳ và nút tiếp tục nháp căn bên phải trên các trang.
+- Validation: TypeScript typecheck, production build và diff check đạt. Chỉ sửa giao diện, không đổi backend/schema hoặc số liệu; đối chiếu Edge và healthcheck sau triển khai.
+
 ## Tổng quan tài chính tập trung — 0.13.0
 
 - Thay lời chào/biểu đồ tròn lớn bằng 6 thẻ: doanh thu, chi phí, tổng tiền, phải thu, phải trả và giá trị hàng tồn kho trên sổ; tiền lớn giữ đủ chữ số. Biểu đồ 6 tháng hỗ trợ cả số âm, trạng thái không có phát sinh và chuyển kỳ bằng nút tháng. Chênh lệch doanh thu−chi phí có chú thích nguồn, không gọi là lợi nhuận pháp định.
