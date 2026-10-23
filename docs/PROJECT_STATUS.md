@@ -10,6 +10,12 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Chọn tài khoản trên dòng mua hàng
+
+- Cột TK hạch toán cho phép chọn tài khoản chi phí/dở dang còn sử dụng, ví dụ621,6427,154; hàng hóa vẫn chọn được156. Server giữ tài khoản được chọn khi lưu nháp, xem trước và ghi sổ. Không đổi schema hoặc dependency.
+- Mua hàng vào156 tạo tồn kho như trước; mua dùng ngay vào chi phí/dở dang không tạo lô hoặc biến động kho. UI hiện Không nhập kho trên dòng tương ứng; chặn phân bổ chi phí nhập kho vào các dòng này. Tài khoản tài sản/242 và tài khoản kho khác156 vẫn cần nghiệp vụ phân hệ riêng, chưa mở trong thay đổi này.
+- Validation: regression SQLite thật với tiền trên2^53, nháp không tác động kho, chọn tài khoản, retry/khác payload, rollback khi dòng sau sai và reopen; Go race cho các test mua hàng/chứng từ kho và go vet operations đạt. TypeScript strict, production build và E2E backend thật chọn156↔6427, lưu/mở lại nháp, ghi sổ đúng6427 và dịch vụ chọn154 đạt. Nội dung UI không có lỗi/cảnh báo tiếng Việt; cảnh báo chunk lớn hiện có vẫn còn.
+
 ## Trung tâm sao lưu và khôi phục — 0.16.0
 
 - Cài đặt → Sao lưu & khôi phục có danh sách theo doanh nghiệp, phân trang/tìm ghi chú-người tạo, dung lượng, thời điểm, trạng thái kiểm tra, ghi chú và các thao tác chi tiết/tải lại/kiểm tra lại/chuẩn bị khôi phục. Giữ API tải ZIP cũ; API mới tạo gói có idempotency, không tạo thêm gói khi retry cùng ý định. Gói chỉ công bố sau snapshot, fsync, kiểm tra ZIP/SQLite/đối soát; checksum đọc streaming và được kiểm lại trước download. Manifest thêm app/schema version, khoảng ngày và số đính kèm; archive cũ vẫn đọc được. Không đổi schema8 hoặc dependency.

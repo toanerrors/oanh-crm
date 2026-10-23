@@ -74,7 +74,7 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 		if account != "" {
 			var group string
 			var active bool
-			if e := tx.QueryRowContext(ctx, "SELECT account_group,active FROM accounts WHERE id=?", account).Scan(&group, &active); e != nil || !active || in.Kind == "sale" && group != "revenue" || in.Kind == "purchase" && (item.Tracked && account != "156" || !item.Tracked && group != "expense" && group != "wip") {
+			if e := tx.QueryRowContext(ctx, "SELECT account_group,active FROM accounts WHERE id=?", account).Scan(&group, &active); e != nil || !active || in.Kind == "sale" && group != "revenue" || in.Kind == "purchase" && !(item.Tracked && account == "156" || group == "expense" || group == "wip") {
 				return accounting.Fail("INVALID_ACCOUNT", "Tài khoản hàng tiền không phù hợp loại nghiệp vụ.")
 			}
 		}
@@ -172,18 +172,20 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 			result.LineAmounts[index].PurchaseValue = accounting.Text(purchaseCost)
 			if account == "" {
 				account = "642"
+				if item.Tracked {
+					account = "156"
+				}
 			}
 			if in.IsPurchaseCost && item.Tracked {
 				return accounting.Fail("INVALID_COST_SOURCE", "Chứng từ chi phí mua hàng chỉ gồm dịch vụ.")
 			}
-			if costs[index] > 0 && !item.Tracked {
+			if costs[index] > 0 && (!item.Tracked || account != "156") {
 				return accounting.Fail("INVALID_COST_ALLOCATION", "Chi phí mua hàng chỉ phân bổ vào hàng nhập kho.")
 			}
 			if purchaseCost, err = accounting.Add(purchaseCost, costs[index]); err != nil {
 				return err
 			}
-			if item.Tracked {
-				account = "156"
+			if item.Tracked && account == "156" {
 				if _, err = s.stock(ctx, tx, doc, item.ID, quantity, purchaseCost, p, index, true, line.WarehouseID); err != nil {
 					return err
 				}

@@ -237,6 +237,8 @@ Số nháp lệch đọc tất cả dòng nháp trong kỳ bằng số nguyên c
 
 Trong phạm vi hiện tại, hàng hóa tracked=true có nhập/xuất và chi tiết kho; dịch vụ tracked=false dùng cho mua/bán dịch vụ, không yêu cầu kho và không tạo stock movement. Một ID danh mục dùng cho cả hai chiều mua/bán. UI chọn đúng loại và server kiểm tra lại TradeMode; không suy loại từ mã hoặc tên.
 
+Dòng mua hàng được chọn tài khoản chi phí hoặc dở dang để mua dùng ngay, không tạo tồn kho. Chỉ dòng hàng hóa hạch toán156 tạo lô/biến động kho; bỏ trống tài khoản giữ mặc định156 cho hàng hóa và642 cho dịch vụ. Server không ghi đè tài khoản đã chọn; từ chối tài khoản sai nhóm/ngừng dùng và phân bổ chi phí nhập kho vào dòng không nhập kho. Nháp, retry, rollback và reopen phải giữ đúng tài khoản và đối soát kho–sổ. Chưa mở tài khoản tài sản/242 hoặc tài khoản kho khác156 qua đường mua hàng này.
+
 Đổi loại chỉ áp dụng cho mã chưa được dùng, kiểm tra cả chứng từ nháp, nghiệp vụ đã ghi, lô/biến động và tồn kho trong số dư/điều chỉnh đầu kỳ trong cùng transaction cập nhật. Không sửa đơn vị/mã hoặc đổi cách đọc lịch sử. Regression SQLite kiểm tra mua/bán cùng mã, dịch vụ không có kho, sai loại, khóa tham chiếu, retry, audit undo/redo, backup/stage/reopen và cạnh tranh đổi loại với ghi sổ; chỉ một phía được thành công.
 
 
