@@ -438,6 +438,15 @@ test('menu chức năng có nhãn, mở đúng thu chi hóa đơn, Excel và d�
   expect(Math.abs(receipt!.y - payment!.y)).toBeLessThan(1);
   await page.getByRole('button', { name: 'Tùy chọn Chi tiền', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Chuyển tiền nội bộ', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Thu tiền', exact: true }).click();
+  const [kindBox, modeBox, closeBox] = await Promise.all([
+    page.getByRole('combobox', { name: 'Loại phiếu', exact: true }).boundingBox(),
+    page.getByRole('combobox', { name: 'Nội dung thu chi', exact: true }).boundingBox(),
+    page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).boundingBox(),
+  ]);
+  expect(Math.abs((kindBox?.y ?? 0) - (modeBox?.y ?? 999))).toBeLessThanOrEqual(4);
+  expect(Math.abs((kindBox?.y ?? 0) - (closeBox?.y ?? 999))).toBeLessThanOrEqual(4);
+  await page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

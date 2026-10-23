@@ -10,6 +10,12 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Tối ưu thanh tiêu đề phiếu (`VoucherForm`) trên mobile — 0.16.5
+
+- Thu gọn thanh tiêu đề phiếu (`.titlebar` trong `VoucherForm`) thành **1 hàng ngang duy nhất** (`flex-wrap: nowrap`) trên mobile (`<= 640px`): ẩn trực quan tiêu đề tĩnh trùng lặp (`<h1>Phiếu thu</h1>` / `<h1>Chứng từ bán hàng</h1>`, vẫn giữ trong cây trợ năng cho trình đọc màn hình) khi đã có ô chọn `Loại phiếu` (`[Phiếu thu v]`) hoặc `Loại hàng hóa dịch vụ` (`[Bán hàng hóa trong nước v]`); gỡ `min-width: 210px` làm ô `Nội dung thu chi` (`[Thu khác v]`) và nút đóng `[X]` bị rớt xuống hàng thứ hai.
+- Bố trí 3 trường `Ngày hạch toán`, `Ngày chứng từ` và `Số chứng từ` (`.dates` trong `VoucherForm`) trên cùng 1 hàng 3 cột gọn gàng trên mobile thay vì tách làm 2 hàng lẻ. Không thay đổi backend, schema, API hoặc quy tắc tính toán số liệu.
+- Validation: 71 unit test Node, `tsc --noEmit`, `vite build`, danh sách test live (`playwright test --config=playwright.live.config.ts --list`) và 16/16 kịch bản E2E Playwright (`workspace.spec.ts`) đều đạt.
+
 ## Thanh công cụ 1 hàng, biểu mẫu 2 cột và thanh điều hướng đáy mobile — 0.16.4
 
 - Giữ nút `Bộ lọc` (`32px`) và toàn bộ cụm phím chức năng (`Nhập Excel`, `Tài khoản ngân hàng`, `Xuất tệp`, `Thu tiền`, `Chi tiền`, `Lập chứng từ`) trên **cùng 1 hàng ngang** trên mobile (`<= 760px`): thu gọn các nút chỉ có icon xuống `28px`, ẩn icon phụ trong nút chính của cụm nút gộp (`ToolbarActionMenu` / `toolbarPrimaryActions`) và chuyển nút `Xóa bộ lọc` vào bên trong khung lọc mở rộng để không đẩy cụm phím chức năng xuống dòng.
