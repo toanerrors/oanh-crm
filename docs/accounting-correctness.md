@@ -226,3 +226,9 @@ Invariant: preview không thay revision/số liệu/audit; confirm lưu nghiệp
 Chứng từ đã ghi sổ và số dư đã xác nhận bất biến; khôi phục không gọi đường ghi sổ ngầm. Dùng điều chỉnh/đảo có liên kết để sửa số liệu đã xác nhận. Khôi phục nháp bị bỏ phải tăng version vượt mọi bản đã tồn tại; client trước khi bỏ bị từ chối. Khôi phục danh mục mới chuyển active=false, không xóa/reuse mã lịch sử. Audit chỉ giúp truy vết thay đổi đã commit, không chứng minh nghiệp vụ ban đầu đúng tài khoản hoặc kỳ.
 
 Regression bao gồm tiền lớn hơn 2^53, undo/redo, preview read-only, request gửi lại, lỗi ghi audit cuối transaction, hai người khôi phục đồng thời, client cũ, posted guard, owner/epoch, đầu kỳ/điều chỉnh nháp, BCTC và backup/restore. Nhật ký cơ bản thiếu snapshot không đủ bằng chứng khôi phục tự động.
+
+## Tổng quan và chỉ số toàn kỳ (0.13.0)
+
+Tổng quan giữ cùng nguồn/snapshot với workspace. Tổng tiền và tồn kho là tổng Nợ−Có trực tiếp theo nhóm tài khoản tới cuối kỳ, gồm lịch sử số dư/điều chỉnh. Không cộng giá trị cha đã tổng hợp với con, không suy diễn tồn kho vật chất. Phải trả là tổng dư Có của từng đối tượng, không bù với ứng trước đối tượng khác; phải thu giữ quy tắc sổ công nợ hiện có. Doanh thu/chi phí không cộng số dư đầu kỳ hoặc bút toán kết chuyển/đảo kết chuyển. Chênh lệch hiển thị chưa thay báo cáo kết quả kinh doanh.
+
+Số nháp lệch đọc tất cả dòng nháp trong kỳ bằng số nguyên chính xác, không dựa vào100chứng từ workspace. Các chứng từ đầu kỳ/điều chỉnh/đảo đầu kỳ không vào số đếm hoạt động hoặc danh sách gần đây, vẫn tham gia số dư. Regression kiểm tra tổng tiền18446744073709551534đồng,127chứng từ kỳ/121nháp với bản lệch ngoài100dòng gần nhất; nguồn kho và điều chỉnh qua service thật, dữ liệu giữ sau reopen. Biểu đồ giữ đường0 cho số âm; số tiền ở chỉ số và nút tháng giữ chuỗi đầy đủ.

@@ -119,7 +119,7 @@ func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Wor
 	if err != nil {
 		return w, err
 	}
-	rows, err = tx.QueryContext(ctx, "SELECT id FROM documents WHERE source_type<>'opening' AND substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id LIMIT 100", period)
+	rows, err = tx.QueryContext(ctx, "SELECT id FROM documents WHERE source_type NOT IN ('opening','opening_adjustment','opening_adjustment_reversal') AND substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id LIMIT 100", period)
 	if err != nil {
 		return w, err
 	}

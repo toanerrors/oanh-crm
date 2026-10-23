@@ -16,15 +16,19 @@ import (
 )
 
 type Metrics struct {
-	BankBalance   string            `json:"bankBalance"`
-	Revenue       string            `json:"revenue"`
-	Expense       string            `json:"expense"`
-	Receivable    string            `json:"receivable"`
-	Balances      map[string]string `json:"balances"`
-	DocumentCount int               `json:"documentCount"`
-	PostedCount   int               `json:"postedCount"`
-	DraftCount    int               `json:"draftCount"`
-	Months        []Month           `json:"months"`
+	Payable              string            `json:"payable"`
+	MoneyBalance         string            `json:"moneyBalance"`
+	InventoryBalance     string            `json:"inventoryBalance"`
+	UnbalancedDraftCount int               `json:"unbalancedDraftCount"`
+	BankBalance          string            `json:"bankBalance"`
+	Revenue              string            `json:"revenue"`
+	Expense              string            `json:"expense"`
+	Receivable           string            `json:"receivable"`
+	Balances             map[string]string `json:"balances"`
+	DocumentCount        int               `json:"documentCount"`
+	PostedCount          int               `json:"postedCount"`
+	DraftCount           int               `json:"draftCount"`
+	Months               []Month           `json:"months"`
 }
 type Month struct {
 	Key     string `json:"key"`
@@ -107,17 +111,19 @@ func amount(m map[string]*big.Int, key string) string {
 }
 func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metrics, error) {
 	m := &Metrics{Balances: map[string]string{}, Months: []Month{}}
-	rows, err := q.QueryContext(ctx, "SELECT id FROM accounts")
+	rows, err := q.QueryContext(ctx, "SELECT id,account_group FROM accounts")
 	if err != nil {
 		return nil, err
 	}
+	groups := map[string]string{}
 	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
+		var id, group string
+		if err = rows.Scan(&id, &group); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		m.Balances[id] = "0"
+		groups[id] = group
 	}
 	err = rows.Err()
 	rows.Close()
@@ -146,7 +152,7 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 	m.PostedCount = counts["posted"]
 	m.DraftCount = counts["draft"]
 	m.DocumentCount = m.PostedCount + m.DraftCount
-	balances, months, partners := map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}
+	balances, months, partners, payables := map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}
 	rows, err = q.QueryContext(ctx, "SELECT a.id,a.account_group,COALESCE(l.partner_id,''),substr(d.date,1,7),d.source_type,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id JOIN accounts a ON a.id=l.account_id WHERE d.status='posted' AND substr(d.date,1,7)<=?", period)
 	if err != nil {
 		return nil, err
@@ -164,6 +170,10 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 			add(partners, partner, d)
 			add(partners, partner, -c)
 		}
+		if group == "payable" {
+			add(payables, partner, c)
+			add(payables, partner, -d)
+		}
 		if !IsOpening(source) && source != "closing" && source != "closing_reversal" {
 			if group == "revenue" {
 				add(months, month+":revenue", c)
@@ -180,9 +190,18 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 	if err != nil {
 		return nil, err
 	}
+	money, inventory := new(big.Int), new(big.Int)
 	for id, n := range balances {
 		m.Balances[id] = n.String()
+		if groups[id] == "cash" {
+			money.Add(money, n)
+		}
+		if groups[id] == "inventory" {
+			inventory.Add(inventory, n)
+		}
 	}
+	m.MoneyBalance = money.String()
+	m.InventoryBalance = inventory.String()
 	bankTotal := new(big.Int)
 	bankRows, e := q.QueryContext(ctx, "SELECT account_id FROM bank_accounts UNION SELECT id FROM accounts WHERE id IN ('112','1121')")
 	if e != nil {
@@ -211,6 +230,38 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 		}
 	}
 	m.Receivable = receivable.String()
+	payable := new(big.Int)
+	for _, n := range payables {
+		if n.Sign() > 0 {
+			payable.Add(payable, n)
+		}
+	}
+	m.Payable = payable.String()
+	draftNets := map[string]*big.Int{}
+	rows, err = q.QueryContext(ctx, "SELECT d.id,l.debit,l.credit FROM documents d JOIN document_lines l ON l.document_id=d.id WHERE d.status='draft' AND d.source_type NOT IN ('opening','opening_adjustment','opening_adjustment_reversal') AND substr(d.date,1,7)=?", period)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id string
+		var debit, credit int64
+		if err = rows.Scan(&id, &debit, &credit); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		add(draftNets, id, debit)
+		add(draftNets, id, -credit)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range draftNets {
+		if n.Sign() != 0 {
+			m.UnbalancedDraftCount++
+		}
+	}
 	m.Revenue = amount(months, period+":revenue")
 	m.Expense = amount(months, period+":expense")
 	end, _ := time.Parse("2006-01", period)

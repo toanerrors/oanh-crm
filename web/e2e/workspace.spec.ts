@@ -349,3 +349,20 @@ test('menu nhanh giữ ý định rê chéo và không bị mục cũ đóng m�
   await page.mouse.move(700, 80);
   await expect(page.locator('.ant-popover:visible [id^="sidebar-desktop-"]')).toHaveCount(0);
 });
+
+test('tổng quan tập trung sáu chỉ số, tra cứu công nợ và responsive', async ({ page }) => {
+  await page.goto('/');
+  const metrics = page.getByRole('region', { name: 'Chỉ số tài chính', exact: true });
+  await expect(metrics.getByRole('link')).toHaveCount(6);
+  await expect(metrics.getByRole('link', { name: /Doanh thu trong kỳ:/ })).toContainText('528.000.000');
+  await expect(page.getByRole('heading', { name: 'Việc cần xử lý', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Thao tác nhanh tổng quan', exact: true }).getByRole('button')).toHaveCount(5);
+  await metrics.getByRole('link', { name: /Phải trả người bán:/ }).click();
+  await expect(page).toHaveURL('/receivables?debt=payable');
+  await expect(page.getByRole('combobox', { name: 'Loại công nợ', exact: true }).locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]')).toContainText('Phải trả');
+  await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Tổng quan', exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await metrics.locator('strong').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth))).toBe(true);
+  await expect(page.getByRole('button', { name: 'Tải lại tổng quan', exact: true })).toBeVisible();
+});

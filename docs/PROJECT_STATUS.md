@@ -10,6 +10,14 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Tổng quan tài chính tập trung — 0.13.0
+
+- Thay lời chào/biểu đồ tròn lớn bằng 6 thẻ: doanh thu, chi phí, tổng tiền, phải thu, phải trả và giá trị hàng tồn kho trên sổ; tiền lớn giữ đủ chữ số. Biểu đồ 6 tháng hỗ trợ cả số âm, trạng thái không có phát sinh và chuyển kỳ bằng nút tháng. Chênh lệch doanh thu−chi phí có chú thích nguồn, không gọi là lợi nhuận pháp định.
+- Việc cần xử lý đọc số nháp/cân đối nháp của toàn kỳ, trạng thái kỳ và thiết lập số dư khi chưa có; truy cập kỳ/BCTC/cân đối, tạo nhanh nghiệp vụ, nhập Excel và tải lại tại cùng trang. Chứng từ gần đây giữ thứ tự server, hiển thị 4 dòng với mã có ellipsis/title và đường xem toàn bộ. Tiền cuối kỳ tách ngân hàng và tiền mặt/tiền khác.
+- Metrics API thêm payable/moneyBalance/inventoryBalance/unbalancedDraftCount trong cùng read snapshot workspace. Tổng tiền/tồn kho cộng các dòng trực tiếp theo nhóm tài khoản; công nợ tổng dư dương từng đối tượng theo quy tắc sổ công nợ hiện có. Đếm lệch nháp trên toàn kỳ, không lấy riêng 100 chứng từ. Opening/điều chỉnh/đảo đầu kỳ tách khỏi danh sách hoạt động và số đếm, vẫn vào số dư. Không đổi ghi sổ/schema/chính sách hoặc thêm dependency.
+- Validation: Go test ledger/operations/httpserver, race các regression dashboard và vet ledger/operations đạt; SQLite thật gồm tổng vượt int64 qua nhiều chứng từ, mốc kỳ, ứng trước không bù giữa đối tượng, hơn 100 nháp, kho−phải trả, điều chỉnh đầu kỳ và reopen. 62 test Node, typecheck/build và OpenAPI parse đạt. Bổ sung/parse 16 test E2E workspace; chưa chạy E2E tự động.
+- Edge trên dữ liệu giả lập: desktop 1440px, mobile 390px và số tiền lớn không tràn, biểu đồ đủ 6 tháng không bị cắt, chuyển kỳ và liên kết phải trả đúng loại sổ. Số liệu chưa có trên API cũ hiển thị thiếu dữ liệu, không mặc định thành 0. Kỳ trước mốc chuyển đổi hiển thị phạm vi và nút quay lại; các tháng ngoài nguồn không trình bày số 0 như phát sinh đã được kiểm chứng. Chưa benchmark tập dữ liệu lớn hoặc nghiệm thu báo cáo pháp định; tồn kho trên tổng quan là giá trị sổ, không phải số lượng kiểm kê.
+
 ## Menu chức năng nhanh sidebar — 0.12.1
 
 - Dùng một bộ điều khiển ý định rê chuột thay cho timer riêng của từng Popover. Tín hiệu rời mục cũ không đóng mục mới; lướt qua nhanh không mở/tải phân hệ; khoảng đệm240ms qua khe menu. Theo dõi vị trí trong mục hiện tại để giữ menu khi đi chéo qua hàng bên cạnh, chuyển mục khi dừng lại. Reset timer khi điều hướng/đổi compact/breakpoint/unmount.
