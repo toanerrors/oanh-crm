@@ -18,7 +18,7 @@ test('tổng quan, điều hướng SPA và các màn hình chính hiển thị 
       await expect(tools.getByRole('textbox', { name: 'Tìm trong danh mục', exact: true })).toBeVisible();
       await expect(tools.getByRole('button', { name: 'Thêm đối tượng', exact: true })).toBeVisible();
       const add = tools.getByRole('button', { name: 'Thêm đối tượng', exact: true });
-      await expect(add).toHaveText('');
+      await expect(add).toHaveText('Thêm đối tượng');
       await add.focus();
       await expect(page.getByRole('tooltip', { name: 'Thêm đối tượng', exact: true })).toBeVisible();
     }
@@ -65,7 +65,7 @@ test('gợi ý không dấu, nhập tự do và chiều cao control thống nh�
   await account.press('Enter');
 
   for (const control of [
-    page.getByLabel('Ngày chứng từ', { exact: true }),
+    page.getByLabel('Ngày chứng từ', { exact: true }).locator('xpath=ancestor::*[contains(@class,"ant-picker")][last()]'),
     description,
     partner.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
     account.locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]'),
@@ -119,7 +119,11 @@ test('tìm kiếm mobile và thẻ chứng từ hiển thị đủ tiền, đố
   expect(await page.locator('.ant-table-content').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.getByRole('listitem', { name: '2', exact: true }).click();
   await expect(page.getByRole('button', { name: 'BH-10006', exact: true })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Sắp xếp chứng từ', exact: true }).click();
+  const sortSelect = page.getByRole('combobox', { name: 'Sắp xếp chứng từ', exact: true });
+  await expect(sortSelect).toBeHidden();
+  await page.getByRole('button', { name: /^Bộ lọc/ }).click();
+  await expect(sortSelect).toBeVisible();
+  await sortSelect.click();
   await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Số tiền giảm dần' }).click();
   await expect(page.locator('.ant-table-tbody .ant-table-row').first()).toContainText('BH-10007');
   await expect(page.getByRole('listitem', { name: '1', exact: true })).toHaveClass(/ant-pagination-item-active/);
@@ -183,9 +187,11 @@ test('tiền lớn, thêm/xóa dòng và nháp giữ qua chuyển route, không 
   await page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true }).press('ArrowUp');
   await page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true }).hover();
   await page.mouse.wheel(0, -100);
+  await page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true }).blur();
   await expect(page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true })).toHaveValue('9.007.199.254.740.993');
   await page.getByRole('button', { name: 'Lưu nháp mẫu', exact: true }).click();
   await expect(page.getByText('Đã lưu nháp trong phiên mẫu. Nháp chưa tác động đến sổ.')).toBeVisible();
+  await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Tổng quan', exact: true }).click();
   await expect(page.getByRole('link', { name: /Doanh thu trong kỳ/ })).toContainText('528');
   await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: /Kế toán tổng hợp/ }).click();
   await page.getByRole('tab', { name: /Bản nháp/ }).click();

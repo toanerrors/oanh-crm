@@ -423,6 +423,12 @@ test('menu chức năng có nhãn, mở đúng thu chi hóa đơn, Excel và d�
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/bank');
+  const mobileSearch = page.getByRole('textbox', { name: 'Tìm trong danh sách chứng từ', exact: true });
+  await expect(mobileSearch).toBeHidden();
+  await page.getByRole('button', { name: /^Bộ lọc/ }).click();
+  await expect(mobileSearch).toBeVisible();
+  await page.getByRole('button', { name: /^Bộ lọc/ }).click();
+  await expect(mobileSearch).toBeHidden();
   const receipt = await page.getByRole('button', { name: 'Thu tiền', exact: true }).boundingBox();
   const payment = await page.getByRole('button', { name: 'Chi tiền', exact: true }).boundingBox();
   expect(receipt).not.toBeNull(); expect(payment).not.toBeNull();

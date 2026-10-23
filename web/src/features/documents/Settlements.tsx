@@ -25,7 +25,8 @@ function SettlementPage() {
   const navigate = useNavigate();
   const module = accountingModule(useLocation().pathname);
   const kind = module && 'tradeKind' in module ? module.tradeKind : params.get('kind') === 'purchase' ? 'purchase' : 'sale';
-  const [asOf, setAsOf] = useState(businessToday().startsWith(period) ? businessToday() : `${period}-${new Date(Number(period.slice(0, 4)), Number(period.slice(5)), 0).getDate()}`);
+  const defaultAsOf = businessToday().startsWith(period) ? businessToday() : `${period}-${new Date(Number(period.slice(0, 4)), Number(period.slice(5)), 0).getDate()}`;
+  const [asOf, setAsOf] = useState(defaultAsOf);
   const [partner, setPartner] = useState('');
   const [page, setPage] = useState(1);
   const queryParams = new URLSearchParams({ asOf, kind, partner, page: String(page), pageSize: '10' });
@@ -38,7 +39,7 @@ function SettlementPage() {
   return <DataBoundary>
     <PageHeading title="Công nợ theo chứng từ" description="Giá trị gốc và số đã/chưa phân bổ theo từng chứng từ đến ngày tra cứu." />
     <section className={styles.panel}>
-      <PageToolbar label="Công cụ công nợ" actions={pageActions}>
+      <PageToolbar label="Công cụ công nợ" actions={pageActions} activeFilters={Number(Boolean(partner)) + Number(asOf !== defaultAsOf)} onResetFilters={() => { setPartner(''); setAsOf(defaultAsOf); setPage(1); }}>
         <Select disabled={Boolean(module)} aria-label="Loại chứng từ công nợ" value={kind} onChange={value => { setParams({ kind: value }); setPage(1); setPartner(''); }} options={[{ value: 'sale', label: 'Phải thu · Chứng từ bán hàng' }, { value: 'purchase', label: 'Phải trả · Chứng từ mua hàng' }]} />
         <label className={styles.toolbarDateFilter}>Đến ngày <DateInput style={{ width: 180 }} aria-label="Ngày tra cứu công nợ" value={asOf} onChange={value => { setAsOf(value); setPage(1); }} /></label>
         <Select aria-label="Đối tượng công nợ" showSearch={searchOptions} value={partner} onChange={value => { setPartner(value); setPage(1); }} style={{ minWidth: 220 }} options={[{ value: '', label: 'Tất cả đối tượng' }, ...data?.partners.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` })) ?? []]} />

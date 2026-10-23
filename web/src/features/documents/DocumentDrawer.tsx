@@ -164,12 +164,12 @@ export function DocumentDetail() {
   return <Drawer title="Chi tiết chứng từ" open={Boolean(detailId)} size={900} onClose={() => openDocument(null)} extra={document && <Button icon={<Icon name="print" size={16} />} onClick={() => window.print()}>In chứng từ</Button>}>
     {document && data && <article className={styles.printSheet}>
       <div className={styles.documentHeading}><div><span className={styles.eyebrow}>{isDemo ? 'CHỨNG TỪ KẾ TOÁN · DỮ LIỆU MẪU' : data.companyName}</span><h2>{document.reference}</h2><span>{documentTypes[document.type]}</span></div><StatusTag status={document.status} /></div>
-      <Descriptions column={2} className={styles.documentMeta} items={[
+      <Descriptions column={{ xs: 1, sm: 2 }} className={styles.documentMeta} items={[
         { key: 'date', label: 'Ngày chứng từ', children: formatDate(document.date) },
         { key: 'currency', label: 'Đồng tiền', children: 'VND · Đơn vị đồng' },
         { key: 'partner', label: 'Đối tượng', children: data.partners.find(item => item.id === document.partnerId)?.name ?? 'Không áp dụng' },
         { key: 'version', label: 'Phiên bản nháp / nguồn', children: document.version },
-        { key: 'description', label: 'Diễn giải', children: document.description, span: 2 },
+        { key: 'description', label: 'Diễn giải', children: document.description },
       ]} />
       <Table dataSource={document.lines.map((line, index) => ({ ...line, key: index }))} pagination={false} scroll={{ x: 650 }} columns={[
         { title: 'Tài khoản', dataIndex: 'accountId', render: (id: string) => <><strong>{id}</strong><small className={styles.cellSub}>{data.accounts.find(item => item.id === id)?.name}</small></> },

@@ -10,6 +10,13 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Tối ưu giao diện mobile và bộ lọc phụ — 0.16.3
+
+- Trên màn hình mobile (`<= 760px`), các ô tìm kiếm và bộ lọc trên thanh công cụ (`PageToolbar`, `AuditHistory`, `RecoveryCenter`) được thu gọn mặc định sau nút `Bộ lọc` kèm huy hiệu đếm số điều kiện đang áp dụng và nút `Xóa lọc` nhanh. Giữ thao tác chính (`Thu tiền`, `Chi tiền`, `Lập chứng từ`, `Xuất tệp`) và nút `Bộ lọc` trên cùng một hàng gọn gàng để bảng/thẻ nội dung hiển thị ngay trong vùng nhìn đầu tiên.
+- Thanh điều hướng phân hệ con (`.moduleNavigation`) và lối tắt tổng quan (`.shortcuts`) cuộn ngang một hàng trên mobile thay vì xuống nhiều dòng; thẻ số dư tiền/ngân hàng (`.accountCards`) giữ lưới 2 cột gọn ở cả `<= 480px` (thẻ đơn tự giãn toàn chiều ngang); thống kê danh mục (`.catalogSummary`) thu gọn 4 cột; ẩn bảng chi tiết hạch toán kép bên dưới danh sách khi đang ở chế độ thẻ mobile (`compact`) vì nhấn thẻ đã mở ngăn chi tiết đầy đủ.
+- Biểu mẫu phiếu (`VoucherForm`) và ngăn nhập chứng từ (`DocumentDrawer`) bố trí ngày/số chứng từ 2 cột, thanh tổng tiền nằm ngang gọn và chân trang ghim 1 hàng nút; `Descriptions` chi tiết chứng từ đáp ứng 1 cột trên `xs` không gây cảnh báo span. Cố định chiều cao nút phím tắt trong ô tìm nhanh topbar để giữ chuẩn control `32px`. Không thay đổi backend, schema, API hoặc quy tắc tính toán số liệu.
+- Validation: 71 unit test Node, `tsc --noEmit`, `vite build`, danh sách test live (`playwright test --list`) và 16/16 kịch bản E2E Playwright (`workspace.spec.ts`, gồm kiểm tra mobile `375x844` và `390x844` không tràn ngang, đóng/mở `Bộ lọc` và sắp xếp chứng từ) đều đạt.
+
 ## Chọn tài khoản trên dòng mua hàng — 0.16.2
 
 - Cột TK hạch toán cho phép chọn tài khoản chi phí/dở dang còn sử dụng, ví dụ621,6427,154; hàng hóa vẫn chọn được156. Server giữ tài khoản được chọn khi lưu nháp, xem trước và ghi sổ. Không đổi schema hoặc dependency.

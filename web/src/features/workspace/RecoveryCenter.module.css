@@ -9,7 +9,8 @@
 .schedule h3 { margin: 0 0 4px; }
 .schedule p { margin: 0; color: #65736c; }
 .schedule small { color: #65736c; display: block; margin-top: 4px; }
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.mobileFilterBar { display: none; align-items: center; gap: 4px; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .search { max-width: 400px; flex: 1 1 240px; }
 .muted { color: #65736c; font-size: 12px; }
@@ -28,4 +29,4 @@
 .previewTotal strong { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .hash { word-break: break-all; font: 12px ui-monospace,monospace; }
-@media(max-width:760px) { .summary { grid-template-columns: repeat(2,minmax(0,1fr)); } .metric { padding: 10px; } .metric strong { font-size: 14px; } .schedule { align-items: flex-start; } .toolbar .actions { width: 100%; } .search { max-width: none; } }
+@media(max-width:760px) { .summary { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; } .metric { padding: 9px 10px; } .metric strong { font-size: 14px; } .metric small { font-size: 11px; } .schedule { align-items: flex-start; padding: 10px 12px; } .mobileFilterBar { display: flex; } .toolbar .actions { width: auto; margin-left: auto; } .search { display: none; max-width: none; width: 100%; flex-basis: 100%; order: 3; } .searchOpen { display: block; } }

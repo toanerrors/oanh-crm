@@ -17,7 +17,7 @@ type Source = { file: File } | { record: BackupRecord };
 
 export function RecoveryCenter() {
  const client = useQueryClient(); const { message } = App.useApp();
- const [page,setPage] = useState(1); const [search,setSearch] = useState('');
+ const [page,setPage] = useState(1); const [search,setSearch] = useState(''); const [searchOpen,setSearchOpen] = useState(false);
  const [createOpen,setCreateOpen] = useState(false); const [note,setNote] = useState('');
  const [detail,setDetail] = useState<BackupRecord|null>(null);
  const [wizard,setWizard] = useState(false); const [step,setStep] = useState(0);
@@ -59,7 +59,7 @@ export function RecoveryCenter() {
   {data?.job.status==='failed'&&<Alert showIcon type="warning" title="Sao lưu tự động chưa hoàn tất" description={`${data.job.message} Đã thử ${data.job.attempts??0}/3 lần.`}/>}
   {Boolean(data?.unreadable)&&<Alert showIcon type="warning" title={`Có ${data!.unreadable} gói không đọc được thông tin. Hãy liên hệ quản trị kiểm tra tệp trên máy chủ.`}/>}
   <Tabs items={[{key:'backups',label:'Các bản sao',children:<>
-   <div className={styles.toolbar}><Input.Search className={styles.search} placeholder="Tìm ghi chú, người tạo…" aria-label="Tìm bản sao lưu" allowClear onSearch={value=>{setSearch(value);setPage(1);}}/><div className={styles.actions}><ToolbarButton label="Tải lại danh sách" icon="refresh" loading={query.isFetching} onClick={()=>void refresh()}/><Button icon={<Icon name="upload" size={16}/>} onClick={()=>openRestore()}>Khôi phục dữ liệu</Button><Button type="primary" icon={<Icon name="plus" size={16}/>} onClick={()=>setCreateOpen(true)}>Tạo bản sao</Button></div></div>
+   <div className={styles.toolbar}><div className={styles.mobileFilterBar}><Button size="small" icon={<Icon name="filter" size={15}/>} aria-expanded={searchOpen} onClick={()=>setSearchOpen(open=>!open)}>Bộ lọc{search?' (1)':''}</Button>{search&&<Button size="small" type="link" onClick={()=>{setSearch('');setPage(1);}}>Xóa lọc</Button>}</div><Input.Search className={`${styles.search}${searchOpen?` ${styles.searchOpen}`:''}`} placeholder="Tìm ghi chú, người tạo…" aria-label="Tìm bản sao lưu" allowClear onSearch={value=>{setSearch(value);setPage(1);}}/><div className={styles.actions}><ToolbarButton label="Tải lại danh sách" icon="refresh" loading={query.isFetching} onClick={()=>void refresh()}/><Button icon={<Icon name="upload" size={16}/>} onClick={()=>openRestore()}>Khôi phục dữ liệu</Button><Button type="primary" icon={<Icon name="plus" size={16}/>} onClick={()=>setCreateOpen(true)}>Tạo bản sao</Button></div></div>
    <Table<BackupRecord> rowKey="id" loading={query.isPending} dataSource={data?.items??[]} locale={{emptyText:<Empty description="Chưa có bản sao phù hợp. Tạo bản sao đầu tiên để bảo vệ dữ liệu."/>}} scroll={{x:1020}} pagination={{current:page,pageSize:10,total:data?.total??0,showSizeChanger:false,hideOnSinglePage:true,onChange:setPage}} columns={[
     {title:'THỜI ĐIỂM / GHI CHÚ',width:260,render:(_,record)=><div><strong>{time(record.manifest.createdAt)}</strong><div className={styles.record} title={record.note}>{record.note||'Sao lưu dữ liệu doanh nghiệp'}</div><small className={styles.muted}>{record.actorName||'Bản sao đã có trên máy chủ'}</small></div>},
     {title:'LOẠI',width:140,render:(_,record)=><Tag color={record.kind==='scheduled'?'blue':record.kind==='before_restore'?'gold':'default'}>{kinds[record.kind]??record.kind}</Tag>},
