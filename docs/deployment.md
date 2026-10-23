@@ -1,6 +1,6 @@
 # Release bằng Docker trên máy chủ
 
-Bản phát hành: `0.7.4`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
+Bản phát hành: `0.8.0`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
 
 ## Build và chạy
 
@@ -12,7 +12,7 @@ docker compose up -d --wait --wait-timeout 90
 docker compose ps
 ```
 
-Image: `oanh-crm:0.7.4`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
+Image: `oanh-crm:0.8.0`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
 
 Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Mã nguồn dùng remote `origin` tại [toanerrors/oanh-crm](https://github.com/toanerrors/oanh-crm). Sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker → healthcheck. Image hiện được lưu local trên server, chưa cấu hình registry. Không force-push hoặc thay đổi tag đã phát hành; không in thông tin xác thực trong output Git.
 
@@ -74,3 +74,10 @@ Thêm vùng chờ nhập Excel, không thay số liệu kế toán đã có. T�
 ## Migration quan hệ tài khoản — schema6 (0.7.0)
 
 Thêm lịch sử quan hệ cha–con và view quan hệ hiện hành. Nâng cấp chỉ bổ sung metadata theo mã nguồn tham chiếu và cặp1121→112 đã dùng trong khởi tạo; giữ ID, tên, nhóm và bút toán. Tăng dataset revision để bản xem trước cũ phải kiểm tra lại. Backup nguội toàn bộ volume và kiểm tra trên bản sao trước migration. Image0.6.x không đọc schema6; giữ image và backup trước release, không chạy binary cũ trên volume đã nâng.
+
+
+## Điều chỉnh số dư — schema7 (0.8.0)
+
+Migration chỉ thêm lịch sử điều chỉnh/view hiệu lực và thay trigger kiểm tra ghi sổ với ngoại lệ hẹp: đảo đầu kỳ phải sao chép chính xác từng dòng bất biến của bản trước. Không tự điều chỉnh số dư thật. Dataset revision tăng một lần để loại preview cũ. Backup nhận schema1–7; checksum/hash của1–6 giữ nguyên.
+
+Trước release: backup nguội toàn bộ volume đã dừng, dùng verifier hỗ trợ schema7 để kiểm tra bản sao schema6, giữ manifest/checksum và image theo commit. Giữ volume `oanh_data`. Image0.7.x không đọc schema7; rollback binary cũ trực tiếp không hợp lệ. Nếu cần phục hồi dữ liệu, dùng quy trình staging/đối soát/epoch trong backup-restore.md và ủy quyền phù hợp; không tự chép đè dữ liệu đã phát sinh.

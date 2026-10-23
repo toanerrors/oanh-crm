@@ -412,6 +412,139 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OpeningInput'
+  /opening-balances/adjustments:
+    post:
+      summary: Lưu nháp điều chỉnh số dư
+      operationId: opening_adjustment_post_collection
+      description: 'Chỉ chủ sở hữu; epoch/idempotency/version được kiểm tra trong cùng transaction. Xác nhận kiểm tra lại revision xem trước và toàn bộ phụ thuộc.'
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema: {type: string}
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpeningAdjustmentInput'
+      responses:
+        '200':
+          description: Thành công; lệnh ghi trả về sau commit.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OpeningState'}
+        default:
+          description: Lỗi nghiệp vụ, quyền hoặc phiên bản.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+    get:
+      summary: Đọc lịch sử điều chỉnh số dư
+      operationId: opening_adjustment_get_collection
+      description: 'Dữ liệu cùng snapshot; bao gồm bản gốc và lịch sử bất biến. Bản nháp trả blockers hiện tại.'
+      parameters:
+      - in: query
+        name: page
+        schema: {type: integer, minimum: 1, maximum: 1000000, default: 1}
+      responses:
+        '200':
+          description: Thành công; lệnh ghi trả về sau commit.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OpeningHistory'}
+        default:
+          description: Lỗi nghiệp vụ, quyền hoặc phiên bản.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /opening-balances/adjustments/{id}:
+    get:
+      summary: Đối chiếu bản điều chỉnh hoặc bản gốc
+      operationId: opening_adjustment_get_id
+      description: 'Dữ liệu cùng snapshot; bao gồm bản gốc và lịch sử bất biến. Bản nháp trả blockers hiện tại.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {$ref: '#/components/schemas/ID'}
+      responses:
+        '200':
+          description: Thành công; lệnh ghi trả về sau commit.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OpeningAdjustment'}
+        default:
+          description: Lỗi nghiệp vụ, quyền hoặc phiên bản.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /opening-balances/adjustments/confirm:
+    post:
+      summary: Xác nhận điều chỉnh số dư
+      operationId: opening_adjustment_post_confirm
+      description: 'Chỉ chủ sở hữu; epoch/idempotency/version được kiểm tra trong cùng transaction. Xác nhận kiểm tra lại revision xem trước và toàn bộ phụ thuộc.'
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema: {type: string}
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpeningAdjustmentPost'
+      responses:
+        '200':
+          description: Thành công; lệnh ghi trả về sau commit.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OpeningState'}
+        default:
+          description: Lỗi nghiệp vụ, quyền hoặc phiên bản.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /opening-balances/adjustments/discard:
+    post:
+      summary: Bỏ nháp điều chỉnh số dư
+      operationId: opening_adjustment_post_discard
+      description: 'Chỉ chủ sở hữu; epoch/idempotency/version được kiểm tra trong cùng transaction. Xác nhận kiểm tra lại revision xem trước và toàn bộ phụ thuộc.'
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema: {type: string}
+      - in: header
+        name: X-Dataset-Epoch
+        required: true
+        schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpeningPost'
+      responses:
+        '200':
+          description: Thành công; lệnh ghi trả về sau commit.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OpeningState'}
+        default:
+          description: Lỗi nghiệp vụ, quyền hoặc phiên bản.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
   /opening-balances/confirm:
     post:
       summary: Xác nhận số dư đầu kỳ
@@ -1955,6 +2088,69 @@ components:
             - $ref: '#/components/schemas/Document'
             - {type: 'null'}
           postedCount: {type: integer}
+          rootId: {type: string}
+          balanceVersion: {type: integer, minimum: 0}
+          adjustment: {$ref: '#/components/schemas/OpeningAdjustmentInput'}
+    OpeningAdjustmentInput:
+      type: object
+      additionalProperties: false
+      required: [input, baseVersion, reason]
+      properties:
+        input: {$ref: '#/components/schemas/OpeningInput'}
+        baseVersion: {type: integer, minimum: 0}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+    OpeningAdjustmentPost:
+      type: object
+      additionalProperties: false
+      required: [id, version, revision]
+      properties:
+        id: {$ref: '#/components/schemas/ID'}
+        version: {type: integer, minimum: 1}
+        revision: {type: integer, minimum: 0}
+    OpeningAdjustment:
+      allOf:
+      - $ref: '#/components/schemas/Context'
+      - type: object
+        required: [input, baseVersion, reason, before, document, confirmedVersion, blockers, actor, createdAt, confirmedAt]
+        properties:
+          input: {$ref: '#/components/schemas/OpeningInput'}
+          baseVersion: {type: integer, minimum: 0}
+          reason: {type: string}
+          before: {$ref: '#/components/schemas/OpeningInput'}
+          document: {$ref: '#/components/schemas/Document'}
+          confirmedVersion: {type: [integer, 'null'], minimum: 0}
+          createdAt: {type: string}
+          confirmedAt: {type: string}
+          actor: {type: string}
+          blockers:
+            type: array
+            items:
+              type: object
+              required: [code, message]
+              properties:
+                code: {type: string}
+                message: {type: string}
+                documentId: {$ref: '#/components/schemas/ID'}
+    OpeningHistory:
+      allOf:
+      - $ref: '#/components/schemas/Context'
+      - type: object
+        required: [items, total, initialId]
+        properties:
+          total: {type: integer, minimum: 0}
+          initialId: {$ref: '#/components/schemas/ID'}
+          items:
+            type: array
+            items:
+              type: object
+              required: [id, version, reference, reason, at, actor]
+              properties:
+                id: {$ref: '#/components/schemas/ID'}
+                version: {type: integer, minimum: 1}
+                reference: {type: string}
+                reason: {type: string}
+                at: {type: string, format: date-time}
+                actor: {type: string}
     ID:
       type: string
       pattern: ^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$
@@ -2417,6 +2613,8 @@ components:
           type: string
           description: 111, 112, 1121 hoặc tài khoản kế toán được liên kết với bankAccountId hợp lệ
         originalDocumentId: {type: string}
+        replacementOf: {type: string, description: ID phiếu thu/chi/chuyển tiền gốc. Server đảo gốc và ghi bản thay thế cùng transaction.}
+        replacementReason: {type: string, maxLength: 900}
         allocations:
           type: array
           maxItems: 100

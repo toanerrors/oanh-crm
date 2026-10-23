@@ -14,3 +14,7 @@
 .add { margin-top:12px; }
 .error { margin-top:12px; }
 @media(max-width:650px) { .parameters { grid-template-columns:1fr; gap:0; } .editor :global(.ant-modal-body) { padding:12px; } .totals { justify-content:flex-start; gap:16px; } }
+.comparison { display: flex; flex-wrap: wrap; gap: 16px; }
+.snapshot { flex: 1 1 420px; min-width: 0; }
+
+.title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-right: 28px; }

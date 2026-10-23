@@ -35,15 +35,15 @@ func fingerprint(ctx context.Context, db *sql.DB) (string, error) {
 	return Hash(data), nil
 }
 
-var expectedFingerprints = sync.OnceValues(func() ([6]string, error) {
-	var values [6]string
+var expectedFingerprints = sync.OnceValues(func() ([7]string, error) {
+	var values [7]string
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		return values, err
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema} {
+	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema} {
 		if _, err = db.Exec(source); err != nil {
 			return values, err
 		}
@@ -60,10 +60,10 @@ func verifySchema(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0),count(*) FROM schema_migrations").Scan(&version, &count); err != nil {
 		return err
 	}
-	if version < 1 || version > 6 || count != version {
+	if version < 1 || version > 7 || count != version {
 		return fmt.Errorf("unsupported migration version")
 	}
-	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema} {
+	for i, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema} {
 		if i >= version {
 			break
 		}
@@ -298,6 +298,14 @@ func stocks(ctx context.Context, db *sql.DB, table string) (map[stockKey]stockTo
 	return values, rows.Err()
 }
 func verifySubledgers(ctx context.Context, db *sql.DB) error {
+	assetQuery := "SELECT cost,allocated FROM assets"
+	var views int
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_schema WHERE name='current_assets'").Scan(&views); err != nil {
+		return err
+	}
+	if views > 0 {
+		assetQuery = "SELECT cost,allocated FROM current_assets"
+	}
 	lots, err := stocks(ctx, db, "stock_lots")
 	if err != nil {
 		return err
@@ -326,7 +334,7 @@ func verifySubledgers(ctx context.Context, db *sql.DB) error {
 		stockValue.Add(stockValue, v.value)
 	}
 	assetValue := new(big.Int)
-	rows, err := db.QueryContext(ctx, "SELECT cost,allocated FROM assets")
+	rows, err := db.QueryContext(ctx, assetQuery)
 	if err != nil {
 		return err
 	}

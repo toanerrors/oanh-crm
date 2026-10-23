@@ -75,13 +75,39 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 	if err = db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_schema WHERE name='opening_balances'").Scan(&openingTable); err != nil {
 		return err
 	}
+
 	if openingTable > 0 {
-		var raw, doc string
-		err = db.QueryRowContext(ctx, "SELECT o.payload,d.id FROM opening_balances o JOIN documents d ON d.id=o.document_id WHERE d.status='posted'").Scan(&raw, &doc)
-		if err != nil && err != sql.ErrNoRows {
+		query := "SELECT o.payload,d.id,0 FROM opening_balances o JOIN documents d ON d.id=o.document_id WHERE d.status='posted'"
+		var adjustments int
+		if err = db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_schema WHERE name='opening_adjustments'").Scan(&adjustments); err != nil {
 			return err
 		}
-		if err == nil {
+		if adjustments > 0 {
+			query += " UNION ALL SELECT before_payload,reversal_document_id,1 FROM opening_adjustments WHERE confirmed_version IS NOT NULL UNION ALL SELECT after_payload,document_id,0 FROM opening_adjustments WHERE confirmed_version IS NOT NULL"
+		}
+		r, e := db.QueryContext(ctx, query)
+		if e != nil {
+			return e
+		}
+		type snapshot struct {
+			raw, doc string
+			reverse  bool
+		}
+		snapshots := []snapshot{}
+		for r.Next() {
+			var v snapshot
+			if e = r.Scan(&v.raw, &v.doc, &v.reverse); e != nil {
+				r.Close()
+				return e
+			}
+			snapshots = append(snapshots, v)
+		}
+		e = r.Err()
+		r.Close()
+		if e != nil {
+			return e
+		}
+		for _, v := range snapshots {
 			var input struct {
 				Lines []struct {
 					BankAccountID string `json:"bankAccountId"`
@@ -89,24 +115,29 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 					Credit        string `json:"credit"`
 				} `json:"lines"`
 			}
-			if err = json.Unmarshal([]byte(raw), &input); err != nil {
-				return err
+			if e = json.Unmarshal([]byte(v.raw), &input); e != nil {
+				return e
 			}
 			for _, l := range input.Lines {
-				if l.BankAccountID != "" {
-					d, e := accounting.Money(l.Debit)
-					if e != nil {
-						return e
-					}
-					c, e := accounting.Money(l.Credit)
-					if e != nil {
-						return e
-					}
-					add(expected, dimension{doc, l.BankAccountID}, d, c)
+				if l.BankAccountID == "" {
+					continue
 				}
+				d, e := accounting.Money(l.Debit)
+				if e != nil {
+					return e
+				}
+				c, e := accounting.Money(l.Credit)
+				if e != nil {
+					return e
+				}
+				if v.reverse {
+					d, c = c, d
+				}
+				add(expected, dimension{v.doc, l.BankAccountID}, d, c)
 			}
 		}
 	}
+
 	for _, e := range entries {
 		var input struct {
 			BankAccountID            string `json:"bankAccountId"`
@@ -222,6 +253,14 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 		if e == nil || a.debit.Cmp(e.debit) != 0 || a.credit.Cmp(e.credit) != 0 {
 			return fmt.Errorf("bank detail differs from ledger")
 		}
+	}
+
+	var invalid int
+	if err = db.QueryRowContext(ctx, `SELECT count(*) FROM operations o JOIN documents d ON d.id=o.document_id LEFT JOIN documents old ON old.id=json_extract(o.payload,'$.replacementOf') LEFT JOIN operations original ON original.document_id=old.id WHERE COALESCE(json_extract(o.payload,'$.replacementOf'),'')<>'' AND (o.kind NOT IN ('receipt','payment','transfer') OR old.id IS NULL OR COALESCE(original.kind,'')<>o.kind OR old.status<>'posted' OR old.source_id=d.source_id OR old.date>d.date OR length(trim(COALESCE(json_extract(o.payload,'$.replacementReason'),'')))=0 OR NOT EXISTS(SELECT 1 FROM documents r WHERE r.reversal_of=old.id AND r.status='posted' AND r.source_type='treasury_reversal' AND r.date=d.date AND r.posted_order<d.posted_order))`).Scan(&invalid); err != nil {
+		return err
+	}
+	if invalid != 0 {
+		return fmt.Errorf("treasury replacement differs from reversal or source")
 	}
 	return nil
 }

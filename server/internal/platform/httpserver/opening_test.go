@@ -106,8 +106,43 @@ func TestOpeningHTTPPermissionsRetryAndVersion(t *testing.T) {
 	if status, _ := call("GET", "/financial-reports/source?from=2026-01-01&to=2026-12-31", nil, ""); status != 422 {
 		t.Fatal(status)
 	}
+
+	adjustment := operations.OpeningAdjustmentInput{Input: input, BaseVersion: 0, Reason: "Đối chiếu lại"}
+	adjustment.Input.ID = "http-adjustment"
+	adjustment.Input.Version = 0
+	adjustment.Input.Lines = append([]operations.OpeningLine(nil), input.Lines...)
+	adjustment.Input.Lines[0].Debit = "5000000"
+	adjustment.Input.Lines[1].Credit = "5000000"
+	if status, b = call("POST", "/opening-balances/adjustments", adjustment, "adjust-save"); status != 200 {
+		t.Fatal(status, string(b))
+	}
+	status, b = call("GET", "/opening-balances/adjustments/http-adjustment", nil, "")
+	if status != 200 {
+		t.Fatal(status, string(b))
+	}
+	var preview operations.OpeningAdjustment
+	if e = json.Unmarshal(b, &preview); e != nil {
+		t.Fatal(e)
+	}
+	confirm := operations.OpeningAdjustmentPost{ID: "http-adjustment", Version: preview.Document.Version, Revision: preview.Revision}
+	if status, b = call("POST", "/opening-balances/adjustments/confirm", confirm, "adjust-confirm"); status != 200 {
+		t.Fatal(status, string(b))
+	}
+	if status, b = call("GET", "/opening-balances/adjustments?page=1", nil, ""); status != 200 {
+		t.Fatal(status, string(b))
+	}
+	if status, b = call("GET", "/opening-balances/adjustments/"+input.ID, nil, ""); status != 200 {
+		t.Fatal(status, string(b))
+	}
 	if _, e = store.Write.Exec("UPDATE users SET role='accountant'"); e != nil {
 		t.Fatal(e)
+	}
+
+	if status, _ = call("POST", "/opening-balances/adjustments", adjustment, "accountant-adjust"); status != 403 {
+		t.Fatal(status)
+	}
+	if status, _ = call("GET", "/opening-balances/adjustments/http-adjustment", nil, ""); status != 200 {
+		t.Fatal(status)
 	}
 	input.ID = "other"
 	if status, _ := call("POST", "/opening-balances", input, "accountant-save"); status != 403 {

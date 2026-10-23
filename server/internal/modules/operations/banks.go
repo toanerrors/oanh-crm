@@ -119,7 +119,7 @@ func (s *Service) Banks(ctx context.Context, period string) (BankList, error) {
 				movements.Close()
 				return result, e
 			}
-			if source == "opening" || date < start.Format("2006-01-02") {
+			if ledger.IsOpening(source) || date < start.Format("2006-01-02") {
 				opening.Add(opening, big.NewInt(debit))
 				opening.Sub(opening, big.NewInt(credit))
 			} else {

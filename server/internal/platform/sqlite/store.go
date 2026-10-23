@@ -38,6 +38,9 @@ var importsSchema string
 //go:embed account_hierarchy.sql
 var accountHierarchySchema string
 
+//go:embed opening_adjustments.sql
+var openingAdjustmentsSchema string
+
 func schemaHash(version int) string {
 	if version == 1 {
 		return Hash([]byte(schema))
@@ -54,7 +57,10 @@ func schemaHash(version int) string {
 	if version == 5 {
 		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema))
 	}
-	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema))
+	if version == 6 {
+		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema))
+	}
+	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema))
 }
 
 func migrationChecksum(version int, source string) string {
@@ -206,7 +212,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
 		return err
 	}
-	if maximum > 6 {
+	if maximum > 7 {
 		return fmt.Errorf("database schema is newer than this application")
 	}
 	if maximum > 0 {
@@ -214,7 +220,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema} {
+	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema} {
 		version := index + 1
 		if version <= maximum {
 			continue
@@ -264,6 +270,9 @@ func Check(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	if err := verifyOpening(ctx, db); err != nil {
+		return err
+	}
+	if err := verifyOpeningAdjustments(ctx, db); err != nil {
 		return err
 	}
 	if err := verifyBanks(ctx, db); err != nil {

@@ -39,7 +39,7 @@ func (s *Service) registerAsset(_ context.Context, _ *sql.Tx, in Input, doc *led
 func (s *Service) depreciate(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc *ledger.Document, result *Result) error {
 	var a Asset
 	var cost, residual, allocated int64
-	err := tx.QueryRowContext(ctx, "SELECT id,name,kind,cost,residual,months,start_period,allocated FROM assets WHERE id=?", in.AssetID).Scan(&a.ID, &a.Name, &a.Kind, &cost, &residual, &a.Months, &a.StartPeriod, &allocated)
+	err := tx.QueryRowContext(ctx, "SELECT id,name,kind,cost,residual,months,start_period,allocated FROM current_assets WHERE id=?", in.AssetID).Scan(&a.ID, &a.Name, &a.Kind, &cost, &residual, &a.Months, &a.StartPeriod, &allocated)
 	if err == sql.ErrNoRows {
 		return accounting.Fail("NOT_FOUND", "Không tìm thấy tài sản/khoản phân bổ.")
 	}
@@ -57,8 +57,13 @@ func (s *Service) depreciate(ctx context.Context, tx *sql.Tx, in Input, p Policy
 		return err
 	}
 	var imported int
-	if err = tx.QueryRowContext(ctx, "SELECT COALESCE((SELECT elapsed FROM opening_assets WHERE asset_id=?),0)", a.ID).Scan(&imported); err != nil {
+	var cutoff, startPeriod string
+	err = tx.QueryRowContext(ctx, "SELECT json_extract(j.value,'$.startPeriod'),json_extract(o.payload,'$.cutoff') FROM opening_current o,json_each(o.payload,'$.assets') j WHERE json_extract(j.value,'$.id')=?", a.ID).Scan(&startPeriod, &cutoff)
+	if err != nil && err != sql.ErrNoRows {
 		return err
+	}
+	if err == nil {
+		imported = openingElapsed(startPeriod, cutoff)
 	}
 	if previous+imported != elapsed {
 		return accounting.Fail("ALLOCATION_SEQUENCE", "Phải tính liên tiếp từng kỳ, không bỏ kỳ hoặc chạy lặp.")

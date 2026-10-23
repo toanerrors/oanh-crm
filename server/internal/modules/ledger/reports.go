@@ -125,7 +125,7 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 		return nil, err
 	}
 	counts := map[string]int{}
-	rows, err = q.QueryContext(ctx, "SELECT status,count(*) FROM documents WHERE source_type<>'opening' AND substr(date,1,7)=? GROUP BY status", period)
+	rows, err = q.QueryContext(ctx, "SELECT status,count(*) FROM documents WHERE source_type NOT IN ('opening','opening_adjustment','opening_adjustment_reversal') AND substr(date,1,7)=? GROUP BY status", period)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 			add(partners, partner, d)
 			add(partners, partner, -c)
 		}
-		if source != "opening" && source != "closing" && source != "closing_reversal" {
+		if !IsOpening(source) && source != "closing" && source != "closing_reversal" {
 			if group == "revenue" {
 				add(months, month+":revenue", c)
 				add(months, month+":revenue", -d)
@@ -277,7 +277,7 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 			return result, err
 		}
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM documents WHERE source_type<>'opening' AND substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id", f.Period)
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM documents WHERE source_type NOT IN ('opening','opening_adjustment','opening_adjustment_reversal') AND substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id", f.Period)
 	if err != nil {
 		return result, err
 	}
@@ -394,7 +394,7 @@ func moneySummary(ctx context.Context, tx *sql.Tx, account, period, bank string)
 		if err = rows.Scan(&date, &source, &debit, &credit); err != nil {
 			return nil, err
 		}
-		if source == "opening" || date < start.Format("2006-01-02") {
+		if IsOpening(source) || date < start.Format("2006-01-02") {
 			opening.Add(opening, big.NewInt(debit))
 			opening.Sub(opening, big.NewInt(credit))
 		} else {
@@ -475,14 +475,14 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 		}
 		add(closing, key, d)
 		add(closing, key, -c)
-		if source == "opening" || date < f.Period+"-01" {
+		if IsOpening(source) || date < f.Period+"-01" {
 			add(opening, key, d)
 			add(opening, key, -c)
 		} else {
 			add(debits, account, d)
 			add(credits, account, c)
 		}
-		if source == "opening" || date[:7] != f.Period {
+		if IsOpening(source) || date[:7] != f.Period {
 			continue
 		}
 		if f.Kind == "journal" || f.Kind == "ledger" {
@@ -494,7 +494,7 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 			}
 			report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, Debit: accounting.Text(d), Credit: accounting.Text(c)})
 		}
-		if f.Kind == "income" && source != "opening" && source != "closing" && source != "closing_reversal" && (accounts[account].Group == "revenue" || accounts[account].Group == "expense") {
+		if f.Kind == "income" && !IsOpening(source) && source != "closing" && source != "closing_reversal" && (accounts[account].Group == "revenue" || accounts[account].Group == "expense") {
 			report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, Debit: accounting.Text(d), Credit: accounting.Text(c)})
 		}
 	}

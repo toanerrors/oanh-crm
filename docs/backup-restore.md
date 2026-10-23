@@ -120,3 +120,10 @@ Backup chứa bảng `excel_imports`: dữ liệu đã đọc từ tệp, cấu 
 ## Schema6 — quan hệ tài khoản
 
 Backup chứa toàn bộ `account_hierarchy`, phiên bản và view hiện hành; Check kiểm tra FK, vòng lặp, giới hạn10cấp và revision không vượt dataset. Migration nhận schema1–5, bổ sung baseline quan hệ theo nguồn có sẵn, giữ tài khoản/bút toán và tăng revision một lần. Checksum/schemaHash1–5 giữ nguyên. Sau restore vẫn đổi epoch và thu hồi phiên như trước. Binary0.6.x không đọc schema6; cần giữ backup trước release để khôi phục có kiểm chứng, không hạ schema tại chỗ.
+
+
+### Schema7 và lịch sử điều chỉnh
+
+Backup schema1–6 vẫn được kiểm tra theo schema/hash gốc, sau đó nâng trong staging. Schema7 kiểm chứng chuỗi phiên bản đầu kỳ, snapshot trước/sau, dòng đảo đúng gốc, dòng mới đúng snapshot, biến động kho của từng lần đổi, ngân hàng và tài sản hiệu lực cộng khấu hao. Kiểm tra bản gốc vẫn giữ metadata opening_assets ban đầu. Phiếu tiền thay thế phải có gốc cùng loại và chứng từ đảo cùng ngày, trước bản mới; mọi dữ liệu ghi trong một transaction.
+
+Không bỏ lịch sử điều chỉnh khi backup/restore; không lấy riêng view hoặc tài sản hiện hành để chuyển dữ liệu. Binary trước0.8.0 không đọc schema7. Cold backup trước nâng giữ cả active-dataset.json, datasets, attachments và được kiểm tra bằng verifier mới trước release. Restore tiếp tục đổi epoch, xóa cache và từ chối lệnh của dataset cũ.

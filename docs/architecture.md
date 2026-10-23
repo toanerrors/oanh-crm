@@ -249,3 +249,14 @@ Mẫu năm dương lịch TT99 cho hoạt động liên tục; chỉ tiêu nhậ
 `ledger.SaveAccountTx` điều phối lưu danh mục và append quan hệ trong transaction/audit/idempotency hiện có; client gửi parentRevision để chống ghi đè quan hệ. Tối đa10cấp, cha phải tồn tại/đang sử dụng; không đổi cha nếu tài khoản hoặc nhánh con có bất kỳ chứng từ nào. Payload cũ bỏ parentId giữ nguyên quan hệ; trường revision0 bỏ khỏi JSON hash để giữ idempotency cũ. Workspace đọc danh mục/quan hệ trong cùng snapshot. Đây là phân cấp quản lý danh mục; báo cáo/ghi sổ vẫn dùng dòng trực tiếp theo account ID, chưa cộng gộp cây theo ngày hiệu lực.
 
 Frontend dựng Table tree/TreeSelect từ parentId, đếm con trực tiếp, cấp và đường dẫn tên; tìm không dấu giữ các tổ tiên, mở/thu mọi nhánh, thêm con kế thừa nhóm/yêu cầu đối tượng khi tạo. Mã mới không bị ép theo tiền tố cha. Excel tài khoản thêm parentCode; cột không ghép giữ quan hệ cũ, mã cha phải có trước khi nhập con trong cùng tệp. CSV danh mục có mã cha.
+
+
+## Điều chỉnh sau xác nhận — 0.8.0
+
+Theo yêu cầu23/10/2026, operations quản lý nháp và lịch sử số dư đã xác nhận. Schema7 giữ opening_balances/opening_assets gốc, thêm opening_adjustments (snapshot trước/sau, lý do, actor/time, base/confirmed version, cặp đảo–thay thế), opening_current và current_assets. Ledger vẫn là nguồn số; các view không tạo sổ tài chính thứ hai. Assets/stock_lots là cache phân hệ được đối chiếu với snapshot và movement.
+
+Xác nhận ghi đảo toàn bộ bản hiệu lực và ghi bản mới trong cùng transaction với ngân hàng/kho/tài sản/audit/idempotency. Hai chứng từ có tổng int64 riêng để không tràn khi cộng hai phiên bản lớn. Ledger có cổng prepare/post đảo đầu kỳ; chỉ cổng này dùng tham chiếu lịch sử ngừng hoạt động, DB buộc copy chính xác dòng gốc. Tài khoản/đối tượng bản mới vẫn kiểm tra hiệu lực. Source opening_adjustment/opening_adjustment_reversal thuộc dư đầu tại mọi truy vấn báo cáo và ngân hàng.
+
+Thu/chi/chuyển tiền có replacementOf/replacementReason tùy chọn (omitempty giữ hash payload cũ). Preview và lưu nháp mô phỏng đảo+thay qua savepoint; ghi sổ mới đảo+ghi cùng transaction. Liên kết ở operations.payload bất biến; unique reversal_of/source và kiểm chứng backup ngăn một gốc bị thay nhiều lần. Sửa tiếp bản thay thế tạo chuỗi mới. Không áp dụng đường này cho mua/bán/kho có phụ thuộc.
+
+Đặc tả và giới hạn: [opening-adjustments.md](opening-adjustments.md).

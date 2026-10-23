@@ -12,12 +12,14 @@ import (
 )
 
 type Voucher struct {
-	Context     *ledger.Context `json:"context,omitempty"`
-	Debit       string          `json:"debit,omitempty"`
-	Credit      string          `json:"credit,omitempty"`
-	Calculation *Result         `json:"calculation,omitempty"`
-	Input       Input           `json:"input"`
-	Document    ledger.Document `json:"document"`
+	Replacement *ledger.Document `json:"replacement,omitempty"`
+	Reversal    *ledger.Document `json:"reversal,omitempty"`
+	Context     *ledger.Context  `json:"context,omitempty"`
+	Debit       string           `json:"debit,omitempty"`
+	Credit      string           `json:"credit,omitempty"`
+	Calculation *Result          `json:"calculation,omitempty"`
+	Input       Input            `json:"input"`
+	Document    ledger.Document  `json:"document"`
 }
 
 func voucherKind(kind string) bool {
@@ -138,6 +140,25 @@ func (s *Service) Voucher(ctx context.Context, id string) (Voucher, error) {
 		if err = json.Unmarshal([]byte(calculation), result.Calculation); err != nil {
 			return result, err
 		}
+	}
+	var related string
+	if e := tx.QueryRowContext(ctx, "SELECT d.id FROM operations o JOIN documents d ON d.id=o.document_id WHERE json_extract(o.payload,'$.replacementOf')=?", id).Scan(&related); e == nil {
+		v, e := ledger.ReadDocument(ctx, tx, related)
+		if e != nil {
+			return result, e
+		}
+		result.Replacement = &v
+	} else if e != sql.ErrNoRows {
+		return result, e
+	}
+	if e := tx.QueryRowContext(ctx, "SELECT id FROM documents WHERE reversal_of=? AND status='posted'", id).Scan(&related); e == nil {
+		v, e := ledger.ReadDocument(ctx, tx, related)
+		if e != nil {
+			return result, e
+		}
+		result.Reversal = &v
+	} else if e != sql.ErrNoRows {
+		return result, e
 	}
 	metadata, e := ledger.ReadContext(ctx, tx)
 	if e != nil {

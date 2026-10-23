@@ -1,6 +1,6 @@
 # Trạng thái dự án
 
-Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
+Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
 
 ## Phạm vi đã chốt
 
@@ -19,6 +19,15 @@ Cập nhật: 22/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Runbook: [deployment.md](deployment.md).
 
 ## Đã triển khai
+
+### Điều chỉnh số dư và sửa phiếu đã ghi sổ — 0.8.0
+
+- Chủ sở hữu mở thẳng bản số dư có thể sửa, nhập giá trị đúng/lý do, lưu nháp bền hoặc xem hai bảng trước/sau và chênh lệch rồi xác nhận. Lịch sử có gốc, phiên bản, lý do/người/thời gian; bỏ nháp không chạm số đã xác nhận. Phiên bản/epoch/revision/idempotency kiểm tra trong transaction.
+- Schema7 giữ nguồn gốc bất biến; cặp đảo toàn bộ bản hiệu lực và bản mới ghi cùng transaction với ngân hàng/kho/tài sản. Nguồn mới phân loại dư đầu ở trial/carry/NKC/BCTC/tiền mặt/ngân hàng. Đảo lịch sử có thể dùng tham chiếu ngừng hoạt động nhưng DB buộc đúng từng dòng gốc; bản mới vẫn kiểm tra hiệu lực. Tổng mỗi chứng từ giữ int64, báo cáo/chênh lệch dùng số nguyên lớn.
+- Kỳ khóa và phụ thuộc có thông báo/liên kết nguồn. Sửa tiền không bị chặn bởi kho/tài sản không đổi. Kho sửa trước xuất/điều chỉnh giá trị, giữ movement/lô cũ và thứ tự FIFO đầu kỳ; tài sản thêm/sửa/bỏ trước phân bổ, sửa tên độc lập, giữ gốc/elapsed và lũy kế phát sinh. Không tự tính lại giá vốn/khấu hao đã chốt.
+- Thu/chi/chuyển tiền có Sửa/thay thế phiếu, điền sẵn nội dung/ngày hợp lệ, lý do, preview; ghi đảo+thay cùng transaction. Gốc liên kết tới bản đã sửa; bản mới vẫn sửa tiếp theo chuỗi. Nháp đang nhập có ID lưu được mở lại đúng bản khi đi qua nút tạo mới. Chưa triển khai thay thế trực tiếp mua/bán/lương/thuế qua đường sửa phiếu tiền.
+- Validation: Go test/race/vet cho operations/ledger/sqlite/httpserver đạt; thêm regression nhiều phiên bản, tiền trên2^53/int64max, carry/BCTC/bank/NKC, hồi tố kỳ khóa, retry/stale epoch/revision/version/quyền/cạnh tranh, rollback cuối, thêm/sửa/bỏ kho/tài sản và cô lập phụ thuộc, tài khoản lịch sử ngừng dùng, phiếu tiền thay thế ngân hàng và backup/restore. Migration6→7 giữ dữ liệu/ID/tên/tiền và reopen; hash/checksum1–6 giữ nguyên.42test Node, TypeScript strict, production build và OpenAPI parse đạt. Đọc danh sách10E2E live; chưa chạy E2E tự động.
+- Edge/dữ liệu giả lập:5triệu→7triệu xem chênh lệch2triệu, báo cáo7triệu/phát sinh0, lịch sử gốc5triệu; lưu/đóng/tải lại tiếp tục đúng nháp. Phiếu thu1triệu→3triệu, gốc giữ1triệu và dẫn tới phiếu mới. Desktop/390px: sửa header/footer wrap, nút xác nhận nằm trong viewport, bảng cuộn trong vùng, không lỗi console. Không điều chỉnh số dư/chứng từ thật trong QA. Hợp đồng/cách dùng: [opening-adjustments.md](opening-adjustments.md).
 
 ### Nút chính có nhãn và menu chức năng theo ảnh mẫu — 0.7.4
 

@@ -405,7 +405,7 @@ func (s *Service) FinancialSource(ctx context.Context, from, to string) (Financi
 			a.closing[partner] = new(big.Int)
 		}
 		a.closing[partner].Add(a.closing[partner], delta)
-		if source == "opening" || date < from {
+		if IsOpening(source) || date < from {
 			if a.opening[partner] == nil {
 				a.opening[partner] = new(big.Int)
 			}

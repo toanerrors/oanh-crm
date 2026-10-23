@@ -229,7 +229,7 @@ func (s *Service) stock(ctx context.Context, tx *sql.Tx, doc *ledger.Document, i
 	if last.Valid && doc.Date < last.String {
 		return 0, accounting.Fail("RETROACTIVE_STOCK", "Chưa hỗ trợ biến động kho lùi trước ngày biến động cuối. Cần nghiệp vụ điều chỉnh riêng.")
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT l.id,l.quantity,l.value,l.scale,COALESCE(p.data,'') FROM stock_lots l LEFT JOIN documents d ON d.id=l.document_id LEFT JOIN policies p ON p.id=d.policy_id JOIN stock_lot_warehouses w ON w.lot_id=l.id WHERE l.item_id=? AND w.warehouse_id=? AND quantity>0 ORDER BY l.date,COALESCE(d.posted_order,9223372036854775807),l.id", item, warehouse)
+	rows, err := tx.QueryContext(ctx, "SELECT l.id,l.quantity,l.value,l.scale,COALESCE(p.data,'') FROM stock_lots l LEFT JOIN documents d ON d.id=l.document_id LEFT JOIN policies p ON p.id=d.policy_id JOIN stock_lot_warehouses w ON w.lot_id=l.id WHERE l.item_id=? AND w.warehouse_id=? AND quantity>0 ORDER BY l.date,CASE WHEN d.source_type IN ('opening','opening_adjustment') THEN 0 ELSE 1 END,COALESCE(d.posted_order,9223372036854775807),l.id", item, warehouse)
 	if err != nil {
 		return 0, err
 	}

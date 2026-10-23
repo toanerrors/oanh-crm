@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"unicode/utf8"
 
 	"oanh.local/accounting/internal/accounting"
 	"oanh.local/accounting/internal/modules/identity"
@@ -276,7 +277,7 @@ func (s *Service) Data(ctx context.Context) (Data, error) {
 	if err != nil {
 		return d, err
 	}
-	rows, err = tx.QueryContext(ctx, "SELECT id,code,name,kind,cost,residual,months,start_period,allocated FROM assets ORDER BY code")
+	rows, err = tx.QueryContext(ctx, "SELECT id,code,name,kind,cost,residual,months,start_period,allocated FROM current_assets ORDER BY code")
 	if err != nil {
 		return d, err
 	}
@@ -346,6 +347,27 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 	r.Revision = metadata.Revision
 	r.PolicyID = p.ID
 	r.PolicyVersion = p.Version
+	if input.ReplacementOf != "" {
+		if input.Kind != "receipt" && input.Kind != "payment" && input.Kind != "transfer" {
+			return r, accounting.Fail("INVALID_SOURCE", "Thay thế tại đây áp dụng cho phiếu thu, chi và chuyển tiền.")
+		}
+		if strings.TrimSpace(input.ReplacementReason) == "" || utf8.RuneCountInString(input.ReplacementReason) > 900 {
+			return r, accounting.Fail("VALIDATION", "Nhập lý do sửa phiếu (tối đa 900 ký tự).")
+		}
+		original, e := ledger.ReadDocument(ctx, tx, input.ReplacementOf)
+		if e != nil {
+			return r, e
+		}
+		var kind string
+		if e = tx.QueryRowContext(ctx, "SELECT kind FROM operations WHERE document_id=?", original.ID).Scan(&kind); e != nil || kind != input.Kind || input.DraftID == original.ID || input.SourceID == original.SourceID {
+			return r, accounting.Fail("INVALID_SOURCE", "Bản thay thế phải cùng loại phiếu, dùng nháp và mã nguồn mới.")
+		}
+		reversal, e := s.run(ctx, tx, Input{Kind: "treasury_reversal", SourceID: original.ID, OriginalDocumentID: original.ID, Date: input.Date, Description: "Đảo để thay thế " + original.Reference})
+		if e != nil {
+			return r, e
+		}
+		r.Notes = append(r.Notes, "Thay thế "+original.Reference+"; chứng từ đảo "+reversal.Document.Reference+" và phiếu mới được ghi trong cùng lần xác nhận.")
+	}
 	doc := ledger.Document{ID: sqlite.ID(), Type: "journal", Date: input.Date, Description: input.Description, PartnerID: input.PartnerID, SourceType: input.Kind, SourceID: input.SourceID, PolicyID: p.ID, Lines: []ledger.Line{}}
 	if input.DraftID != "" {
 		saved, e := ledger.ReadDocument(ctx, tx, input.DraftID)

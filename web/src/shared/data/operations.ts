@@ -31,6 +31,8 @@ export interface OperationInput {
   tradeMode?: 'goods' | 'service'; paymentAccount?: string;
   treasuryLines?: { counterAccount: string; partnerId?: string; description: string; amount: string }[];
   originalDocumentId?: string;
+  replacementOf?: string;
+  replacementReason?: string;
   moneyAccount?: string; counterAccount?: string; destinationAccount?: string;
   allocations?: { documentId: string; amount: string }[];
   invoiceNumber?: string; invoiceSeries?: string; invoiceDate?: string; dueDate?: string;
@@ -48,7 +50,7 @@ export interface TradeInvoice {
   amount: string; paid: string; remaining: string; unallocated: boolean;
 }
 export interface InvoiceList { invoices: TradeInvoice[]; total: number; amount: string; paid: string; remaining: string; revision: number }
-export interface Voucher { calculation?: Calculation; input: OperationInput; document: AccountingDocument }
+export interface Voucher { replacement?: AccountingDocument; reversal?: AccountingDocument; calculation?: Calculation; input: OperationInput; document: AccountingDocument }
 export interface Calculation { lineAmounts?: { base: string; tax: string; total: string; discount?: string; purchaseCost?: string; purchaseValue?: string }[]; paymentDocument?: AccountingDocument; policyId: string; policyVersion: number; revision: number; document: AccountingDocument; amounts: Record<string, string>; notes: string[] }
 export function automationOptions() { return queryOptions({ queryKey: [...workspaceKey(), 'automation'], queryFn: ({ signal }) => api<AutomationData>('/automation', { signal }), staleTime: 0, retry: false }); }
 export const executeOperation = (input: OperationInput) => command<Calculation>('/operations', input);

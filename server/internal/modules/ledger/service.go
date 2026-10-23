@@ -86,7 +86,7 @@ func (s *Service) CheckWriteScopeTx(ctx context.Context, tx *sql.Tx, cmd Command
 }
 
 func reservedSource(source string) bool {
-	return source != "" && strings.Contains("|opening|closing|closing_reversal|reversal|payroll|asset|depreciation|costing|corporate_tax|transfer|treasury_reversal|", "|"+source+"|")
+	return source != "" && strings.Contains("|opening|opening_adjustment|opening_adjustment_reversal|closing|closing_reversal|reversal|payroll|asset|depreciation|costing|corporate_tax|transfer|treasury_reversal|", "|"+source+"|")
 }
 func manualSource(kind, source string) (string, error) {
 	if source != "" && source != "manual" && source != kind {
@@ -105,7 +105,7 @@ func (s *Service) Save(ctx context.Context, cmd Command, doc Document) (json.Raw
 	doc.SourceType = source
 	return s.Write(ctx, cmd, "document.save", doc, func(tx *sql.Tx) (any, error) {
 		var count int
-		if err := tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM voucher_inputs WHERE document_id=?)+(SELECT count(*) FROM opening_balances WHERE document_id=?)", doc.ID, doc.ID).Scan(&count); err != nil {
+		if err := tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM voucher_inputs WHERE document_id=?)+(SELECT count(*) FROM opening_balances WHERE document_id=?)+(SELECT count(*) FROM opening_adjustments WHERE document_id=?)", doc.ID, doc.ID, doc.ID).Scan(&count); err != nil {
 			return nil, err
 		}
 		if count > 0 {
@@ -115,6 +115,9 @@ func (s *Service) Save(ctx context.Context, cmd Command, doc Document) (json.Raw
 	})
 }
 func (s *Service) SaveTx(ctx context.Context, tx *sql.Tx, doc Document) (Document, error) {
+	return s.saveTx(ctx, tx, doc, false)
+}
+func (s *Service) saveTx(ctx context.Context, tx *sql.Tx, doc Document, historical bool) (Document, error) {
 	if !accounting.ID(doc.ID) || !accounting.Date(doc.Date) || strings.TrimSpace(doc.Description) == "" || len(doc.Description) > 1000 || len(doc.Lines) > 200 || len(doc.Lines) == 0 {
 		return doc, accounting.Fail("VALIDATION", "ID, ngày, diễn giải và dòng hạch toán phải hợp lệ (tối đa 200 dòng).")
 	}
@@ -152,7 +155,7 @@ func (s *Service) SaveTx(ctx context.Context, tx *sql.Tx, doc Document) (Documen
 	}
 	if doc.PartnerID != "" {
 		var active bool
-		if e := tx.QueryRowContext(ctx, "SELECT active FROM partners WHERE id=?", doc.PartnerID).Scan(&active); e != nil || !active {
+		if e := tx.QueryRowContext(ctx, "SELECT active FROM partners WHERE id=?", doc.PartnerID).Scan(&active); e != nil || !active && !historical {
 			return doc, accounting.Fail("INVALID_PARTNER", "Đối tượng chứng từ không còn hiệu lực.")
 		}
 	}
@@ -173,16 +176,20 @@ func (s *Service) SaveTx(ctx context.Context, tx *sql.Tx, doc Document) (Documen
 		debit.Add(debit, big.NewInt(d))
 		credit.Add(credit, big.NewInt(c))
 		var required, active bool
-		if e = tx.QueryRowContext(ctx, "SELECT name,requires_partner,active FROM accounts WHERE id=?", line.AccountID).Scan(&line.AccountName, &required, &active); e != nil || !active {
+		accountName, partnerName := line.AccountName, line.PartnerName
+		if e = tx.QueryRowContext(ctx, "SELECT name,requires_partner,active FROM accounts WHERE id=?", line.AccountID).Scan(&line.AccountName, &required, &active); e != nil || !active && !historical {
 			return doc, accounting.Fail("INVALID_ACCOUNT", "Tài khoản không tồn tại hoặc ngừng sử dụng.")
 		}
-		if required && line.PartnerID == "" {
+		if required && line.PartnerID == "" && !historical {
 			return doc, accounting.Fail("INVALID_PARTNER", "Tài khoản yêu cầu đối tượng trên từng dòng.")
 		}
 		if line.PartnerID != "" {
-			if e = tx.QueryRowContext(ctx, "SELECT name,active FROM partners WHERE id=?", line.PartnerID).Scan(&line.PartnerName, &active); e != nil || !active {
+			if e = tx.QueryRowContext(ctx, "SELECT name,active FROM partners WHERE id=?", line.PartnerID).Scan(&line.PartnerName, &active); e != nil || !active && !historical {
 				return doc, accounting.Fail("INVALID_PARTNER", "Đối tượng dòng không còn hiệu lực.")
 			}
+		}
+		if historical {
+			line.AccountName, line.PartnerName = accountName, partnerName
 		}
 	}
 	if !debit.IsInt64() || !credit.IsInt64() {
@@ -214,7 +221,7 @@ func (s *Service) SaveTx(ctx context.Context, tx *sql.Tx, doc Document) (Documen
 func (s *Service) Post(ctx context.Context, cmd Command, input Post) (json.RawMessage, error) {
 	return s.Write(ctx, cmd, "document.post", input, func(tx *sql.Tx) (any, error) {
 		var count int
-		if err := tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM voucher_inputs WHERE document_id=?)+(SELECT count(*) FROM opening_balances WHERE document_id=?)", input.ID, input.ID).Scan(&count); err != nil {
+		if err := tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM voucher_inputs WHERE document_id=?)+(SELECT count(*) FROM opening_balances WHERE document_id=?)+(SELECT count(*) FROM opening_adjustments WHERE document_id=?)", input.ID, input.ID, input.ID).Scan(&count); err != nil {
 			return nil, err
 		}
 		if count > 0 {
@@ -224,6 +231,9 @@ func (s *Service) Post(ctx context.Context, cmd Command, input Post) (json.RawMe
 	})
 }
 func (s *Service) PostTx(ctx context.Context, tx *sql.Tx, input Post) (Document, error) {
+	return s.postTx(ctx, tx, input, false)
+}
+func (s *Service) postTx(ctx context.Context, tx *sql.Tx, input Post, historical bool) (Document, error) {
 	doc, err := ReadDocument(ctx, tx, input.ID)
 	if err != nil {
 		return doc, err
@@ -240,14 +250,14 @@ func (s *Service) PostTx(ctx context.Context, tx *sql.Tx, input Post) (Document,
 		if err = tx.QueryRowContext(ctx, "SELECT account_group,active,requires_partner FROM accounts WHERE id=?", line.AccountID).Scan(&group, &active, &required); err != nil {
 			return doc, err
 		}
-		if !active {
+		if !active && !historical {
 			return doc, accounting.Fail("INVALID_ACCOUNT", "Tài khoản đã ngừng sử dụng.")
 		}
 		if doc.PolicyID == "" && (group == "inventory" || group == "asset") {
 			return doc, accounting.Fail("SUBLEDGER_REQUIRED", "Tài khoản kho/tài sản cần lập qua Nghiệp vụ tự động để ghi đồng thời chi tiết phân hệ.")
 		}
-		if required || line.PartnerID != "" {
-			if err = tx.QueryRowContext(ctx, "SELECT active FROM partners WHERE id=?", line.PartnerID).Scan(&active); err != nil || !active {
+		if !historical && (required || line.PartnerID != "") {
+			if err = tx.QueryRowContext(ctx, "SELECT active FROM partners WHERE id=?", line.PartnerID).Scan(&active); err != nil || !active && !historical {
 				return doc, accounting.Fail("INVALID_PARTNER", "Đối tượng dòng không còn hiệu lực.")
 			}
 		}
@@ -282,8 +292,8 @@ func (s *Service) PostTx(ctx context.Context, tx *sql.Tx, input Post) (Document,
 	}
 	var number, order int64
 	scope := doc.Type + ":" + doc.Date[:4]
-	if doc.SourceType == "opening" {
-		scope = "opening:" + doc.Date[:4]
+	if IsOpening(doc.SourceType) {
+		scope = doc.SourceType + ":" + doc.Date[:4]
 	}
 	if err = tx.QueryRowContext(ctx, "INSERT INTO counters VALUES(?,1) ON CONFLICT(scope) DO UPDATE SET value=value+1 RETURNING value", scope).Scan(&number); err != nil {
 		return doc, err
@@ -294,6 +304,12 @@ func (s *Service) PostTx(ctx context.Context, tx *sql.Tx, input Post) (Document,
 	prefix := map[string]string{"receipt": "PT", "payment": "PC", "sale": "BH", "purchase": "MH", "journal": "CT"}[doc.Type]
 	if doc.SourceType == "opening" {
 		prefix = "SDDK"
+	}
+	if doc.SourceType == "opening_adjustment" {
+		prefix = "SDDC"
+	}
+	if doc.SourceType == "opening_adjustment_reversal" {
+		prefix = "SDDC-D"
 	}
 	doc.Reference = fmt.Sprintf("%s-%s-%06d", prefix, doc.Date[:4], number)
 	doc.Status = "posted"
@@ -337,4 +353,47 @@ func nullable(value string) any {
 		return nil
 	}
 	return value
+}
+
+func IsOpening(source string) bool {
+	return source == "opening" || source == "opening_adjustment" || source == "opening_adjustment_reversal"
+}
+
+// PrepareOpeningReversalTx copies only an immutable opening document; inactive historical references remain reversible.
+func (s *Service) PrepareOpeningReversalTx(ctx context.Context, tx *sql.Tx, id, reason string) (Document, error) {
+	original, err := ReadDocument(ctx, tx, id)
+	if err != nil {
+		return original, err
+	}
+	if original.Status != "posted" || (original.SourceType != "opening" && original.SourceType != "opening_adjustment") {
+		return original, accounting.Fail("VALIDATION", "Chỉ đảo phiên bản số dư đầu kỳ đã xác nhận.")
+	}
+	var count int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE reversal_of=?", id).Scan(&count); err != nil {
+		return original, err
+	}
+	if count != 0 {
+		return original, accounting.Fail("VERSION_CONFLICT", "Phiên bản số dư này đã được điều chỉnh.")
+	}
+	doc := Document{ID: sqlite.ID(), Type: "journal", Date: original.Date, Description: "Đảo số dư " + original.Reference, SourceType: "opening_adjustment_reversal", SourceID: id, ReversalOf: id, PolicyID: original.PolicyID}
+	for _, line := range original.Lines {
+		line.Debit, line.Credit = line.Credit, line.Debit
+		doc.Lines = append(doc.Lines, line)
+	}
+	doc, err = s.saveTx(ctx, tx, doc, true)
+	if err != nil {
+		return doc, err
+	}
+	return doc, nil
+}
+
+func (s *Service) PostOpeningReversalTx(ctx context.Context, tx *sql.Tx, in Post) (Document, error) {
+	doc, err := ReadDocument(ctx, tx, in.ID)
+	if err != nil {
+		return doc, err
+	}
+	if doc.SourceType != "opening_adjustment_reversal" || doc.ReversalOf == "" {
+		return doc, accounting.Fail("VALIDATION", "Không phải chứng từ đảo số dư đầu kỳ.")
+	}
+	return s.postTx(ctx, tx, in, true)
 }

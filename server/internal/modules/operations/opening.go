@@ -32,9 +32,12 @@ type OpeningInput struct {
 }
 type OpeningState struct {
 	ledger.Context
-	Input       *OpeningInput    `json:"input"`
-	Document    *ledger.Document `json:"document"`
-	PostedCount int              `json:"postedCount"`
+	Input          *OpeningInput           `json:"input"`
+	Document       *ledger.Document        `json:"document"`
+	PostedCount    int                     `json:"postedCount"`
+	RootID         string                  `json:"rootId"`
+	BalanceVersion int                     `json:"balanceVersion"`
+	Adjustment     *OpeningAdjustmentInput `json:"adjustment,omitempty"`
 }
 
 func openingAt(ctx context.Context, tx *sql.Tx) (OpeningState, error) {
@@ -45,10 +48,10 @@ func openingAt(ctx context.Context, tx *sql.Tx) (OpeningState, error) {
 	if err != nil {
 		return state, err
 	}
-	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE status='posted' AND source_type<>'opening'").Scan(&state.PostedCount); err != nil {
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE status='posted' AND source_type NOT IN ('opening','opening_adjustment','opening_adjustment_reversal')").Scan(&state.PostedCount); err != nil {
 		return state, err
 	}
-	err = tx.QueryRowContext(ctx, "SELECT document_id,payload FROM opening_balances WHERE id=1").Scan(&id, &raw)
+	err = tx.QueryRowContext(ctx, "SELECT opening_document_id,document_id,payload FROM opening_current").Scan(&state.RootID, &id, &raw)
 	if err == sql.ErrNoRows {
 		return state, nil
 	}
@@ -62,7 +65,23 @@ func openingAt(ctx context.Context, tx *sql.Tx) (OpeningState, error) {
 	doc, err := ledger.ReadDocument(ctx, tx, id)
 	input.Version = doc.Version
 	state.Input, state.Document = &input, &doc
-	return state, err
+	if err != nil {
+		return state, err
+	}
+	if err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(confirmed_version),0) FROM opening_adjustments").Scan(&state.BalanceVersion); err != nil {
+		return state, err
+	}
+	var draftID string
+	err = tx.QueryRowContext(ctx, "SELECT document_id FROM opening_adjustments WHERE confirmed_version IS NULL").Scan(&draftID)
+	if err == nil {
+		a, e := readOpeningAdjustment(ctx, tx, draftID)
+		state.Adjustment = &a.OpeningAdjustmentInput
+		return state, e
+	}
+	if err != sql.ErrNoRows {
+		return state, err
+	}
+	return state, nil
 }
 func (s *Service) Opening(ctx context.Context) (OpeningState, error) {
 	tx, err := s.Ledger.Store.Read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -77,6 +96,9 @@ func (s *Service) Opening(ctx context.Context) (OpeningState, error) {
 	return state, tx.Commit()
 }
 func (s *Service) openingDocument(ctx context.Context, tx *sql.Tx, in OpeningInput) (ledger.Document, Policy, error) {
+	return s.openingDocumentPolicy(ctx, tx, in, nil)
+}
+func (s *Service) openingDocumentPolicy(ctx context.Context, tx *sql.Tx, in OpeningInput, pinned *Policy) (ledger.Document, Policy, error) {
 	doc := ledger.Document{ID: in.ID, Version: in.Version, Type: "journal", Date: in.Cutoff, Description: "Số dư đầu kỳ: " + in.Source, SourceType: "opening", SourceID: "initial", PolicyID: "opening"}
 	var policy Policy
 	if !accounting.ID(in.ID) || in.Version < 0 || !accounting.Date(in.Cutoff) || in.Cutoff[8:] != "01" || strings.TrimSpace(in.Source) == "" || len(in.Source) > 900 || len(in.Lines)+len(in.Stocks)+len(in.Assets) > 150 {
@@ -84,7 +106,11 @@ func (s *Service) openingDocument(ctx context.Context, tx *sql.Tx, in OpeningInp
 	}
 	if len(in.Stocks)+len(in.Assets) > 0 {
 		var err error
-		policy, err = PolicyAt(ctx, tx, in.Cutoff)
+		if pinned != nil {
+			policy = *pinned
+		} else {
+			policy, err = PolicyAt(ctx, tx, in.Cutoff)
+		}
 		if err != nil {
 			return doc, policy, err
 		}

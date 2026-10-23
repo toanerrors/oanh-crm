@@ -136,6 +136,8 @@ type Input struct {
 	TradeMode                string         `json:"tradeMode,omitempty"`
 	PaymentAccount           string         `json:"paymentAccount,omitempty"`
 	TreasuryLines            []TreasuryLine `json:"treasuryLines,omitempty"`
+	ReplacementOf            string         `json:"replacementOf,omitempty"`
+	ReplacementReason        string         `json:"replacementReason,omitempty"`
 	OriginalDocumentID       string         `json:"originalDocumentId,omitempty"`
 	MoneyAccount             string         `json:"moneyAccount,omitempty"`
 	CounterAccount           string         `json:"counterAccount,omitempty"`

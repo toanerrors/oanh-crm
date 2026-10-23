@@ -15,11 +15,13 @@ import { Icon } from '../../shared/ui/Icon';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import { DateInput } from '../../shared/ui/DateInput';
 import styles from './OpeningBalances.module.css';
+import { OpeningReview, OpeningHistory } from './OpeningAdjustmentReview';
+import type { OpeningAdjustment } from './OpeningAdjustmentReview';
 
 type OpeningLine = JournalLine & { bankAccountId?: string };
 interface OpeningStock { itemId: string; warehouseId: string; quantity: string; value: string }
-interface OpeningInput { id: string; version: number; cutoff: string; source: string; lines: OpeningLine[]; stocks: OpeningStock[]; assets: (Asset & { allocated: string })[] }
-interface OpeningState { input: OpeningInput | null; document: AccountingDocument | null; postedCount: number; epoch: string }
+export interface OpeningInput { id: string; version: number; cutoff: string; source: string; lines: OpeningLine[]; stocks: OpeningStock[]; assets: (Asset & { allocated: string })[] }
+interface OpeningState { input: OpeningInput | null; document: AccountingDocument | null; postedCount: number; epoch: string; revision: number; balanceVersion: number; rootId: string; adjustment?: Pick<OpeningAdjustment, 'input' | 'reason' | 'baseVersion'> }
 const emptyLine = (): OpeningLine => ({ accountId: '', partnerId: '', description: '', debit: '0', credit: '0' });
 
 export function OpeningBalances() {
@@ -27,18 +29,24 @@ export function OpeningBalances() {
   const client = useQueryClient();
   const { message } = App.useApp();
   const [initial, setInitial] = useState<OpeningState | null>(null);
+ const [history, setHistory] = useState(false);
   const state = useQuery({ queryKey: [...workspaceKey(), 'opening-balances', data?.revision], queryFn: ({ signal }) => api<OpeningState>('/opening-balances', { signal }), retry: false });
   const owner = apiScope().permissions === 'owner';
   return <>
-    <ToolbarButton type="primary" loading={state.isPending} disabled={!state.data || !owner && !state.data.input} onClick={() => { if (!state.data) return; if (!state.data.input && state.data.postedCount) { void message.error('Đã có chứng từ ghi sổ. Chỉ khởi tạo số dư trước lần ghi sổ đầu tiên để tránh cộng trùng lịch sử.'); return; } setInitial(state.data); }} label={state.data?.document?.status === 'posted' ? 'Xem số dư đầu kỳ' : state.data?.input ? 'Tiếp tục nhập số dư' : 'Nhập số dư đầu kỳ'} icon="book" />
+    <ToolbarButton type="primary" loading={state.isPending} disabled={!state.data || !owner && !state.data.input} onClick={() => { if (!state.data) return; if (!state.data.input && state.data.postedCount) { void message.error('Đã có chứng từ ghi sổ. Chỉ khởi tạo số dư trước lần ghi sổ đầu tiên để tránh cộng trùng lịch sử.'); return; } setInitial(state.data); }} label={state.data?.document?.status === 'posted' ? owner ? state.data.adjustment ? 'Tiếp tục điều chỉnh số dư' : 'Điều chỉnh số dư đầu kỳ' : 'Xem số dư đầu kỳ' : state.data?.input ? 'Tiếp tục nhập số dư' : 'Nhập số dư đầu kỳ'} icon="book" />
+    {state.data?.document?.status === 'posted' && <ToolbarButton onClick={() => setHistory(true)} label="Lịch sử số dư đầu kỳ" icon="clock" />}
+    {history && <OpeningHistory rootId={state.data?.rootId ?? ''} onClose={() => setHistory(false)} />}
     {state.error && <ToolbarButton danger onClick={() => void state.refetch()} label="Lỗi tải số dư · Thử lại" icon="refresh" />}
     {initial && <OpeningEditor initial={initial} period={period} onClose={() => setInitial(null)} onSaved={saved => { client.setQueryData([...workspaceKey(), 'opening-balances', data?.revision], saved); void client.invalidateQueries({ queryKey: workspaceKey() }); void refresh(); }} />}
   </>;
 }
 function OpeningEditor({ initial, period, onClose, onSaved }: { initial: OpeningState; period: string; onClose: () => void; onSaved: (state: OpeningState) => void }) {
   const [form] = Form.useForm<OpeningInput>();
-  const [saved, setSaved] = useState<OpeningInput>(() => initial.input ?? { id: crypto.randomUUID(), version: 0, cutoff: `${period}-01`, source: '', lines: [emptyLine(), emptyLine()], stocks: [], assets: [] });
-  const [posted, setPosted] = useState(initial.document?.status === 'posted');
+ const correcting = initial.document?.status === 'posted' && apiScope().permissions === 'owner';
+ const [reason, setReason] = useState(initial.adjustment?.reason ?? '');
+ const [preview, setPreview] = useState<OpeningAdjustment | null>(null);
+  const [saved, setSaved] = useState<OpeningInput>(() => correcting && initial.input ? initial.adjustment?.input ?? { ...structuredClone(initial.input), id: crypto.randomUUID(), version: 0 } : initial.input ?? { id: crypto.randomUUID(), version: 0, cutoff: `${period}-01`, source: '', lines: [emptyLine(), emptyLine()], stocks: [], assets: [] });
+  const [posted, setPosted] = useState(initial.document?.status === 'posted' && !correcting);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +60,7 @@ function OpeningEditor({ initial, period, onClose, onSaved }: { initial: Opening
   const automation = useQuery(automationOptions());
   const banks = useQuery(banksOptions(period));
   const warehouses = useQuery(warehousesOptions());
-  const editable = !posted && apiScope().permissions === 'owner' && initial.postedCount === 0;
+  const editable = !posted && apiScope().permissions === 'owner' && (correcting || initial.postedCount === 0);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty]);
   const close = () => { if (!dirty) { onClose(); return; } modal.confirm({ title: 'Số dư chưa lưu', content: 'Đóng sẽ bỏ phần thay đổi chưa lưu.', okText: 'Bỏ thay đổi', cancelText: 'Tiếp tục nhập', onOk: onClose }); };
   if (!data) return null;
@@ -71,26 +79,45 @@ function OpeningEditor({ initial, period, onClose, onSaved }: { initial: Opening
       input.lines = input.lines.map(line => ({ ...line, debit: line.debit || '0', credit: line.credit || '0' }));
       const invalid = input.lines.findIndex(line => (BigInt(line.debit) > 0n) === (BigInt(line.credit) > 0n));
       if (invalid >= 0) throw new Error(`Dòng tài khoản ${invalid + 1}: nhập số tiền dương ở một bên Nợ hoặc Có.`);
-      const result = await command<OpeningState>('/opening-balances', { ...input, version: saved.version }, initial.epoch);
-      setSaved(result.input!); form.setFieldsValue(result.input!); setDirty(false); onSaved(result); void message.success('Đã lưu nháp số dư đầu kỳ; chưa tác động sổ.');
+      if (correcting && !reason.trim()) throw new Error('Nhập lý do điều chỉnh để lưu lịch sử đối chiếu.');
+      const payload = { ...input, version: saved.version };
+      const result = await command<OpeningState>(correcting ? '/opening-balances/adjustments' : '/opening-balances', correcting ? { input: payload, baseVersion: initial.balanceVersion, reason } : payload, initial.epoch);
+      const next = correcting ? result.adjustment!.input : result.input!;
+      setSaved(next); form.setFieldsValue(next); setDirty(false); onSaved(result); void message.success('Đã lưu nháp; chưa thay đổi số dư đã xác nhận.');
+      return next;
     } catch (e) { const field = (e as { errorFields?: { name: (string | number)[] }[] }).errorFields?.[0]?.name[0]; if (typeof field === 'string' && ['lines', 'stocks', 'assets'].includes(field)) setTab(field); setError(e instanceof Error ? e.message : 'Kiểm tra các trường nhập liệu được đánh dấu.'); }
     finally { setBusy(false); }
   };
   const discard = () => modal.confirm({ title: 'Bỏ nháp số dư đầu kỳ', content: 'Bản nháp chưa tác động sổ. Bỏ bản nháp đã lưu và các thay đổi đang nhập?', okText: 'Bỏ nháp', cancelText: 'Giữ nháp', onOk: async () => {
-    try { const result = await command<OpeningState>('/opening-balances/discard', { id: saved.id, version: saved.version }, initial.epoch); onSaved(result); setDirty(false); onClose(); }
+    try { const result = await command<OpeningState>(correcting ? '/opening-balances/adjustments/discard' : '/opening-balances/discard', { id: saved.id, version: saved.version }, initial.epoch); onSaved(result); setDirty(false); onClose(); }
     catch (e) { setError((e as Error).message); throw e; }
   } });
-  const confirm = () => modal.confirm({ title: 'Xác nhận số dư đầu kỳ', content: `Mốc chuyển đổi ${formatDate(saved.cutoff)} · Tổng Nợ và Có ${formatMoney(total?.debit ?? 0n)} VND. Số dư được khóa sau xác nhận; dữ liệu lịch sử trước mốc không được nhập lại.`, okText: 'Xác nhận số dư', cancelText: 'Kiểm tra lại', onOk: async () => {
+  const confirm = () => modal.confirm({ title: 'Xác nhận số dư đầu kỳ', content: `Mốc chuyển đổi ${formatDate(saved.cutoff)} · Tổng Nợ và Có ${formatMoney(total?.debit ?? 0n)} VND. Có thể lập bản điều chỉnh sau xác nhận; dữ liệu lịch sử trước mốc không được nhập lại.`, okText: 'Xác nhận số dư', cancelText: 'Kiểm tra lại', onOk: async () => {
     setBusy(true); setError('');
     try { const result = await command<OpeningState>('/opening-balances/confirm', { id: saved.id, version: saved.version }, initial.epoch); setSaved(result.input!); form.setFieldsValue(result.input!); setPosted(true); onSaved(result); void message.success('Đã xác nhận. Số dư đã cập nhật vào cột Dư đầu kỳ.'); }
     catch (e) { setError((e as Error).message); throw e; }
     finally { setBusy(false); }
   } });
-  return <Modal open title={<Space>Số dư đầu kỳ<Tag color={posted ? 'green' : 'gold'}>{posted ? 'Đã xác nhận' : 'Bản nháp'}</Tag></Space>} onCancel={close} width="calc(100vw - 32px)" style={{ top: 16, maxWidth: 1600, paddingBottom: 0 }} className={styles.editor} maskClosable={false} footer={<div className={styles.actions}><Space><Button onClick={close}>Đóng</Button>{!posted && saved.version > 0 && apiScope().permissions === 'owner' && <Button danger onClick={discard} disabled={busy}>Bỏ nháp</Button>}</Space>{editable && <Space wrap><Button onClick={() => void save()} loading={busy}>Lưu nháp</Button><Button type="primary" onClick={confirm} disabled={dirty || !saved.version || !total?.balanced || !periodOpen} loading={busy}>Xác nhận số dư</Button></Space>}</div>}>
-    <Alert type={posted ? 'success' : 'info'} showIcon title={posted ? `Số dư đã xác nhận tại ${formatDate(saved.cutoff)}` : 'Khởi tạo một lần trước khi ghi sổ chứng từ đầu tiên'} description={posted ? 'Số dư thuộc cột Dư đầu kỳ, không tính vào phát sinh trong kỳ. Kỳ sau được chuyển tiếp từ cùng nguồn sổ.' : 'Nhập số cuối ngày trước mốc chuyển đổi từ sổ đã đối chiếu. Lưu nháp để kiểm tra; chỉ xác nhận khi tổng Nợ bằng tổng Có và đã đủ chi tiết.'} />
+  const review = async () => {
+    const next = dirty || !saved.version ? await save() : saved;
+    if (!next) return;
+    setBusy(true); setError('');
+    try { setPreview(await api<OpeningAdjustment>(`/opening-balances/adjustments/${next.id}`)); }
+    catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  const confirmAdjustment = async () => {
+    if (!preview) return;
+    const result = await command<OpeningState>('/opening-balances/adjustments/confirm', { id: preview.document.id, version: preview.document.version, revision: preview.revision }, initial.epoch);
+    onSaved(result); setDirty(false); setPreview(null); onClose();
+    void message.success(`Đã cập nhật số dư đầu kỳ · Phiên bản ${result.balanceVersion}.`);
+  };
+  return <><Modal open title={<div className={styles.title}><span>{correcting ? 'Điều chỉnh số dư đầu kỳ' : 'Số dư đầu kỳ'}</span><Tag color={posted ? 'green' : 'gold'}>{posted ? 'Đã xác nhận' : correcting ? `Bản nháp điều chỉnh · Từ phiên bản ${initial.balanceVersion}` : 'Bản nháp'}</Tag></div>} onCancel={close} width="calc(100vw - 32px)" style={{ top: 16, maxWidth: 1600, paddingBottom: 0 }} className={styles.editor} maskClosable={false} footer={<div className={styles.actions}><Space><Button onClick={close}>Đóng</Button>{!posted && saved.version > 0 && apiScope().permissions === 'owner' && <Button danger onClick={discard} disabled={busy}>Bỏ nháp</Button>}</Space>{editable && <Space wrap><Button onClick={() => void save()} loading={busy}>Lưu nháp</Button><Button type="primary" onClick={correcting ? () => void review() : confirm} disabled={!correcting && (dirty || !saved.version || !total?.balanced || !periodOpen)} loading={busy}>{correcting ? 'Xem thay đổi & xác nhận' : 'Xác nhận số dư'}</Button></Space>}</div>}>
+    <Alert type={posted ? 'success' : 'info'} showIcon title={correcting ? `Nhập số dư đúng tại ${formatDate(saved.cutoff)}` : posted ? `Số dư đã xác nhận tại ${formatDate(saved.cutoff)}` : 'Khởi tạo một lần trước khi ghi sổ chứng từ đầu tiên'} description={correcting ? 'Sửa trực tiếp các giá trị cần thay đổi; giữ nguyên những phần đã đúng. Bước tiếp theo hiển thị đối chiếu và chứng từ liên quan trước khi cập nhật. Phiên bản cũ được giữ trong lịch sử.' : posted ? 'Số dư thuộc cột Dư đầu kỳ, không tính vào phát sinh trong kỳ. Kỳ sau được chuyển tiếp từ cùng nguồn sổ.' : 'Nhập số cuối ngày trước mốc chuyển đổi từ sổ đã đối chiếu. Lưu nháp để kiểm tra; chỉ xác nhận khi tổng Nợ bằng tổng Có và đã đủ chi tiết.'} />
     <Form form={form} initialValues={saved} layout="vertical" disabled={!editable || busy} onValuesChange={() => { setDirty(true); setError(''); }}>
-      <div className={styles.parameters}><Form.Item name="cutoff" label="Ngày bắt đầu dữ liệu" rules={[{ required: true, pattern: /^\d{4}-\d{2}-01$/, message: 'Chọn ngày đầu tháng chuyển đổi.' }]}><DateInput aria-label="Ngày bắt đầu số dư" /></Form.Item><Form.Item name="source" label="Nguồn số dư / biên bản đối chiếu" rules={[{ required: true, whitespace: true, max: 900 }]}><Input aria-label="Nguồn số dư đầu kỳ" placeholder="Sổ đã đối chiếu đến ngày trước mốc chuyển đổi" /></Form.Item></div>
+      <div className={styles.parameters}><Form.Item name="cutoff" label="Ngày bắt đầu dữ liệu" rules={[{ required: true, pattern: /^\d{4}-\d{2}-01$/, message: 'Chọn ngày đầu tháng chuyển đổi.' }]}><DateInput disabled={correcting || !editable || busy} aria-label="Ngày bắt đầu số dư" /></Form.Item><Form.Item name="source" label="Nguồn số dư / biên bản đối chiếu" rules={[{ required: true, whitespace: true, max: 900 }]}><Input aria-label="Nguồn số dư đầu kỳ" placeholder="Sổ đã đối chiếu đến ngày trước mốc chuyển đổi" /></Form.Item></div>
       {!posted && !periodOpen && <Alert className={styles.error} type="warning" title={conversionPeriod?.closed ? 'Kỳ chuyển đổi đã khóa; xử lý mở lại kỳ trong Thiết lập trước khi xác nhận.' : 'Chưa mở kỳ kế toán cho ngày chuyển đổi.'} action={!conversionPeriod && editable ? <Button disabled={busy} onClick={() => void openPeriod()}>Mở kỳ {current.cutoff.slice(0, 7).split('-').reverse().join('/')}</Button> : undefined} />}
+      {correcting && <Form.Item label="Lý do điều chỉnh" required><Input.TextArea aria-label="Lý do điều chỉnh số dư" value={reason} maxLength={1000} showCount autoSize={{ minRows: 2, maxRows: 4 }} onChange={e => { setReason(e.target.value); setDirty(true); }} placeholder="Ví dụ: cập nhật theo biên bản đối chiếu ngân hàng…" /></Form.Item>}
       <Tabs activeKey={tab} onChange={setTab} items={[{ key: 'lines', label: 'Tài khoản & công nợ' }, { key: 'stocks', label: 'Tồn kho' }, { key: 'assets', label: 'Tài sản & trả trước' }]} />
       <div hidden={tab !== 'lines'}><p className={styles.help}>Nhập riêng từng đối tượng và từng tài khoản ngân hàng. Kho/tài sản nhập tại tab chi tiết, bút toán tương ứng được tạo tự động.</p><Form.List name="lines">{(fields, actions) => <><Table rowKey="key" dataSource={fields} pagination={false} scroll={{ x: 1150 }} columns={[
         { title: '#', width: 45, render: (_, f) => f.name + 1 },
@@ -122,5 +149,5 @@ function OpeningEditor({ initial, period, onClose, onSaved }: { initial: Opening
     {(automation.error || banks.error || warehouses.error) && <Alert className={styles.error} type="error" title="Chưa tải đủ danh mục chi tiết" description={(automation.error || banks.error || warehouses.error)?.message} />}
     {error && <Alert className={styles.error} type="error" showIcon title={error} />}
     <div className={styles.totals}><span>Tổng dư Nợ<strong>{total ? formatMoney(total.debit) : '—'}</strong></span><span>Tổng dư Có<strong>{total ? formatMoney(total.credit) : '—'}</strong></span><span>Chênh lệch Nợ − Có<strong>{total ? formatMoney(total.difference) : '—'}</strong></span><Tag color={total?.balanced ? 'green' : 'gold'}>{total?.balanced ? 'Cân đối' : 'Chưa cân đối'}</Tag></div>
-  </Modal>;
+  </Modal>{preview && <OpeningReview value={preview} onClose={() => setPreview(null)} onConfirm={confirmAdjustment} onReload={async () => setPreview(await api<OpeningAdjustment>(`/opening-balances/adjustments/${saved.id}`))} />}</>;
 }

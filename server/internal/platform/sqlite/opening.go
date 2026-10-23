@@ -19,6 +19,15 @@ func verifyOpening(ctx context.Context, db *sql.DB) error {
 	if exists == 0 {
 		return nil
 	}
+	var corrected int
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_schema WHERE name='opening_adjustments'").Scan(&corrected); err != nil {
+		return err
+	}
+	if corrected > 0 {
+		if err := db.QueryRowContext(ctx, "SELECT count(*) FROM opening_adjustments WHERE confirmed_version IS NOT NULL").Scan(&corrected); err != nil {
+			return err
+		}
+	}
 	var id, date, status, source, raw string
 	err := db.QueryRowContext(ctx, "SELECT d.id,d.date,d.status,d.source_type,o.payload FROM opening_balances o JOIN documents d ON d.id=o.document_id WHERE o.cutoff=d.date AND o.source=json_extract(o.payload,'$.source')").Scan(&id, &date, &status, &source, &raw)
 	if err == sql.ErrNoRows {
@@ -130,7 +139,13 @@ func verifyOpening(ctx context.Context, db *sql.DB) error {
 			var elapsed int
 			var initial int64
 			var recognized string
-			if e = db.QueryRowContext(ctx, "SELECT o.elapsed,o.allocated,a.recognized_document FROM opening_assets o JOIN assets a ON a.id=o.asset_id WHERE o.asset_id=? AND a.cost=? AND a.start_period=? AND a.kind=? AND a.code=? AND a.name=? AND a.residual=? AND a.months=?", a.ID, cost, a.StartPeriod, a.Kind, a.Code, a.Name, residual, a.Months).Scan(&elapsed, &initial, &recognized); e != nil {
+			query := "SELECT o.elapsed,o.allocated,a.recognized_document FROM opening_assets o JOIN assets a ON a.id=o.asset_id WHERE o.asset_id=?"
+			args := []any{a.ID}
+			if corrected == 0 {
+				query += " AND a.cost=? AND a.start_period=? AND a.kind=? AND a.code=? AND a.name=? AND a.residual=? AND a.months=?"
+				args = append(args, cost, a.StartPeriod, a.Kind, a.Code, a.Name, residual, a.Months)
+			}
+			if e = db.QueryRowContext(ctx, query, args...).Scan(&elapsed, &initial, &recognized); e != nil {
 				return e
 			}
 			start, e := time.Parse("2006-01", a.StartPeriod)
