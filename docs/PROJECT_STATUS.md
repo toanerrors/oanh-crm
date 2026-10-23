@@ -10,6 +10,12 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Menu chức năng nhanh sidebar — 0.12.1
+
+- Dùng một bộ điều khiển ý định rê chuột thay cho timer riêng của từng Popover. Tín hiệu rời mục cũ không đóng mục mới; lướt qua nhanh không mở/tải phân hệ; khoảng đệm240ms qua khe menu. Theo dõi vị trí trong mục hiện tại để giữ menu khi đi chéo qua hàng bên cạnh, chuyển mục khi dừng lại. Reset timer khi điều hướng/đổi compact/breakpoint/unmount.
+- Popover được giữ sau lần mở đầu để giảm tạo lại DOM; không mount sẵn các màn hình nghiệp vụ. Hiệu ứng opacity100ms/60ms, không phóng to; tắt animation khi reduced motion. Giữ ghim, menu mobile, focus bàn phím/ArrowRight/Tab/Escape và kiểm tra click ngoài. Prefetch phân hệ có submenu sau khi hover ổn định hoặc focus, không chạy theo mọi hàng vừa lướt qua.
+- Validation:5regression mới về timer/ý định rê chéo;58test Node và build TypeScript/Vite đạt. Bổ sung E2E và parse/list15test workspace, chưa chạy E2E tự động. Edge kiểm tra rê chéo, chuyển bảng, ghim, Escape/ArrowRight, compact, mobile390px không tràn và console error rỗng. Một mẫu đo chuyển menu qua pointerover→DOM hiển thị là129ms; đây không phải benchmark trên mọi thiết bị/tải hệ thống. Không đổi backend, schema hoặc dữ liệu nghiệp vụ.
+
 ## Nhật ký và khôi phục thao tác — 0.12.0
 
 - Có mã schema8, ảnh chụp trước/sau trong cùng transaction ghi, nhật ký bất biến/nhãn Việt/người thực hiện tại thời điểm ghi, lọc/phân trang máy chủ và chi tiết từng thay đổi. Mật khẩu/token không lưu vào ảnh chụp; chỉ đánh dấu sự kiện đổi mật khẩu. Nhật ký cơ bản trước nâng cấp/khởi tạo nền tảng không tự suy đoán dữ liệu cũ.

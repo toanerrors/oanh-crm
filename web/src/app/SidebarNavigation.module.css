@@ -27,3 +27,8 @@
 .moduleRow { display: flex; align-items: center; }
 .moduleRow > a { flex: 1; min-width: 0; }
 .inlinePanel { width: 100%; max-width: none; max-height: none; margin: 2px 0 8px; background: #191c21; padding: 4px; border-radius: 6px; }
+.popupRoot:global(.ant-zoom-big-enter), .popupRoot:global(.ant-zoom-big-appear) { animation: sidebarPopupIn .1s ease-out both; }
+.popupRoot:global(.ant-zoom-big-leave) { animation: sidebarPopupOut .06s ease-in both; pointer-events: none; }
+@keyframes sidebarPopupIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sidebarPopupOut { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .popupRoot { animation-duration: 0s !important; } }

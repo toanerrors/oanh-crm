@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oanh Accounting API
-  version: 0.12.0
+  version: 0.12.1
   description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
     key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
 servers:

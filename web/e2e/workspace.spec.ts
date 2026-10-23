@@ -322,3 +322,30 @@ test('mobile mở chức năng bằng nút và ghim dùng chung với desktop', 
   await page.setViewportSize({ width: 1440, height: 1080 });
   await expect(page.locator('#desktop-sidebar').getByRole('navigation', { name: 'Chức năng đã ghim' }).getByRole('link', { name: 'Sổ cái · Mua hàng', exact: true })).toBeVisible();
 });
+
+test('menu nhanh giữ ý định rê chéo và không bị mục cũ đóng mục mới', async ({ page }) => {
+  await page.goto('/');
+  const nav = page.locator('#desktop-sidebar');
+  const inventory = nav.getByRole('link', { name: 'Hàng tồn kho', exact: true });
+  const receivables = nav.getByRole('link', { name: 'Công nợ', exact: true });
+  const journal = nav.getByRole('link', { name: /Kế toán tổng hợp/ });
+  const panel = page.getByRole('dialog', { name: 'Chức năng Hàng tồn kho', exact: true });
+  await inventory.hover();
+  await expect(panel).toBeVisible();
+  const source = (await inventory.boundingBox())!;
+  const adjacent = (await receivables.boundingBox())!;
+  const target = (await panel.boundingBox())!;
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await page.mouse.move(source.x + source.width - 2, adjacent.y + adjacent.height / 2);
+  await page.mouse.move(target.x + 24, target.y + 100);
+  await expect(panel).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Chức năng Công nợ', exact: true })).toBeHidden();
+  for (const link of [receivables, inventory, journal]) {
+    const box = (await link.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  }
+  await expect(page.getByRole('dialog', { name: 'Chức năng Kế toán tổng hợp', exact: true })).toBeVisible();
+  await expect(panel).toBeHidden();
+  await page.mouse.move(700, 80);
+  await expect(page.locator('.ant-popover:visible [id^="sidebar-desktop-"]')).toHaveCount(0);
+});
