@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Avatar, Badge, Button, Drawer, Dropdown, Modal, Select, Spin, Tooltip } from 'antd';
-import { Link, NavLink, Outlet, useLocation, useNavigate, useNavigation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useBeforeUnload, useLocation, useNavigate, useNavigation } from 'react-router-dom';
 import { useWorkspace } from './WorkspaceProvider';
 import { Icon } from '../shared/ui/Icon';
 import styles from './App.module.css';
@@ -40,6 +40,7 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
+  useBeforeUnload(useCallback((event: BeforeUnloadEvent) => { if (voucherDraft) { event.preventDefault(); event.returnValue = ''; } }, [voucherDraft]));
   const navigate = useNavigate();
   const navigationState = useNavigation();
   const module = accountingModule(location.pathname);

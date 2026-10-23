@@ -10,12 +10,13 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
-## Thao tác nhanh và giữ ngữ cảnh — 0.9.0
+## Thao tác nhanh và giữ ngữ cảnh — 0.9.1
 
 - Ctrl/⌘ K tìm chức năng theo quyền/ghim, không dấu và truy vấn chứng từ toàn kỳ; ↑↓/Enter mở, Esc đóng. Danh sách/sổ debounce250ms, Enter/blur/xóa áp dụng ngay. Edge: cùng7ký tự giảm7→1request; mở được chứng từ nằm ngoài100bản gần nhất trong workspace.
 - Filter/sort/page/pageSize trong URL; mở/đóng/lưu phiếu giữ đường trở về và bộ lọc, đổi kỳ về trang đầu. Tải trước chunk theo hover/focus, bỏ qua Data Saver/2G; placeholder chỉ trong đúng phạm vi, đánh dấu/khóa thao tác trang cũ. Có phản hồi tải chi tiết/chính sách và thử lại truy vấn lỗi.
 - Phiếu giữ Form local khi gõ, chụp nháp bộ nhớ phiên khi Back/rời route với ID/version; giữ màn hình khi lệnh đang chạy, cảnh báo refresh/đóng tab. Ctrl/⌘ S lưu nháp, Ctrl/⌘ Enter chỉ xem trước, chặn gửi lặp và focus lỗi đầu tiên; ghi sổ vẫn xác nhận riêng. Reduced motion cho sidebar/tiến độ.
 - Validation:49test Node, TypeScript strict, production build; Playwright parse/list11test live đạt, chưa chạy E2E tự động. Edge/dữ liệu giả lập: tiền trên2^53 nguyên vẹn sau Back/resume, lưu5triệu vẫn draft sau xem trước, page2 và sort giữ nguyên; mạng chậm có nhãn/disabled, đổi kỳ không giữ trang cũ,390px không tràn, console error rỗng, đã reset mạng/viewport. Không đổi backend/schema hoặc số liệu production.
+- Bản0.9.1 bổ sung cảnh báo reload/đóng tab ở app shell khi phiếu đã được giữ trong phiên và đang ở danh sách; không chỉ khi form còn mở. Tag0.9.0 giữ nguyên, triển khai0.9.1.
 - Chi tiết bằng chứng và giới hạn: [ux-improvements.md](ux-improvements.md). Chưa benchmark FPS/phiếu hàng trăm dòng; cảnh báo bundle Ant Design lớn còn.
 
 ## Release Docker 0.2.0

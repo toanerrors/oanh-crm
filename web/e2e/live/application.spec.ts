@@ -442,6 +442,11 @@ test('tìm nhanh, debounce, Back giữ nháp và phím tắt không tự ghi s�
   await amount.click(); await amount.press('ControlOrMeta+A'); await amount.press('Backspace'); await amount.pressSequentially('9007199254740993');
   await page.goBack();
   await expect(page).toHaveURL(url => url.pathname + url.search === returnTo);
+  const leaving = page.waitForEvent('dialog');
+  const reload = page.reload().catch(() => undefined);
+  const warning = await leaving;
+  expect(warning.type()).toBe('beforeunload');
+  await warning.dismiss(); await reload;
   await page.getByRole('button', { name: 'Tiếp tục phiếu đang nhập', exact: true }).click();
   await expect(amount).toHaveValue('9.007.199.254.740.993');
   await expect(page.getByRole('combobox', { name: 'Lý do nộp', exact: false })).toHaveValue('Thu kiểm thử thao tác nhanh');

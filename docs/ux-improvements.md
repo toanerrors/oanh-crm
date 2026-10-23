@@ -1,4 +1,4 @@
-# Cải thiện thao tác và phản hồi — 0.9.0
+# Cải thiện thao tác và phản hồi — 0.9.1
 
 Ngày kiểm tra:23/10/2026. Phạm vi: tìm chứng từ/chức năng, danh sách và sổ sách, phiếu nghiệp vụ, điều hướng phân hệ trên Edge. Người dùng yêu cầu thao tác nhanh và giữ công việc đang làm; giữ bộ UI và bố cục hiện có, không thay quy tắc kế toán.
 
@@ -17,6 +17,7 @@ Ba điểm ưu tiên: request theo từng phím; mất ngữ cảnh danh sách k
 - Lưu page/pageSize/type/status/sort/direction trong URL, giữ bộ lọc khi mở/đóng và lưu phiếu; đổi kỳ về trang đầu. Tải trước chunk từ sidebar/tab/chức năng khi hover hoặc focus, bỏ qua kết nối2G/Data Saver; chỉ mount route đang dùng.
 - Giữ trang trước trong cùng phạm vi dữ liệu khi đổi page, hiện nhãn đang cập nhật, khóa mở/xuất trên trang cũ; đổi bộ lọc/kỳ/revision/quyền/epoch không dùng trang cũ như dữ liệu mới. Có phản hồi lúc tải chi tiết và tải chính sách; lỗi tải danh sách/sổ có nút thử lại đúng truy vấn.
 - Phiếu giữ Form state local khi gõ; rời route/Back chụp nội dung vào nháp bộ nhớ phiên với ID/version. Khi lệnh đang xử lý thì giữ màn hình để chờ kết quả; refresh/đóng tab có cảnh báo. Không persist nội dung tài chính vào localStorage.
+- Bản0.9.1 bổ sung cảnh báo reload/đóng tab ngay cả khi form đã đóng về danh sách và phiếu còn trong bộ nhớ phiên; không ghi nội dung nháp xuống trình duyệt.
 - Ctrl/⌘ S lưu nháp, Ctrl/⌘ Enter tính/xem trước; có khóa gửi lặp trong khi validate/gửi. Lỗi form tự cuộn và focus trường đầu tiên. Ghi sổ vẫn cần xác nhận riêng. Tôn trọng reduced motion cho sidebar/tiến độ.
 
 ## Kiểm tra sau sửa
@@ -32,6 +33,8 @@ Ba điểm ưu tiên: request theo từng phím; mất ngữ cảnh danh sách k
 Ảnh đối chiếu được giữ trong phiên tác vụ tại thư mục oanh-ux của23/10/2026; không đưa ảnh có giao diện/dữ liệu doanh nghiệp vào Git. Screenshot kiểm thử dùng dữ liệu giả lập khi có số liệu.
 
 ## Giới hạn và việc tiếp theo
+
+Bản0.9.1 đã ghi nhận sự kiện beforeunload khi tải lại từ danh sách có phiếu trong bộ nhớ. Công cụ Edge tự xử lý luồng tải lại; chưa xác minh thao tác hủy hộp thoại giữ phiên qua công cụ này.
 
 Chưa đo FPS/độ trễ nhập với phiếu hàng trăm dòng hoặc dataset lớn, chưa nghiệm thu mọi bộ gõ IME/hệ điều hành. Bundle Ant Design lớn vẫn phát cảnh báo build; không thêm dependency hoặc chia lại vendor chỉ dựa trên suy đoán. Cần benchmark trên máy và bộ chứng từ đại diện trước khi kết luận tốc độ tối đa; đợt này xác minh các thao tác và số request cụ thể ở trên.
 
