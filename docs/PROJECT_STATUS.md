@@ -10,6 +10,13 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Giữ đăng nhập trên thiết bị — 0.11.0
+
+- Nguyên nhân yêu cầu đăng nhập lại: session DB và cookie đều có hạn cố định12giờ; không có refresh token. Form đăng nhập thêm “Giữ đăng nhập30ngày”, chọn sẵn và có thể bỏ chọn. API nhận remember=true cho30ngày; false/bỏ qua và API Login cũ vẫn12giờ. Không áp dụng tự động cho phiên cũ hoặc luồng khởi tạo doanh nghiệp.
+- Dùng session ngẫu nhiên/hash DB hiện có, cookie HttpOnly/Secure/SameSite Strict có Max-Age và Expires. Hạn cố định từ lúc đăng nhập, GET không gia hạn. Đăng xuất/đổi mật khẩu/quyền/khóa tài khoản/restore vẫn thu hồi phiên; không thêm JWT, refresh endpoint, localStorage hoặc migration/schema.
+- Validation: Go test/race/vet identity/httpserver đạt; SQLite thật giả lập24giờ/đúng hạn30ngày, reopen, rollback lỗi insert, logout đồng thời, replay, cookie/DB TTL, client cũ, payload sai, CSRF và thu hồi phiên qua API quản lý người dùng. Auth không đổi revision kế toán. TypeScript/Vite build và OpenAPI parse đạt; cập nhật E2E login và parse/list12test live, chưa chạy E2E tự động.
+- Edge trên dữ liệu giả lập: chọn/bỏ chọn, login30ngày và reload vẫn vào được workspace; desktop/390px không tràn, console error rỗng. Chưa chờ thực tế30ngày; mốc thời gian được kiểm bằng clock test. Phiên đã hết hạn cần đăng nhập một lần và giữ tùy chọn mới.
+
 ## Mã chứng từ dài không tràn cột — 0.10.2
 
 - Cố định layout bảng và bật ellipsis ở cột số chứng từ; nút mã có chiều rộng giới hạn riêng, dùng cho cả dữ liệu doanh nghiệp và demo. Hiển thị dấu … khi thiếu chỗ, title/accessible name giữ mã đầy đủ; focus nằm trong ô. Không sửa mã hoặc dữ liệu xuất.

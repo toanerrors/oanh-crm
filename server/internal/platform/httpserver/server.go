@@ -270,16 +270,17 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Remember bool   `json:"remember"`
 	}
 	if !s.decode(w, r, &input) {
 		return
 	}
-	user, token, e := s.Identity.Login(r.Context(), input.Username, input.Password)
+	user, token, e := s.Identity.LoginWithRemember(r.Context(), input.Username, input.Password, input.Remember)
 	if e != nil {
 		s.failure(w, r, e)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: "oanh_session", Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: s.SecureCookies, MaxAge: 43200})
+	http.SetCookie(w, &http.Cookie{Name: "oanh_session", Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: s.SecureCookies, MaxAge: int(identity.SessionLifetime(input.Remember) / time.Second), Expires: time.Now().UTC().Add(identity.SessionLifetime(input.Remember))})
 	s.respond(w, 200, user)
 }
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {

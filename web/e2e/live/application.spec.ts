@@ -17,6 +17,7 @@ async function login(page: Page) {
   await page.goto('/');
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill(credentials.username);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(credentials.password);
+  await expect(page.getByRole('checkbox', { name: 'Giữ đăng nhập 30 ngày', exact: true })).toBeChecked();
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
 }

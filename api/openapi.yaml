@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oanh Accounting API
-  version: 0.10.0
+  version: 0.11.0
   description: Một pháp nhân, VND scale 0. Tiền và decimal là chuỗi. Lệnh tài chính không tự retry; gửi lại cùng
     key/payload/epoch. Mọi POST JSON từ chối trường không được khai báo. Xem api/README.md về giới hạn nghiệp vụ.
 servers:
@@ -668,7 +668,7 @@ paths:
     post:
       summary: Đăng nhập
       operationId: post_auth_login
-      description: 'Quyền: all.'
+      description: 'Quyền: all. remember=true cấp session và cookie 30 ngày; mặc định 12 giờ. Đăng xuất hoặc đổi mật khẩu/quyền thu hồi phiên. Không tự gia hạn khi đọc API.'
       responses:
         '200':
           description: Thành công sau khi hoàn tất thao tác.
@@ -2292,6 +2292,10 @@ components:
         password:
           type: string
           writeOnly: true
+        remember:
+          type: boolean
+          default: false
+          description: Giữ phiên cố định 30 ngày; bỏ qua hoặc false dùng 12 giờ. Cookie HttpOnly, không dùng refresh token/JWT.
       required:
       - username
       - password

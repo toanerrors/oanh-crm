@@ -31,7 +31,24 @@ type Setup struct {
 	Regime          string `json:"regime"`
 	ConfirmAccounts bool   `json:"confirmAccounts"`
 }
-type Service struct{ Store *sqlite.Store }
+type Service struct {
+	Store *sqlite.Store
+	now   func() time.Time
+}
+
+func (s *Service) currentTime() time.Time {
+	if s.now != nil {
+		return s.now().UTC()
+	}
+	return time.Now().UTC()
+}
+
+func SessionLifetime(remember bool) time.Duration {
+	if remember {
+		return 30 * 24 * time.Hour
+	}
+	return 12 * time.Hour
+}
 
 func PasswordHash(password string) (string, error) {
 	if utf8.RuneCountInString(password) < 12 || len(password) > 1024 {
@@ -123,6 +140,11 @@ var initialAccounts = [][4]string{
 }
 
 func (s *Service) Login(ctx context.Context, username, password string) (User, string, error) {
+	return s.LoginWithRemember(ctx, username, password, false)
+}
+
+func (s *Service) LoginWithRemember(ctx context.Context, username, password string, remember bool) (User, string, error) {
+	now := s.currentTime()
 	var user User
 	username = strings.ToLower(strings.TrimSpace(username))
 	if len(username) > 64 || len(password) > 1024 {
@@ -133,7 +155,7 @@ func (s *Service) Login(ctx context.Context, username, password string) (User, s
 	if err != nil && err != sql.ErrNoRows {
 		return user, "", err
 	}
-	if blocked > time.Now().UTC().Format(time.RFC3339) {
+	if blocked > now.Format(time.RFC3339) {
 		return user, "", accounting.Fail("RATE_LIMITED", "Đăng nhập sai nhiều lần. Thử lại sau 15 phút.")
 	}
 	var encoded string
@@ -151,8 +173,8 @@ func (s *Service) Login(ctx context.Context, username, password string) (User, s
 	}
 	defer tx.Rollback()
 	if !valid {
-		until := time.Now().UTC().Add(15 * time.Minute).Format(time.RFC3339)
-		if _, err = tx.ExecContext(ctx, "INSERT INTO login_limits VALUES(?,1,'') ON CONFLICT(username) DO UPDATE SET failures=CASE WHEN blocked_until<>'' AND blocked_until<? THEN 1 ELSE failures+1 END,blocked_until=CASE WHEN blocked_until<>'' AND blocked_until<? THEN '' WHEN failures>=4 THEN ? ELSE '' END", username, sqlite.Now(), sqlite.Now(), until); err != nil {
+		until := now.Add(15 * time.Minute).Format(time.RFC3339)
+		if _, err = tx.ExecContext(ctx, "INSERT INTO login_limits VALUES(?,1,'') ON CONFLICT(username) DO UPDATE SET failures=CASE WHEN blocked_until<>'' AND blocked_until<? THEN 1 ELSE failures+1 END,blocked_until=CASE WHEN blocked_until<>'' AND blocked_until<? THEN '' WHEN failures>=4 THEN ? ELSE '' END", username, now.Format(time.RFC3339), now.Format(time.RFC3339), until); err != nil {
 			return user, "", err
 		}
 		if err = tx.Commit(); err != nil {
@@ -171,11 +193,11 @@ func (s *Service) Login(ctx context.Context, username, password string) (User, s
 	if _, err = tx.ExecContext(ctx, "DELETE FROM login_limits WHERE username=?", username); err != nil {
 		return user, "", err
 	}
-	if _, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE expires_at<?", sqlite.Now()); err != nil {
+	if _, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE expires_at<?", now.Format(time.RFC3339)); err != nil {
 		return user, "", err
 	}
 	token := rand.Text()
-	if _, err = tx.ExecContext(ctx, "INSERT INTO sessions VALUES(?,?,?)", sqlite.Hash([]byte(token)), user.ID, time.Now().UTC().Add(12*time.Hour).Format(time.RFC3339)); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO sessions VALUES(?,?,?)", sqlite.Hash([]byte(token)), user.ID, now.Add(SessionLifetime(remember)).Format(time.RFC3339)); err != nil {
 		return user, "", err
 	}
 	if err = tx.Commit(); err != nil {
@@ -188,7 +210,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (User, error) 
 	if len(token) < 20 || len(token) > 200 {
 		return user, accounting.Fail("UNAUTHENTICATED", "Cần đăng nhập.")
 	}
-	err := s.Store.Read.QueryRowContext(ctx, "SELECT u.id,u.username,u.name,u.role,u.active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1", sqlite.Hash([]byte(token)), time.Now().UTC().Format(time.RFC3339)).Scan(&user.ID, &user.Username, &user.Name, &user.Role, &user.Active)
+	err := s.Store.Read.QueryRowContext(ctx, "SELECT u.id,u.username,u.name,u.role,u.active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1", sqlite.Hash([]byte(token)), s.currentTime().Format(time.RFC3339)).Scan(&user.ID, &user.Username, &user.Name, &user.Role, &user.Active)
 	if err == sql.ErrNoRows {
 		return user, accounting.Fail("UNAUTHENTICATED", "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.")
 	}
