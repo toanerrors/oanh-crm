@@ -8,6 +8,48 @@ async function choose(page: Page, label: string, text: string) {
   await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: text }).first().click();
 }
 
+for (const kind of ['purchase', 'sale']) test(`TK công nợ sửa được và đồng bộ với thanh toán ngay (${kind})`, async ({ page }) => {
+  const debtAccount = kind === 'purchase' ? '331' : '131';
+  const credentials = { username: 'e2e-owner', password: 'Synthetic-test-only-2026' };
+  const session = await (await page.request.get('/api/v1/session')).json();
+  if (session.needsSetup) {
+    const response = await page.request.post('/api/v1/setup', { data: { ...credentials, name: 'Người kiểm thử', companyName: 'Doanh nghiệp E2E', regime: 'Chế độ kiểm thử', confirmAccounts: true } });
+    expect(response.ok(), await response.text()).toBe(true);
+  }
+  const loggedIn = await page.request.post('/api/v1/auth/login', { data: credentials });
+  expect(loggedIn.ok(), await loggedIn.text()).toBe(true);
+  const { context } = await (await page.request.get('/api/v1/session')).json();
+  const bank = await page.request.post('/api/v1/bank-accounts', { data: { id: `counter-bank-${kind}`, number: `TEST-${kind}`, bankName: 'Ngân hàng kiểm thử', accountId: '1121', active: true }, headers: { 'X-Dataset-Epoch': context.epoch, 'Idempotency-Key': crypto.randomUUID() } });
+  expect(bank.ok(), await bank.text()).toBe(true);
+  await page.goto(`/vouchers/new?kind=${kind}&service=1`);
+  const account = page.getByLabel('Tài khoản công nợ dòng 1', { exact: true });
+  await expect(account).toBeVisible();
+  await expect(account).toBeEnabled();
+  await expect(account.locator('..')).toContainText(debtAccount);
+  await page.getByRole('radio', { name: kind === 'purchase' ? 'Thanh toán ngay' : 'Thu tiền ngay', exact: true }).check();
+  await expect(account.locator('..')).toContainText('111');
+  await choose(page, 'Tài khoản thanh toán ngay', '1121');
+  await expect(account.locator('..')).toContainText('1121');
+  await choose(page, 'Tài khoản ngân hàng thanh toán', `TEST-${kind}`);
+  await page.getByRole('button', { name: 'Thêm dòng', exact: true }).click();
+  const secondAccount = page.getByLabel('Tài khoản công nợ dòng 2', { exact: true });
+  await expect(secondAccount.locator('..')).toContainText('1121');
+  await choose(page, 'Tài khoản công nợ dòng 1', '111');
+  await expect(secondAccount.locator('..')).toContainText('111');
+  await expect(page.getByLabel('Tài khoản thanh toán ngay', { exact: true }).locator('..')).toContainText('111');
+  await expect(page.getByLabel('Tài khoản ngân hàng thanh toán', { exact: true })).toHaveCount(0);
+  await choose(page, 'Tài khoản công nợ dòng 1', '1121');
+  await expect(page.getByLabel('Tài khoản ngân hàng thanh toán', { exact: true })).toHaveValue('');
+  await choose(page, 'Tài khoản công nợ dòng 2', debtAccount);
+  await expect(account.locator('..')).toContainText(debtAccount);
+  await expect(page.getByRole('radio', { name: kind === 'purchase' ? 'Chưa thanh toán' : 'Chưa thu tiền', exact: true })).toBeChecked();
+  await expect(page.getByLabel('Tài khoản thanh toán ngay', { exact: true })).toHaveValue('');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await choose(page, 'Tài khoản công nợ dòng 1', '111');
+  await expect(secondAccount.locator('..')).toContainText('111');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài khoản', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-12-03T03:00:00Z'));
   const credentials = { username: 'e2e-owner', password: 'Synthetic-test-only-2026' };
@@ -60,4 +102,33 @@ test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài k
   await choose(page, 'Hàng dịch vụ dòng 1', 'DV-TK');
   await choose(page, 'Tài khoản dòng 1', '154');
   await expect(page.getByLabel('Kho dòng 1', { exact: true })).toHaveCount(0);
+  await choose(page, 'Mã nhà cung cấp', 'NCC-TK');
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Mua dịch vụ thanh toán ngay');
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('1000');
+  await choose(page, 'VAT dòng 1', '0');
+  await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
+  await choose(page, 'Tài khoản công nợ dòng 1', '111');
+  const serviceResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/voucher-drafts') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: /Cất nháp/ }).click();
+  const service = await (await serviceResponse).json();
+  expect(service.input.paymentAccount).toBe('111');
+  expect(service.input.bankAccountId).toBeFalsy();
+  await expect(page).toHaveURL(new RegExp(`/vouchers/${service.document.id}$`));
+  await page.reload();
+  await expect(page.getByLabel('Tài khoản công nợ dòng 1', { exact: true }).locator('..')).toContainText('111');
+  await expect(page.getByRole('radio', { name: 'Thanh toán ngay', exact: true })).toBeChecked();
+  await page.getByRole('button', { name: /Tính và xem trước/ }).click();
+  await page.getByRole('tab', { name: 'Hạch toán', exact: true }).click();
+  await choose(page, 'Tài khoản công nợ dòng 1', '331');
+  await expect(page.getByRole('button', { name: 'Ghi sổ', exact: true })).toHaveCount(0);
+  await choose(page, 'Tài khoản công nợ dòng 1', '111');
+  await page.getByRole('button', { name: /Tính và xem trước/ }).click();
+  await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await expect(page.getByText('Đã ghi sổ', { exact: true })).toBeVisible();
+  const paid = await (await page.request.get(`/api/v1/documents/${service.document.id}/voucher`)).json();
+  expect(paid.calculation.paymentDocument.lines.find((line: { accountId: string }) => line.accountId === '111').credit).toBe('1000');
+  expect(paid.calculation.paymentDocument.lines.find((line: { accountId: string }) => line.accountId === '331').debit).toBe('1000');
+  await page.getByRole('tab', { name: 'Hạch toán', exact: true }).click();
+  await expect(page.getByLabel('Tài khoản công nợ dòng 1', { exact: true })).toBeDisabled();
 });

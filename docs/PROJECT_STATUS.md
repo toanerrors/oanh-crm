@@ -10,6 +10,12 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Sửa TK công nợ và đồng bộ thanh toán ngay — 0.16.6
+
+- Cột TK công nợ trên phiếu mua/bán đổi thành ô chọn tài khoản có tìm kiếm. Chưa thanh toán dùng 331/131; thanh toán ngay hiển thị tài khoản tiền đã chọn. Sửa tại dòng hoặc phần thanh toán đồng bộ toàn bộ dòng, kể cả dòng thêm mới; đổi tài khoản xóa ngân hàng cũ và kết quả xem trước.
+- Tái sử dụng trường `paymentAccount` và luồng phiếu thu/chi liên kết hiện có; một tài khoản thanh toán cho toàn chứng từ. Nháp giữ lựa chọn khi mở lại; chứng từ đã ghi sổ chỉ xem. Không đổi API, schema hoặc quy tắc ghi sổ.
+- Validation: TypeScript/Vite build đạt; 3 E2E backend thật đạt trên dữ liệu giả lập, gồm mua/bán, đồng bộ hai chiều, thêm dòng, xóa ngân hàng cũ, mobile 390px, lưu/mở lại, hủy preview và ghi sổ mua dịch vụ thanh toán ngay đúng phiếu chi 111/331. Kiểm thử đã tái hiện lỗi trước khi sửa.
+
 ## Tối ưu thanh tiêu đề phiếu (`VoucherForm`) trên mobile — 0.16.5
 
 - Thu gọn thanh tiêu đề phiếu (`.titlebar` trong `VoucherForm`) thành **1 hàng ngang duy nhất** (`flex-wrap: nowrap`) trên mobile (`<= 640px`): ẩn trực quan tiêu đề tĩnh trùng lặp (`<h1>Phiếu thu</h1>` / `<h1>Chứng từ bán hàng</h1>`, vẫn giữ trong cây trợ năng cho trình đọc màn hình) khi đã có ô chọn `Loại phiếu` (`[Phiếu thu v]`) hoặc `Loại hàng hóa dịch vụ` (`[Bán hàng hóa trong nước v]`); gỡ `min-width: 210px` làm ô `Nội dung thu chi` (`[Thu khác v]`) và nút đóng `[X]` bị rớt xuống hàng thứ hai.
