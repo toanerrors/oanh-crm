@@ -10,6 +10,12 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Tối ưu các phím chức năng chân trang và dưới bảng trong phiếu mobile — 0.16.8
+
+- Tối ưu thanh chân trang (`.footer`) của `VoucherForm` trên mobile (`<= 640px`) từ 3 hàng rời rạc xuống **1 hàng ngang duy nhất** (`flex-wrap: nowrap`): nhóm các thao tác phụ (`Ẩn/Hiện tài khoản`, `Xuất nháp`, `In chứng từ`, `Bỏ nội dung chưa lưu`, `Đóng chứng từ`) vào menu `[Khác]` (`aria-label="Tùy chọn phiếu"`) bên trái, dành toàn bộ chiều ngang còn lại cho các nút chính (`Cất nháp`, `Tính và xem trước`, `Ghi sổ`) cân đối đều nhau; làm nổi bật `Tính và xem trước` (`type="primary"` khi chưa có bản xem trước) để rõ thao tác chính. Trên desktop (`> 640px`), toàn bộ nút vẫn hiển thị trực tiếp như cũ.
+- Bố trí 3 nút dưới bảng dòng hàng (`.tableActions`: `+ Thêm dòng`, `Xóa hết dòng`, `Thêm ghi chú`) chia đều trên **1 hàng ngang duy nhất** (`flex: 1 1 0`) trên mobile thay vì bị rớt nút thứ 3 xuống dòng dưới; dòng tóm tắt `Tổng số` căn phải gọn gàng bên dưới. Đồng thời giữ thanh `.draftActions` của `DocumentDrawer` trên 1 hàng ngang có `safe-area-inset-bottom`. Không thay đổi backend, schema, API hoặc quy tắc tính toán số liệu.
+- Validation: 71 unit test Node, `tsc --noEmit`, `vite build`, danh sách test live (`playwright test --config=playwright.live.config.ts --list`) và 4/4 kịch bản E2E mobile trên Playwright đều đạt.
+
 ## Tự tính tiền mua/bán và hiển thị thuế GTGT — 0.16.7
 
 - Tiền hàng sau chiết khấu, VAT và tổng thanh toán tự cập nhật khi nhập, đổi số lượng/giá/thuế/chiết khấu hoặc cách nhập giá. `POST /operations/trade-amounts` đọc snapshot, dùng chung công thức làm tròn và chiết khấu với ghi sổ; không cần điền xong đối tượng, hóa đơn hoặc ngân hàng, không tạo chứng từ hoặc thay revision.

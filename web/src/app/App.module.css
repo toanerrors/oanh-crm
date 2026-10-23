@@ -335,7 +335,9 @@
   .documentEditor :global(.ant-drawer-header) { padding-inline: 16px; }
   .documentEditor :global(.ant-drawer-extra) { display: none; }
   .documentEditor .formGrid { padding: 12px 12px 0; }
-  .draftActions { gap: 8px; }
+  .draftActions { flex-wrap: nowrap; align-items: center; gap: 6px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+  .draftActions > div { flex: 1 1 auto; justify-content: flex-end; gap: 6px; flex-wrap: nowrap; }
+  .draftActions :global(.ant-btn) { padding-inline: 10px; font-size: 12.5px; }
 }
 
 /* Chứng từ: danh sách và chi tiết cùng màn hình. */

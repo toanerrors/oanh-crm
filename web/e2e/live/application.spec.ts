@@ -439,13 +439,23 @@ test('menu chức năng có nhãn, mở đúng thu chi hóa đơn, Excel và d�
   await page.getByRole('button', { name: 'Tùy chọn Chi tiền', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Chuyển tiền nội bộ', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Thu tiền', exact: true }).click();
-  const [kindBox, modeBox, closeBox] = await Promise.all([
+  const [kindBox, modeBox, closeBox, addBox, clearBox, noteBox, moreBox, saveBox, previewBox] = await Promise.all([
     page.getByRole('combobox', { name: 'Loại phiếu', exact: true }).boundingBox(),
     page.getByRole('combobox', { name: 'Nội dung thu chi', exact: true }).boundingBox(),
     page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).boundingBox(),
+    page.getByRole('button', { name: 'Thêm dòng', exact: true }).boundingBox(),
+    page.getByRole('button', { name: 'Xóa hết dòng', exact: true }).boundingBox(),
+    page.getByRole('button', { name: 'Thêm ghi chú', exact: true }).boundingBox(),
+    page.getByRole('button', { name: 'Tùy chọn phiếu', exact: true }).boundingBox(),
+    page.getByRole('button', { name: /^Cất nháp/ }).boundingBox(),
+    page.getByRole('button', { name: /^Tính và xem trước/ }).boundingBox(),
   ]);
   expect(Math.abs((kindBox?.y ?? 0) - (modeBox?.y ?? 999))).toBeLessThanOrEqual(4);
   expect(Math.abs((kindBox?.y ?? 0) - (closeBox?.y ?? 999))).toBeLessThanOrEqual(4);
+  expect(Math.abs((addBox?.y ?? 0) - (clearBox?.y ?? 999))).toBeLessThanOrEqual(4);
+  expect(Math.abs((addBox?.y ?? 0) - (noteBox?.y ?? 999))).toBeLessThanOrEqual(4);
+  expect(Math.abs((moreBox?.y ?? 0) - (saveBox?.y ?? 999))).toBeLessThanOrEqual(4);
+  expect(Math.abs((saveBox?.y ?? 0) - (previewBox?.y ?? 999))).toBeLessThanOrEqual(4);
   await page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
