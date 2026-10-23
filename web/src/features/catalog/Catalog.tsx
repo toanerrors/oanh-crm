@@ -13,9 +13,11 @@ import type { Account, Partner } from '../../shared/data/types';
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { Icon } from '../../shared/ui/Icon';
 import { ImportExcelButton } from '../imports/ExcelImport';
+import { ExportMenu } from '../../shared/ui/ExportMenu';
+import type { ExportFormat } from '../../shared/ui/ExportMenu';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
 import styles from '../../app/App.module.css';
-import { apiScope, command, isDemo } from '../../shared/api/client';
+import { apiScope, command, downloadApi, isDemo } from '../../shared/api/client';
 
 interface AccountParentNode { value: string; title: string; disabled: boolean; children?: AccountParentNode[] }
 
@@ -24,7 +26,7 @@ const roles = { customer: 'Khách hàng', supplier: 'Nhà cung cấp', both: 'Kh
 export function Component() {
   const module = accountingModule(useLocation().pathname);
   const moduleRole = module && 'tradeKind' in module ? module.tradeKind === 'sale' ? 'customer' : 'supplier' : undefined;
-  const { data } = useWorkspace();
+  const { data, period, refresh } = useWorkspace();
   const { message } = App.useApp();
   const client = useQueryClient();
   const [search, setSearch] = useState('');
@@ -58,11 +60,16 @@ export function Component() {
     setOpen(true);
   }
 
-  function exportData() {
+  function exportData(format: ExportFormat) {
+    if (!isDemo) {
+      const path = `/catalog/export?${new URLSearchParams({ period, catalog: tab, role, q: search, revision: String(data!.revision), format })}`;
+      if (format === 'print') { window.open(`/api/v1${path}`, '_blank', 'noopener,noreferrer'); return; }
+      return downloadApi(path, `danh-muc-${tab}.${format}`);
+    }
     downloadCsv(`danh-muc-${isDemo ? 'mau-' : ''}${tab}.csv`, tab === 'partners' ? [[isDemo ? 'DỮ LIỆU MẪU · Phiên bản' : `${data!.companyName} · Phiên bản`, String(data!.revision)], ['Mã', 'Tên', 'Vai trò', 'Email', 'Điện thoại', 'Trạng thái'], ...partners.map(item => [item.code, item.name, roles[item.role], item.email, `'${item.phone}`, item.active ? 'Đang sử dụng' : 'Ngừng sử dụng'])] : [[isDemo ? 'DỮ LIỆU MẪU' : data!.companyName ?? 'Danh mục doanh nghiệp'], ['Mã tài khoản', 'Tên tài khoản', 'Tài khoản cha', 'Yêu cầu đối tượng'], ...accounts.map(item => [item.code, item.name, data!.accounts.find(parent => parent.id === item.parentId)?.code ?? '', item.requiresPartner ? 'Có' : 'Không'])]);
   }
 
-  const pageActions = <>{(tab === 'partners' || tab === 'accounts' && apiScope().permissions === 'owner') && <ImportExcelButton kind={tab === 'partners' ? 'partners' : 'accounts'} />}{tab === 'accounts' && <><ToolbarButton label="Mở rộng tất cả tài khoản" icon="arrowDown" disabled={Boolean(search)} onClick={() => setExpandedAccounts(branches)} /><ToolbarButton label="Thu gọn tất cả tài khoản" icon="arrowUp" disabled={Boolean(search)} onClick={() => setExpandedAccounts([])} /></>}<ToolbarButton onClick={exportData} label="Xuất CSV" icon="download" />{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <ToolbarButton type="primary" onClick={() => editAccount()} label="Thêm tài khoản" icon="plus" />}{tab === 'partners' && canEdit && <ToolbarButton type="primary" onClick={() => edit(null)} label="Thêm đối tượng" icon="plus" />}</>;
+  const pageActions = <>{(tab === 'partners' || tab === 'accounts' && apiScope().permissions === 'owner') && <ImportExcelButton kind={tab === 'partners' ? 'partners' : 'accounts'} />}{tab === 'accounts' && <><ToolbarButton label="Mở rộng tất cả tài khoản" icon="arrowDown" disabled={Boolean(search)} onClick={() => setExpandedAccounts(branches)} /><ToolbarButton label="Thu gọn tất cả tài khoản" icon="arrowUp" disabled={Boolean(search)} onClick={() => setExpandedAccounts([])} /></>}<ExportMenu onReload={refresh} onExport={exportData} formats={isDemo ? ['csv'] : undefined} />{tab === 'accounts' && !isDemo && apiScope().permissions === 'owner' && <ToolbarButton type="primary" onClick={() => editAccount()} label="Thêm tài khoản" icon="plus" />}{tab === 'partners' && canEdit && <ToolbarButton type="primary" onClick={() => edit(null)} label="Thêm đối tượng" icon="plus" />}</>;
 
   return <DataBoundary>
     <PageHeading title={moduleRole === 'supplier' ? 'Nhà cung cấp' : moduleRole === 'customer' ? 'Khách hàng' : 'Danh mục'} description="Sắp xếp dữ liệu nền tảng để mỗi lần nhập liệu đều thuận tiện hơn." />

@@ -3,16 +3,16 @@ import { Alert, App, Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
-import { api, apiScope, command } from '../../shared/api/client';
+import { api, apiScope, command, downloadApi } from '../../shared/api/client';
 import { workspaceKey } from '../../shared/data/workspace';
 import { businessToday, formatDate, formatMoney, normalizeSearch, parseMoneyInput } from '../../shared/accounting/money';
 import { downloadCsv } from '../../shared/accounting/csv';
 import { PageHeading, PageToolbar, DataBoundary } from '../../shared/ui/Page';
-import { Icon } from '../../shared/ui/Icon';
 import type { ServerReportRow } from '../../shared/data/reports';
 import { financialPreview, formatFinancialAmount } from './financial';
 import type { FinancialInput, FinancialReport, FinancialRow, FinancialTemplate } from './financial';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
+import { ExportMenu } from '../../shared/ui/ExportMenu';
 import { DateInput } from '../../shared/ui/DateInput';
 import styles from './FinancialReports.module.css';
 import appStyles from '../../app/App.module.css';
@@ -116,7 +116,7 @@ function FinancialEditor({ initial, template, onClose, onSaved }: { initial: Fin
     rows.push(['Thuyết minh bổ sung', saved.input.notes], ['Người lập', saved.input.preparedBy, 'Kế toán trưởng', saved.input.chiefAccountant, 'Đại diện pháp luật', saved.input.director], ['Ngày lập', saved.input.preparedDate], ...saved.issues.map(issue => ['Cần kiểm tra', issue.sheet, issue.code, issue.message]));
     downloadCsv(`bctc-nhap-${saved.input.from.slice(0, 4)}-v${saved.input.version}.csv`, rows);
   };
-  return <Modal open title={`Báo cáo tài chính · Năm ${current.from.slice(0, 4)}`} onCancel={close} width="calc(100vw - 32px)" style={{ top: 16, maxWidth: 1800, paddingBottom: 0 }} className={styles.editor} maskClosable={false} footer={<div className={styles.actions}><Space wrap><Button onClick={close}>Đóng</Button><Button onClick={exportCsv} disabled={dirty || !saved.input.version}>Xuất CSV</Button><Button icon={<Icon name="print" size={16} />} disabled={dirty || !saved.input.version} onClick={() => window.open(`/api/v1/financial-reports/print?id=${saved.input.id}&version=${saved.input.version}`, '_blank')}>In</Button></Space><Space wrap><Button onClick={() => void run(false)} loading={busy}>Kiểm tra báo cáo</Button>{editable && <Button type="primary" loading={busy} onClick={() => void run(true)}>Cất bản nháp</Button>}</Space></div>}>
+  return <Modal open title={`Báo cáo tài chính · Năm ${current.from.slice(0, 4)}`} onCancel={close} width="calc(100vw - 32px)" style={{ top: 16, maxWidth: 1800, paddingBottom: 0 }} className={styles.editor} maskClosable={false} footer={<div className={styles.actions}><Space wrap><Button onClick={close}>Đóng</Button><ExportMenu text disabled={dirty || !saved.input.version || busy} onExport={format => { if (format === 'csv') return exportCsv(); if (format === 'print') { window.open(`/api/v1/financial-reports/print?id=${saved.input.id}&version=${saved.input.version}`, '_blank', 'noopener,noreferrer'); return; } return downloadApi(`/financial-reports/export?id=${saved.input.id}&version=${saved.input.version}&format=xlsx`, `bctc-nhap-${saved.input.from.slice(0, 4)}-v${saved.input.version}.xlsx`); }} /></Space><Space wrap><Button onClick={() => void run(false)} loading={busy}>Kiểm tra báo cáo</Button>{editable && <Button type="primary" loading={busy} onClick={() => void run(true)}>Cất bản nháp</Button>}</Space></div>}>
     <Form form={form} initialValues={initial.input} layout="vertical" disabled={!editable || busy} onValuesChange={() => { setDirty(true); setChecked(null); }}>
       <div className={styles.header}><div><strong>{saved.companyName}</strong><p>{formatDate(current.from)} – {formatDate(current.to)} · {template.regime} · VND</p><p>So sánh {formatDate(current.previousFrom)} – {formatDate(current.previousTo)} · B01: số đầu kỳ</p></div><Space wrap><Tag color="gold">Bản nháp {dirty ? '· chưa lưu' : `· phiên bản ${saved.input.version}`}</Tag><Button disabled={false} onClick={() => setShowFormulas(value => !value)}>{showFormulas ? 'Ẩn công thức' : 'Xem công thức'}</Button><Button disabled={false} onClick={() => setSourceOpen(true)}>Đối chiếu sổ</Button></Space></div>
       <div className={styles.body}>

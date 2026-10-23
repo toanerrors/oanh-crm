@@ -48,6 +48,8 @@ func New(store *sqlite.Store, assets string, secure bool) *Server {
 	m.HandleFunc("GET /api/v1/workspace", s.workspace)
 	m.HandleFunc("GET /api/v1/documents", s.documents)
 	m.HandleFunc("GET /api/v1/documents/export", s.exportDocuments)
+	m.HandleFunc("GET /api/v1/catalog/export", s.exportCatalog)
+	m.HandleFunc("GET /api/v1/financial-reports/export", s.exportFinancial)
 	m.HandleFunc("GET /api/v1/opening-balances", s.openingGet)
 	m.HandleFunc("POST /api/v1/opening-balances/adjustments", s.openingAdjustmentSave)
 	m.HandleFunc("GET /api/v1/opening-balances/adjustments", s.openingHistory)

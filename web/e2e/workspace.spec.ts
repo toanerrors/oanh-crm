@@ -136,7 +136,8 @@ test('lọc không dấu, mở nguồn chứng từ và xuất toàn bộ CSV', 
   await expect(page.getByRole('button', { name: 'PC-10009', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'BH-10008', exact: true })).toHaveCount(0);
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Xuất CSV', exact: true }).click();
+  await page.getByRole('button', { name: 'Xuất tệp', exact: true }).click();
+  await page.getByRole('menuitem', { name: /CSV/ }).click();
   expect((await download).suggestedFilename()).toBe('chung-tu-mau-2026-10.csv');
   await page.getByRole('button', { name: 'PC-10009', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'PC-10009', exact: true })).toBeVisible();

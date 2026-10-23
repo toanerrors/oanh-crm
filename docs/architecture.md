@@ -261,3 +261,8 @@ Xác nhận ghi đảo toàn bộ bản hiệu lực và ghi bản mới trong c
 Thu/chi/chuyển tiền có replacementOf/replacementReason tùy chọn (omitempty giữ hash payload cũ). Preview và lưu nháp mô phỏng đảo+thay qua savepoint; ghi sổ mới đảo+ghi cùng transaction. Liên kết ở operations.payload bất biến; unique reversal_of/source và kiểm chứng backup ngăn một gốc bị thay nhiều lần. Sửa tiếp bản thay thế tạo chuỗi mới. Không áp dụng đường này cho mua/bán/kho có phụ thuộc.
 
 Đặc tả và giới hạn: [opening-adjustments.md](opening-adjustments.md).
+
+
+### Xuất báo cáo đa định dạng (0.10.0)
+
+HTTP xuất dùng service đọc snapshot hiện có, sau đó đóng gói ở platform/spreadsheet và template HTML, không giữ transaction khi tạo XLSX. GET documents/reports/export thêm format csv/xlsx/print, mặc định CSV giữ tương thích; catalog/export kiểm tra snapshot revision; financial-reports/export kiểm tra ID/version bản lưu. Excelize2.11.0 đã có sẵn được tái sử dụng, không thêm dependency. Tiền số lớn/decimal và mã giữ chính xác dạng text; số nguyên tối đa15chữ số dùng int64, không có phép tính float. Không có công thức Excel dẫn xuất hay bản sao sổ. Chi tiết: [export-formats.md](export-formats.md).

@@ -344,8 +344,7 @@ test('tab phân hệ giữ nguyên khi mở danh mục, công nợ và các báo
     await expect(page.locator('.ant-pagination')).toBeVisible();
     const reportTools = page.getByRole('group', { name: 'Công cụ báo cáo', exact: true });
     await expect(reportTools.getByRole('textbox', { name: 'Tìm trong báo cáo', exact: true })).toBeVisible();
-    await expect(reportTools.getByRole('button', { name: 'In báo cáo', exact: true })).toBeVisible();
-    await expect(reportTools.getByRole('button', { name: 'Xuất CSV', exact: true })).toBeVisible();
+    await expect(reportTools.getByRole('button', { name: 'Xuất tệp', exact: true })).toBeVisible();
   }
   await page.goto('/catalog');
   await page.getByRole('tab', { name: 'Hệ thống tài khoản', exact: true }).click();
@@ -471,4 +470,28 @@ test('tìm nhanh, debounce, Back giữ nháp và phím tắt không tự ghi s�
   await quick.fill('chi tien'); await quick.press('ArrowDown'); await quick.press('Enter');
   await expect(page).toHaveURL(/kind=payment&account=1121/);
   await page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).click();
+});
+
+
+test('menu xuất Excel, CSV và bản in giữ toàn bộ bộ lọc trong phân hệ', async ({ page }) => {
+  await login(page);
+  await page.goto('/sales');
+  const exportButton = page.getByRole('button', { name: 'Xuất tệp', exact: true });
+  await exportButton.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: /Excel/ })).toBeFocused();
+  const xlsx = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: /Excel/ }).click();
+  expect((await xlsx).suggestedFilename()).toBe('chung-tu-2026-10.xlsx');
+  await exportButton.click();
+  const csv = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: /CSV/ }).click();
+  expect((await csv).suggestedFilename()).toBe('chung-tu-2026-10.csv');
+  await exportButton.click();
+  const popup = page.context().waitForEvent('page');
+  await page.getByRole('menuitem', { name: /Bản in/ }).click();
+  const print = await popup;
+  await expect(print.getByRole('button', { name: 'In / Lưu PDF', exact: true })).toBeVisible();
+  await expect(print.getByRole('heading', { name: 'Danh sách chứng từ', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/sales$/);
+  await print.close();
 });

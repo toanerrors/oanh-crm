@@ -155,10 +155,10 @@
 .tableTotal strong { color: #486740; font-size: 14px; font-weight: 600; }
 .tableTotal small { color: #69766e; font-size: 12px; margin-left: 6px; }
 .accountCards { display: flex; gap: 8px; margin-bottom: 12px; }
-.accountCard { flex: 1; background: #fff; border: 1px solid #e4ece0; border-radius: 8px; padding: 12px; display: flex; gap: 8px; align-items: center; }
-.accountCard > div { flex: 1; }
+.accountCard { flex: 1; min-width: 0; background: #fff; border: 1px solid #e4ece0; border-radius: 8px; padding: 12px; display: flex; gap: 8px; align-items: center; }
+.accountCard > div { flex: 1; min-width: 0; }
 .accountCard > div > span { font-size: 12px; color: #69766e; display: block; margin-bottom: 4px; }
-.accountCard strong { font-size: 20px; color: #3e5d34; font-weight: 600; }
+.accountCard strong { overflow-wrap: anywhere; font-size: 20px; color: #3e5d34; font-weight: 600; }
 .accountCard strong small { font-size: 12px; color: #69766e; margin-left: 6px; font-weight: 400; }
 .inlineNotice { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; color: #69766e; font-size: 12px; line-height: 1.5; }
 .panel > .inlineNotice { padding: 8px 12px; background: #f6f9f3; margin: 0 12px 8px; border-radius: 6px; }
@@ -432,3 +432,14 @@
   .sidebar, .workspace, .brandName, .navGroup, .navLabel, .routeProgress { transition: none; }
   .routeProgress { animation: none; }
 }
+
+.exportOption { max-width: 290px; padding: 4px 0; }
+.exportOption strong, .exportOption small { display: block; white-space: normal; }
+.exportOption strong { font-size: 13px; font-weight: 500; }
+.exportOption small { color: #65776c; font-size: 12px; margin-top: 3px; }
+
+.documentList .tableLink { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+
+.compactDocuments .documentCard > div:first-child > button { min-width: 0; }
+.documentList .tableTotal > strong { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+@media (max-width: 480px) { .denseWorkspace .accountCards { grid-template-columns: minmax(0, 1fr); } }

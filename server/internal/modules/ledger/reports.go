@@ -627,3 +627,22 @@ func ExportRows(w io.Writer, metadata Context, header []string, rows [][]string)
 	writer.Flush()
 	return writer.Error()
 }
+
+func CatalogAccounts(accounts []Account, query string) []Account {
+	out := []Account{}
+	for _, account := range accounts {
+		if strings.Contains(search(account.Code+" "+account.Name), search(query)) {
+			out = append(out, account)
+		}
+	}
+	return out
+}
+func CatalogPartners(partners []Partner, query, role string) []Partner {
+	out := []Partner{}
+	for _, partner := range partners {
+		if (role == "" || role == "all" || partner.Role == role || partner.Role == "both") && strings.Contains(search(partner.Code+" "+partner.Name+" "+partner.Email+" "+partner.Phone), search(query)) {
+			out = append(out, partner)
+		}
+	}
+	return out
+}

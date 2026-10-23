@@ -24,3 +24,17 @@ func TestExportProtectsMetadataAndDoesNotMutateRows(t *testing.T) {
 		t.Fatal(result, rows)
 	}
 }
+
+func TestCatalogExportFilterMatchesVietnameseAndRoles(t *testing.T) {
+	accounts := []Account{{ID: "parent", Code: "112", Name: "Tiền gửi"}, {ID: "child", Code: "00001", Name: "Tiền mặt"}}
+	if rows := CatalogAccounts(accounts, "tien mat"); len(rows) != 1 || rows[0].ID != "child" {
+		t.Fatal(rows)
+	}
+	partners := []Partner{{ID: "customer", Name: "Khách thử", Role: "customer"}, {ID: "supplier", Name: "Nhà cung cấp", Role: "supplier"}, {ID: "both", Code: "00002", Name: "Đối tác", Role: "both"}}
+	if rows := CatalogPartners(partners, "", "supplier"); len(rows) != 2 || rows[1].Code != "00002" {
+		t.Fatal(rows)
+	}
+	if rows := CatalogPartners(partners, "doi tac", "customer"); len(rows) != 1 || rows[0].ID != "both" {
+		t.Fatal(rows)
+	}
+}

@@ -1,4 +1,4 @@
-import { Alert, App, Button, Select, Table, Tabs } from 'antd';
+import { Alert, Button, Select, Table, Tabs } from 'antd';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { partnerBalances, trialBalance } from '../../shared/accounting/ledger';
@@ -16,6 +16,8 @@ import { workspaceKey } from '../../shared/data/workspace';
 import { exactRow } from '../../shared/data/reports';
 import { FinancialReports } from './FinancialReports';
 import { OpeningBalances } from './OpeningBalances';
+import { ExportMenu } from '../../shared/ui/ExportMenu';
+import type { ExportFormat } from '../../shared/ui/ExportMenu';
 import { DebouncedSearchInput } from '../../shared/ui/DebouncedSearchInput';
 import { samePaginationScope } from '../../shared/data/pagination-scope';
 import { accountingModule } from '../../app/module-navigation';
@@ -31,8 +33,7 @@ export function Component() {
 }
 
 function BookReports() {
-  const { data, period, openDocument } = useWorkspace();
-  const { message } = App.useApp();
+  const { data, period, refresh, openDocument } = useWorkspace();
   const { pathname } = useLocation();
   const [params, setParams] = useSearchParams();
   const module = accountingModule(pathname);
@@ -62,17 +63,17 @@ function BookReports() {
   const amountColumn = (title: string, key: keyof ReportRow) => ({ title, dataIndex: key, align: 'right' as const, width: tab === 'trial' ? 185 : 145, render: (value: bigint) => <span className={styles.tableAmount}>{formatMoney(value)}</span> });
   const titles = { journal: 'Nhật ký chung', ledger: 'Sổ cái', trial: 'Cân đối phát sinh', debt: 'Chi tiết công nợ' };
   const ledgerBalance = !isDemo ? server.data?.accountBalance ? exactRow(server.data.accountBalance) : null : tab === 'ledger' && account !== 'all' ? trialBalance(data, period).find(item => item.key === account) : null;
-  const exportReport = () => { if (!isDemo) { void downloadApi(`/reports/export?${serverParams}`, `so-${tab}-${period}.csv`).catch(error => void message.error((error as Error).message)); return; } downloadCsv(`so-mau-${tab}-${period}.csv`, [
+  const exportReport = (format: ExportFormat) => { if (!isDemo) { const path = `/reports/export?${serverParams}&format=${format}`; if (format === 'print') { window.open(`/api/v1${path}`, '_blank', 'noopener,noreferrer'); return; } return downloadApi(path, `so-${tab}-${period}.${format}`); } downloadCsv(`so-mau-${tab}-${period}.csv`, [
     ['DỮ LIỆU MẪU', titles[tab], `Kỳ ${period}`, `Phiên bản ${data.revision}`, `Tài khoản: ${tab === 'ledger' ? account : 'Tất cả'}`],
     ...(tab === 'trial' ? [['Mã', 'Tên', 'Dư đầu Nợ', 'Dư đầu Có', 'Phát sinh Nợ', 'Phát sinh Có', 'Dư cuối Nợ', 'Dư cuối Có'], ...filtered.map(row => [row.code, row.name, ...[row.openingDebit, row.openingCredit, row.debit, row.credit, row.closingDebit, row.closingCredit].map(value => `${formatMoney(value ?? 0n)} VND`)])] : [['Mã chứng từ / đối tượng', 'Ngày', 'Diễn giải / tên', 'Tài khoản', 'Nợ', 'Có'], ...filtered.map(row => [row.code, row.date ?? '', row.description ?? row.name, row.account ?? '', `${formatMoney(row.debit)} VND`, `${formatMoney(row.credit)} VND`])]),
   ]); };
 
-  const pageActions = <>{!isDemo && tab === 'trial' && <><OpeningBalances /><ImportExcelButton kind="opening" /></>}{!isDemo && isDebt && <Link to={module && 'tradeKind' in module ? `${module.path}/settlements` : '/settlements'}><ToolbarButton label="Công nợ theo chứng từ" icon="users" /></Link>}{!isDemo && <ToolbarButton onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }} label="In báo cáo" icon="print" />}<ToolbarButton onClick={exportReport} disabled={!filtered.length || server.isPlaceholderData} label="Xuất CSV" icon="download" /></>;
+  const pageActions = <>{!isDemo && tab === 'trial' && <><OpeningBalances /><ImportExcelButton kind="opening" /></>}{!isDemo && isDebt && <Link to={module && 'tradeKind' in module ? `${module.path}/settlements` : '/settlements'}><ToolbarButton label="Công nợ theo chứng từ" icon="users" /></Link>}<ExportMenu onReload={refresh} onExport={exportReport} disabled={!filtered.length || server.isPlaceholderData} formats={isDemo ? ['csv'] : undefined} /></>;
 
   return <DataBoundary>
     <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} />
     <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : 'book'} /></span><div><strong>{titles[tab]} · Kỳ {period.split('-').reverse().join('/')}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
-    {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={() => void server.refetch()}>Tải lại dữ liệu</Button>} />}
+    {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={() => { refresh(); void server.refetch(); }}>Tải lại dữ liệu</Button>} />}
     <section className={styles.panel}>
       {(!isDebt || module) && <div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setParams({ tab: value, ...(value === 'debt' ? { debt: module && 'tradeKind' in module && module.tradeKind === 'purchase' ? 'payable' : 'receivable' } : {}) }); }} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, ...(module && 'tradeKind' in module ? [{ key: 'debt', label: 'Công nợ theo đối tượng' }] : []), ...(!isDemo ? [{ key: 'financial', label: 'Báo cáo tài chính' }] : [])]} /></div>}
       <PageToolbar label="Công cụ báo cáo" actions={pageActions}><DebouncedSearchInput scopeKey={`${period}-${pathname}-${tab}-${account}-${debtType}`} prefix={<Icon name="search" size={17} />} value={search} onSearch={setSearch} aria-label="Tìm trong báo cáo" placeholder="Tìm mã, tên hoặc diễn giải…" allowClear className={styles.filterSearch} />{tab === 'ledger' && <Select aria-label="Chọn tài khoản sổ cái" showSearch={searchOptions} value={account} onChange={value => { setAccount(value); }} style={{ minWidth: 240 }} options={[{ value: 'all', label: 'Tất cả tài khoản' }, ...data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{isDebt && <Select aria-label="Loại công nợ" value={debtType} onChange={value => { setDebtType(value); }} style={{ minWidth: 210 }} options={[{ value: 'receivable', label: 'Phải thu khách hàng · 131' }, { value: 'payable', label: 'Phải trả người bán · 331' }]} />}</PageToolbar>

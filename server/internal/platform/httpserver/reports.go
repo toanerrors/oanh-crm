@@ -2,13 +2,13 @@ package httpserver
 
 import (
 	"math/big"
-	"mime"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"oanh.local/accounting/internal/accounting"
 	"oanh.local/accounting/internal/modules/ledger"
+	"oanh.local/accounting/internal/platform/spreadsheet"
 )
 
 func (s *Server) filter(w http.ResponseWriter, r *http.Request) (ledger.Filter, bool) {
@@ -84,15 +84,19 @@ func (s *Server) exportDocuments(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	format, ok := s.exportFormat(w, r)
+	if !ok {
+		return
+	}
 	f.Page = 1
-	f.PageSize = 100000
+	f.PageSize = exportLimit(format)
 	result, e := s.Ledger.Documents(r.Context(), f)
 	if e != nil {
 		s.failure(w, r, e)
 		return
 	}
-	if result.Total > 100000 {
-		s.failure(w, r, accounting.Fail("EXPORT_LIMIT", "Tập xuất vượt 100.000 chứng từ, hãy thu hẹp bộ lọc."))
+	if result.Total > exportLimit(format) {
+		s.failure(w, r, accounting.Fail("EXPORT_LIMIT", "Tập xuất quá lớn: CSV tối đa 100.000 dòng, Excel/bản in tối đa 10.000 dòng. Hãy thu hẹp bộ lọc."))
 		return
 	}
 	rows := [][]string{}
@@ -102,14 +106,23 @@ func (s *Server) exportDocuments(w http.ResponseWriter, r *http.Request) {
 			n, _ := new(big.Int).SetString(l.Debit, 10)
 			sum.Add(sum, n)
 		}
-		rows = append(rows, []string{d.Reference, d.Date, d.Type, d.Description, sum.String() + " VND", d.Status, d.SourceType, d.SourceID})
+		kind, status := d.Type, d.Status
+		if format != "csv" {
+			if name, ok := map[string]string{"journal": "Chứng từ khác", "receipt": "Phiếu thu", "payment": "Phiếu chi", "sale": "Bán hàng", "purchase": "Mua hàng"}[kind]; ok {
+				kind = name
+			}
+			if status == "posted" {
+				status = "Đã ghi sổ"
+			} else {
+				status = "Bản nháp"
+			}
+		}
+		rows = append(rows, []string{d.Reference, d.Date, kind, d.Description, sum.String(), status, d.SourceType, d.SourceID})
 	}
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "chung-tu-" + f.Period + ".csv"}))
 	result.Context.Period = f.Period
-	if e = ledger.ExportRows(w, result.Context, []string{"Số chứng từ", "Ngày", "Loại", "Diễn giải", "Tổng Nợ", "Trạng thái", "Loại nguồn", "Mã nguồn"}, rows); e != nil {
-		return
-	}
+	table := spreadsheet.ExportTable{Name: "Chứng từ", Headers: []string{"Số chứng từ", "Ngày", "Loại", "Diễn giải", "Tổng Nợ", "Trạng thái", "Loại nguồn", "Mã nguồn"}, Rows: rows, MoneyColumns: map[int]bool{4: true}, Total: []string{"Tổng toàn bộ tập lọc", "", "", "", result.Amount, "", "", ""}}
+	book := spreadsheet.ExportBook{Title: "Danh sách chứng từ", Company: result.CompanyName, Period: f.Period, Revision: result.Revision, Metadata: filterMetadata(f), Tables: []spreadsheet.ExportTable{table}}
+	s.writeExport(w, r, format, "chung-tu-"+f.Period, result.Context, book)
 }
 func (s *Server) exportReport(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.user(w, r, false); !ok {
@@ -119,25 +132,32 @@ func (s *Server) exportReport(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	format, ok := s.exportFormat(w, r)
+	if !ok {
+		return
+	}
 	f.Page = 1
-	f.PageSize = 100000
+	f.PageSize = exportLimit(format)
 	result, e := s.Ledger.Report(r.Context(), f)
 	if e != nil {
 		s.failure(w, r, e)
 		return
 	}
-	if result.Total > 100000 {
-		s.failure(w, r, accounting.Fail("EXPORT_LIMIT", "Tập xuất vượt 100.000 dòng, hãy thu hẹp bộ lọc."))
+	if result.Total > exportLimit(format) {
+		s.failure(w, r, accounting.Fail("EXPORT_LIMIT", "Tập xuất quá lớn: CSV tối đa 100.000 dòng, Excel/bản in tối đa 10.000 dòng. Hãy thu hẹp bộ lọc."))
 		return
 	}
 	rows := [][]string{}
 	for _, row := range result.Rows {
-		rows = append(rows, []string{row.Code, row.Date, row.Name, row.Description, row.Account, row.OpeningDebit + " VND", row.OpeningCredit + " VND", row.Debit + " VND", row.Credit + " VND", row.ClosingDebit + " VND", row.ClosingCredit + " VND"})
+		rows = append(rows, []string{row.Code, row.Date, row.Name, row.Description, row.Account, row.OpeningDebit, row.OpeningCredit, row.Debit, row.Credit, row.ClosingDebit, row.ClosingCredit})
 	}
 	result.Context.Period = f.Period
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "so-" + f.Kind + "-" + f.Period + ".csv"}))
-	if e = ledger.ExportRows(w, result.Context, []string{"Mã", "Ngày", "Tên", "Diễn giải", "Tài khoản", "Dư đầu Nợ", "Dư đầu Có", "Phát sinh Nợ", "Phát sinh Có", "Dư cuối Nợ", "Dư cuối Có"}, rows); e != nil {
-		return
+	table := spreadsheet.ExportTable{Name: "Sổ kế toán", Headers: []string{"Mã", "Ngày", "Tên", "Diễn giải", "Tài khoản", "Dư đầu Nợ", "Dư đầu Có", "Phát sinh Nợ", "Phát sinh Có", "Dư cuối Nợ", "Dư cuối Có"}, Rows: rows, MoneyColumns: map[int]bool{5: true, 6: true, 7: true, 8: true, 9: true, 10: true}, Total: []string{"Tổng toàn bộ tập lọc", "", "", "", "", result.OpeningDebit, result.OpeningCredit, result.Debit, result.Credit, result.ClosingDebit, result.ClosingCredit}}
+	titles := map[string]string{"journal": "Nhật ký chung", "ledger": "Sổ cái", "trial": "Cân đối phát sinh", "debt": "Chi tiết công nợ", "income": "Doanh thu và chi phí"}
+	title := titles[f.Kind]
+	if title == "" {
+		title = "Sổ kế toán"
 	}
+	book := spreadsheet.ExportBook{Title: title, Company: result.CompanyName, Period: f.Period, Revision: result.Revision, Metadata: filterMetadata(f), Tables: []spreadsheet.ExportTable{table}}
+	s.writeExport(w, r, format, "so-"+f.Kind+"-"+f.Period, result.Context, book)
 }

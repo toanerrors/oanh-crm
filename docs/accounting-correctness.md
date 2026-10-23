@@ -213,3 +213,8 @@ SQLite thật kiểm tra seed theo ID khác mã, bảo toàn tên, migration5→
 - Tài sản thêm/sửa số liệu/bỏ trước khi phân bổ; giữ mã/ID lịch sử. Tên có thể đổi sau phân bổ; giữ nguyên lũy kế hiện hành. Bỏ tài sản đầu kỳ không xóa nguồn, chỉ loại khỏi view hiệu lực. Khấu hao đọc elapsed đầu từ snapshot mới, cộng liên tiếp phát sinh sau mốc.
 - Thu/chi/chuyển tiền: replacementOf cùng loại, lý do bắt buộc, ngày không trước gốc và phải ở kỳ mở. Đảo toàn bộ gốc rồi ghi bản mới cùng transaction; bản cũ, nguồn, ngân hàng/phân bổ công nợ vẫn truy được. Đây là phát sinh theo ngày sửa được chọn, khác với restatement số dư đầu kỳ. Một gốc chỉ thay thế một lần; sửa tiếp trên bản mới. Nháp/preview không tác động sổ.
 - Mua/bán/tính giá vốn/lương/thuế có quy tắc điều chỉnh riêng; chưa triển khai thay thế trực tiếp qua đường sửa phiếu tiền. Không bật sửa/xóa tại chỗ trên chứng từ đã ghi sổ.
+
+
+## 18. Xuất số liệu đa định dạng (0.10.0)
+
+Invariant: xuất đọc toàn bộ tập lọc cùng snapshot với tổng; GET không ghi số liệu hoặc tăng revision. Revision/version cũ bị từ chối thay vì xuất dữ liệu khác bản đang xem. Mã luôn text; số nguyên tối đa15chữ số dùng int64, lớn hơn/decimal dùng text, không qua float; ô trống giữ trống. Formula injection không tạo công thức/link/macro trong XLSX; HTML dùng html/template và CSV giữ sanitizer. BCTC giữ trạng thái nháp/biểu mẫu/phiên bản nguồn/chỉ tiêu/thuyết minh theo bản lưu, không nhập lại các tổng từ client. Regression HTTP/SQLite và mở lại XLSX bao phủ2^53, int64,30chữ số, số âm/decimal/0/ô trống, phân trang, quyền, phiên bản và không đổi revision. Không thay quy tắc kế toán hoặc báo cáo pháp định.

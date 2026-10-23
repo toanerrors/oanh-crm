@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xuri/excelize/v2"
 	"oanh.local/accounting/internal/modules/identity"
 	"oanh.local/accounting/internal/modules/ledger"
 	"oanh.local/accounting/internal/platform/sqlite"
@@ -55,7 +56,7 @@ func TestFinancialHTTPAndSafePrint(t *testing.T) {
 		}
 		return response.StatusCode, b
 	}
-	for _, path := range []string{"/financial-reports/template", "/financial-reports?year=2026", "/financial-reports/source?from=2026-01-01&to=2026-12-31", "/financial-reports/print?id=report&version=1"} {
+	for _, path := range []string{"/financial-reports/export?id=report&version=1&format=xlsx", "/financial-reports/template", "/financial-reports?year=2026", "/financial-reports/source?from=2026-01-01&to=2026-12-31", "/financial-reports/print?id=report&version=1"} {
 		if status, _ := call("GET", path, nil, ""); status != 401 {
 			t.Fatal(path, status)
 		}
@@ -82,6 +83,34 @@ func TestFinancialHTTPAndSafePrint(t *testing.T) {
 	}
 	if status, b = call("GET", "/financial-reports/print?id=report&version=1", nil, ""); status != 200 || strings.Contains(string(b), "<script>") || strings.Contains(string(b), "<b>test</b>") || !strings.Contains(string(b), "9007199254740993") {
 		t.Fatal(status, string(b))
+	}
+	status, b = call("GET", "/financial-reports/export?id=report&version=1&format=xlsx", nil, "")
+	if status != 200 {
+		t.Fatal(status, string(b))
+	}
+	workbook, e := excelize.OpenReader(bytes.NewReader(b))
+	if e != nil {
+		t.Fatal(e)
+	}
+	sheetRows, e := workbook.GetRows("B01-DN", excelize.Options{RawCellValue: true})
+	if e != nil {
+		t.Fatal(e)
+	}
+	found := false
+	for _, row := range sheetRows {
+		if len(row) > 3 && row[1] == "111" && row[3] == "9007199254740993" {
+			found = true
+		}
+	}
+	if !found || len(workbook.GetSheetList()) != 3 {
+		t.Fatal("missing financial values/sheets")
+	}
+	workbook.Close()
+	if status, data := call("GET", "/financial-reports/export?id=report&version=1&format=csv", nil, ""); status != 200 || !strings.Contains(string(data), "BẢN NHÁP BÁO CÁO TÀI CHÍNH") || !strings.Contains(string(data), "bản v1") {
+		t.Fatal(status, string(data))
+	}
+	if status, _ = call("GET", "/financial-reports/export?id=report&version=2&format=xlsx", nil, ""); status != 409 {
+		t.Fatal(status)
 	}
 	if status, _ = call("GET", "/financial-reports/print?id=report&version=2", nil, ""); status != 409 {
 		t.Fatal(status)

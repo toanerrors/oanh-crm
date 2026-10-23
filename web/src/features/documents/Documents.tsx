@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, App, Button, Grid, Select, Table, Tabs, Tag } from 'antd';
+import { Alert, Button, Grid, Select, Table, Tabs, Tag } from 'antd';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { accountBalance, filterDocuments, periodDocuments, totals } from '../../shared/accounting/ledger';
@@ -20,6 +20,8 @@ import { BankAccountsButton } from '../vouchers/BankAccounts';
 import type { DocumentList } from '../../shared/data/reports';
 import { useNavigate } from 'react-router-dom';
 import { ImportDocuments } from './ImportDocuments';
+import { ExportMenu } from '../../shared/ui/ExportMenu';
+import type { ExportFormat } from '../../shared/ui/ExportMenu';
 import { DebouncedSearchInput } from '../../shared/ui/DebouncedSearchInput';
 import { samePaginationScope } from '../../shared/data/pagination-scope';
 import { documentListState } from './list-state';
@@ -41,7 +43,7 @@ export function Component() {
 }
 
 function DocumentsPage({ config }: { config: typeof configs[string] }) {
-  const { data, period, newDraft, openDocument } = useWorkspace();
+  const { data, period, refresh, newDraft, openDocument } = useWorkspace();
   const location = useLocation();
   const openVoucher = (to: string) => navigate(to, { state: { returnTo: location.pathname + location.search } });
   const navigate = useNavigate();
@@ -49,7 +51,6 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
   const compact = screens.md === false;
   const [params, setParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { message } = App.useApp();
   const search = params.get('q') ?? '';
   const { type, page, pageSize, sort, direction, status } = documentListState(params, isDemo);
   const updateFilters = (updates: Record<string, string>, resetPage = true) => setParams(previous => {
@@ -88,7 +89,7 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
   const selected = rows.find(item => item.id === selectedId) ?? rows[0];
   const counts = serverQuery.data?.counts;
   const canWrite = isDemo || apiScope().permissions !== 'viewer';
-  const exportRows = () => { if (!isDemo) { void downloadApi(`/documents/export?${serverParams}`, `chung-tu-${period}.csv`).catch(error => void message.error((error as Error).message)); return; } downloadCsv(`chung-tu-mau-${period}.csv`, [
+  const exportRows = (format: ExportFormat) => { if (!isDemo) { const path = `/documents/export?${serverParams}&format=${format}`; if (format === 'print') { window.open(`/api/v1${path}`, '_blank', 'noopener,noreferrer'); return; } return downloadApi(path, `chung-tu-${period}.${format}`); } downloadCsv(`chung-tu-mau-${period}.csv`, [
     ['DỮ LIỆU MẪU', `Kỳ ${period}`, `Phiên bản ${data.revision}`, 'Đơn vị VND'],
     ['Số chứng từ', 'Ngày', 'Loại', 'Diễn giải', 'Đối tượng', 'Tổng Nợ (VND)', 'Trạng thái'],
     ...filtered.map(item => [item.reference, item.date, documentTypes[item.type], item.description, data.partners.find(partner => partner.id === item.partnerId)?.name ?? '', `${item.lines.length ? formatMoney(totals(item.lines).debit) : '0'} VND`, documentStatuses[item.status]]),
@@ -104,7 +105,7 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
       {openExcel && <ToolbarButton label="Nhập từ Excel" icon="upload" onClick={() => openExcel()} />}
       {!isDemo && bankPage && <BankAccountsButton />}
       {!isDemo && trade && <ToolbarButton onClick={() => navigate(`${config.type === 'sale' ? '/sales' : '/purchases'}/settlements`)} label="Công nợ theo chứng từ" icon="users" />}
-      <ToolbarButton onClick={exportRows} disabled={!filtered.length || serverQuery.isPlaceholderData} label="Xuất CSV" icon="download" />
+      <ExportMenu onReload={refresh} onExport={exportRows} disabled={!filtered.length || serverQuery.isPlaceholderData} formats={isDemo ? ['csv'] : undefined} />
       {canWrite && <div className={styles.toolbarPrimaryActions}>{!isDemo && config.treasury ? <>
         <ToolbarActionMenu label="Thu tiền" icon="arrowDown" onClick={treasury('receipt')} menu={{ items: [
           { key: 'receipt', label: 'Thu tiền', onClick: treasury('receipt') },
@@ -136,7 +137,7 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
     {!isDemo && config.treasury && <div className={styles.accountCards}>{([['Dư đầu kỳ', 'opening'], ['Thu trong kỳ', 'receipts'], ['Chi trong kỳ', 'payments'], ['Dư cuối kỳ', 'closing']] as const).map(([label, key]) => <div className={styles.accountCard} key={key}><div><span>{label} · TK {selectedBank?.number ?? config.accounts?.join(', ')}</span><strong>{serverQuery.data?.money ? formatMoney(serverQuery.data.money[key]) : '—'}<small>VND</small></strong></div></div>)}</div>}
     {config.accounts && (!config.treasury || isDemo) && <div className={styles.accountCards}>{config.accounts.map(id => <div key={id} className={styles.accountCard}><span className={styles.metricIcon}><Icon name={id === '156' ? 'box' : 'wallet'} /></span><div><span>{data.accounts.find(item => item.id === id)?.name} · {id}</span><strong>{formatMoney(data.server ? data.server.balances[id] : accountBalance(data.documents, [id], period))}<small>VND</small></strong></div><span className={styles.softLabel}>{isDemo ? 'Số dư cuối kỳ mẫu' : 'Số dư cuối kỳ'}</span></div>)}</div>}
     {config.accounts?.includes('156') && <div className={styles.inlineNotice}><Icon name="help" size={16} />{isDemo ? 'Sổ này phản ánh giá trị hạch toán mẫu. Số lượng, tính giá xuất kho và kiểm kê cần phân hệ kho cùng chính sách đã duyệt.' : 'Xem số lượng, lô và giá trị tồn ở Nghiệp vụ tự động → Hàng hóa & dịch vụ. Biến động kho được ghi cùng transaction với chứng từ.'}</div>}
-    {serverQuery.error && <Alert type="error" title={serverQuery.error.message} action={<Button onClick={() => void serverQuery.refetch()}>Tải lại dữ liệu</Button>} />}
+    {serverQuery.error && <Alert type="error" title={serverQuery.error.message} action={<Button onClick={() => { refresh(); void serverQuery.refetch(); }}>Tải lại dữ liệu</Button>} />}
     <section className={`${styles.panel} ${!isDemo ? styles.documentList : ''}`}>
       {isDemo && <div className={styles.listTabs}><Tabs activeKey={status} onChange={value => updateFilter('status', value)} items={[
         { key: 'all', label: <>Tất cả <span className={styles.countBadge}>{isDemo ? scope.length : counts?.all ?? '—'}</span></> },
@@ -145,17 +146,17 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
       ]} /></div>}
       <div className={styles.tableToolbar}><DebouncedSearchInput scopeKey={`${period}-${location.pathname}-${searchScope}`} prefix={<Icon name="search" size={17} />} placeholder="Tìm số chứng từ, diễn giải, đối tượng…" aria-label="Tìm trong danh sách chứng từ" value={search} onSearch={value => updateFilter('q', value)} allowClear className={styles.filterSearch} /><div>{!isDemo && bankPage && <Select aria-label="Lọc tài khoản ngân hàng" loading={banks.isPending} value={params.get('bank') ?? 'all'} onChange={value => updateFilter('bank', value)} style={{ minWidth: 220 }} options={[{ value: 'all', label: 'Tất cả tài khoản ngân hàng' }, ...(banks.data?.accounts.map(item => ({ value: item.id, label: `${item.number} · ${item.bankName}` })) ?? [])]} />}{!isDemo && <Select aria-label="Lọc trạng thái chứng từ" value={status} onChange={value => updateFilter('status', value)} style={{ minWidth: 155 }} options={[{ value: 'all', label: `Tất cả (${counts?.all ?? '…'})` }, { value: 'posted', label: `Đã ghi sổ (${counts?.posted ?? '…'})` }, { value: 'draft', label: `Bản nháp (${counts?.draft ?? '…'})` }]} />}{!config.type && <Select aria-label="Lọc loại chứng từ" value={type} onChange={value => updateFilter('type', value)} style={{ minWidth: 170 }} options={[{ value: 'all', label: 'Tất cả loại chứng từ' }, ...Object.entries(documentTypes).map(([value, label]) => ({ value, label }))]} />}{compact && <Select aria-label="Sắp xếp chứng từ" value={`${sort}:${direction}`} style={{ minWidth: 160 }} onChange={value => { const [field, order] = value.split(':'); updateFilters({ sort: field, direction: order === 'asc' ? 'asc' : 'desc' }); }} options={[{ value: 'date:desc', label: 'Mới nhất' }, { value: 'date:asc', label: 'Cũ nhất' }, { value: 'amount:desc', label: 'Số tiền giảm dần' }, { value: 'amount:asc', label: 'Số tiền tăng dần' }]} />}{isDemo && <Tag className={styles.demoPill}>Dữ liệu mẫu</Tag>}<div className={styles.toolbarActions} role="group" aria-label="Thao tác chứng từ">{pageActions}</div></div></div>
       {serverQuery.isPlaceholderData && <div role="status" className={styles.searchHint}>Đang tải trang {page}… Nội dung đang cập nhật.</div>}
-      <Table<AccountingDocument> className={compact ? styles.compactDocuments : undefined} showHeader={!compact} loading={{ spinning: !isDemo && serverQuery.isFetching, delay: 120 }} onChange={(_, __, sorter, extra) => { if (extra.action !== 'sort') return; const current = Array.isArray(sorter) ? sorter[0] : sorter; updateFilters({ sort: current.order && current.columnKey === 'amount' ? 'amount' : 'date', direction: current.order === 'ascend' ? 'asc' : 'desc' }); }} rowKey="id" dataSource={rows} onRow={item => ({ onClick: () => { if (!serverQuery.isPlaceholderData) setSelectedId(item.id); } })} rowClassName={item => item.id === selected?.id && !compact ? styles.selectedDocument : ''} scroll={compact ? undefined : { x: 950, y: isDemo ? undefined : 'max(200px, calc(100vh - 520px))' }} pagination={{ current: page, total: count, onChange: (next, size) => { updateFilters({ page: String(size === pageSize ? next : 1), pageSize: String(size) }, false); }, pageSize, showSizeChanger: !isDemo, pageSizeOptions: [10, 20, 50, 100], hideOnSinglePage: true, showTotal: total => `${total} chứng từ` }} locale={{ emptyText: <EmptyData action={<Button onClick={() => { setParams({}); }}>Xóa bộ lọc</Button>} /> }} columns={compact ? [{ key: 'document', render: (_, item) => <article className={styles.documentCard}>
-        <div><button className={styles.tableLink} disabled={serverQuery.isPlaceholderData} onClick={() => openEntry(item)}>{item.reference}</button><StatusTag status={item.status} /></div>
+      <Table<AccountingDocument> tableLayout={compact ? 'fixed' : undefined} className={compact ? styles.compactDocuments : undefined} showHeader={!compact} loading={{ spinning: !isDemo && serverQuery.isFetching, delay: 120 }} onChange={(_, __, sorter, extra) => { if (extra.action !== 'sort') return; const current = Array.isArray(sorter) ? sorter[0] : sorter; updateFilters({ sort: current.order && current.columnKey === 'amount' ? 'amount' : 'date', direction: current.order === 'ascend' ? 'asc' : 'desc' }); }} rowKey="id" dataSource={rows} onRow={item => ({ onClick: () => { if (!serverQuery.isPlaceholderData) setSelectedId(item.id); } })} rowClassName={item => item.id === selected?.id && !compact ? styles.selectedDocument : ''} scroll={compact ? undefined : { x: 950, y: isDemo ? undefined : 'max(200px, calc(100vh - 520px))' }} pagination={{ current: page, total: count, onChange: (next, size) => { updateFilters({ page: String(size === pageSize ? next : 1), pageSize: String(size) }, false); }, pageSize, showSizeChanger: !isDemo, pageSizeOptions: [10, 20, 50, 100], hideOnSinglePage: true, showTotal: total => `${total} chứng từ` }} locale={{ emptyText: <EmptyData action={<Button onClick={() => { setParams({}); }}>Xóa bộ lọc</Button>} /> }} columns={compact ? [{ key: 'document', render: (_, item) => <article className={styles.documentCard}>
+        <div><button className={styles.tableLink} disabled={serverQuery.isPlaceholderData} title={item.reference} onClick={() => openEntry(item)}>{item.reference}</button><StatusTag status={item.status} /></div>
         <p>{item.description}</p>
         <span className={styles.cellSub}>{data.partners.find(partner => partner.id === item.partnerId)?.name ?? 'Không có đối tượng chung'}</span>
         <div className={styles.documentCardMeta}><span>{formatDate(item.date)} · {documentTypes[item.type]}</span><span>Tổng Nợ (VND)<strong>{formatMoney(totals(item.lines).debit)}</strong></span></div>
       </article> }] : [
-        { title: 'SỐ CHỨNG TỪ', dataIndex: 'reference', width: 155, render: (value: string, item) => <button className={styles.tableLink} disabled={serverQuery.isPlaceholderData} onClick={() => openEntry(item)}>{value}</button> },
+        { title: 'SỐ CHỨNG TỪ', dataIndex: 'reference', width: 155, render: (value: string, item) => <button className={styles.tableLink} disabled={serverQuery.isPlaceholderData} title={value} onClick={() => openEntry(item)}>{value}</button> },
         { title: 'NGÀY', dataIndex: 'date', width: 105, sortOrder: sort === 'date' ? (direction === 'asc' ? 'ascend' : 'descend') : null, sorter: isDemo ? (a, b) => a.date.localeCompare(b.date) : true, render: formatDate },
         { title: 'DIỄN GIẢI / ĐỐI TƯỢNG', dataIndex: 'description', render: (value: string, item) => <><span>{value}</span><small className={styles.cellSub}>{data.partners.find(partner => partner.id === item.partnerId)?.name ?? 'Không có đối tượng chung'}</small></> },
         { title: 'LOẠI', dataIndex: 'type', width: 120, render: (value: DocumentType, row: AccountingDocument) => row.sourceType === 'transfer' ? 'Chuyển tiền nội bộ' : row.sourceType === 'closing' ? 'Kết chuyển lãi lỗ' : documentTypes[value] },
-        { title: 'TỔNG NỢ (VND)', key: 'amount', width: 150, align: 'right', sortOrder: sort === 'amount' ? (direction === 'asc' ? 'ascend' : 'descend') : null, sorter: isDemo ? (a, b) => { const diff = totals(a.lines).debit - totals(b.lines).debit; return diff < 0n ? -1 : diff > 0n ? 1 : 0; } : true, render: (_, item) => <strong className={styles.tableAmount}>{formatMoney(totals(item.lines).debit)}</strong> },
+        { title: 'TỔNG NỢ (VND)', key: 'amount', width: 220, align: 'right', sortOrder: sort === 'amount' ? (direction === 'asc' ? 'ascend' : 'descend') : null, sorter: isDemo ? (a, b) => { const diff = totals(a.lines).debit - totals(b.lines).debit; return diff < 0n ? -1 : diff > 0n ? 1 : 0; } : true, render: (_, item) => <strong className={styles.tableAmount}>{formatMoney(totals(item.lines).debit)}</strong> },
         { title: 'TRẠNG THÁI', dataIndex: 'status', width: 125, render: value => <StatusTag status={value} /> },
         { width: 46, render: (_, item) => <Button type="text" icon={<Icon name="chevron" size={15} />} disabled={serverQuery.isPlaceholderData} aria-label={`Xem ${item.reference}`} onClick={() => openEntry(item)} /> },
       ]} />
