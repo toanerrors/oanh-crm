@@ -32,9 +32,10 @@
 .tableActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 16px; }
 .tableActions > small { margin-left: auto; }
 .bottom { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; padding: 0 16px; }
-.extras { max-width: 680px; }
+.extras { max-width: 680px; min-width: 0; }
 .extras h3 { font-weight: 500; font-size: 13px; margin-bottom: 6px; }
-.extras :global(.ant-upload-drag) { background: #fbfbfb; border-color: #d3d7d4; }
+.extras :global(.ant-upload-wrapper) { display: block; }
+.extras :global(.ant-upload.ant-upload-drag) { height: auto; background: #fbfbfb; border-color: #d3d7d4; }
 .extras :global(.ant-upload-btn) { padding: 20px 12px !important; }
 .extras :global(.ant-upload-text) { font-size: 13px !important; color: #3971bc; }
 .sums { margin: 0; }

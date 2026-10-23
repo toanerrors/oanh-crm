@@ -10,6 +10,11 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Sửa bố cục đính kèm phiếu — 0.13.2
+
+- Khung Upload.Dragger dùng chiều cao nội dung, wrapper dạng block và cột đính kèm có min-width 0. Tránh chiều cao 100% cộng thêm tiêu đề/ghi chú làm tràn rồi bị panel cắt đáy; dùng chung cho các loại phiếu.
+- Validation: đã tái hiện/đo lỗi trên Edge; TypeScript typecheck, production build và diff check đạt. Chỉ sửa CSS, giữ nguyên giới hạn/quyền tải tệp và yêu cầu lưu nháp; đối chiếu desktop/mobile và healthcheck sau triển khai.
+
 ## Bỏ nhãn không gian kế toán — 0.13.1
 
 - Bỏ dòng “Không gian kế toán của bạn” và chấm xanh trong app shell; gỡ CSS không còn dùng, giữ bộ chọn kỳ và nút tiếp tục nháp căn bên phải trên các trang.
