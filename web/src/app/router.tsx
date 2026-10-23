@@ -3,6 +3,7 @@ import { createBrowserRouter, Link, useRouteError } from 'react-router-dom';
 import { AppShell } from './App';
 import { ModuleLayout } from './ModuleLayout';
 import { accountingModules } from './module-navigation';
+import { screens } from './route-preload';
 
 function RouteError() {
   const error = useRouteError();
@@ -15,24 +16,24 @@ export const router = createBrowserRouter([{
   HydrateFallback: () => <div role="status" style={{ padding: 32 }}>Đang tải ứng dụng…</div>,
   ErrorBoundary: RouteError,
   children: [
-    { index: true, lazy: () => import('../features/dashboard/Dashboard') },
+    { index: true, lazy: screens.dashboard },
     ...accountingModules.map(module => ({ path: module.path.slice(1), Component: ModuleLayout, children: [
-      { index: true, lazy: () => import('../features/documents/Documents') },
-      { path: 'reports', lazy: () => import('../features/reports/Reports') },
+      { index: true, lazy: screens.documents },
+      { path: 'reports', lazy: screens.reports },
       ...('tradeKind' in module ? [
-        { path: 'settlements', lazy: () => import('../features/documents/Settlements') },
-        { path: 'partners', lazy: () => import('../features/catalog/Catalog') },
-        { path: 'items', lazy: () => import('../features/workspace/Automation').then(({ ItemsPage }) => ({ Component: ItemsPage })) },
+        { path: 'settlements', lazy: screens.settlements },
+        { path: 'partners', lazy: screens.catalog },
+        { path: 'items', lazy: screens.items },
       ] : []),
     ] })),
-    { path: 'settlements', lazy: () => import('../features/documents/Settlements') },
-    { path: 'vouchers/new', lazy: () => import('../features/vouchers/VoucherForm') },
-    { path: 'vouchers/:id', lazy: () => import('../features/vouchers/VoucherForm') },
-    { path: 'automation', lazy: () => import('../features/workspace/Automation') },
-    { path: 'imports', lazy: () => import('../features/imports/ExcelImport') },
-    { path: 'catalog', lazy: () => import('../features/catalog/Catalog') },
-    ...['reports', 'receivables'].map(path => ({ path, lazy: () => import('../features/reports/Reports') })),
-    ...['settings', 'help'].map(path => ({ path, lazy: () => import('../features/workspace/Workspace') })),
+    { path: 'settlements', lazy: screens.settlements },
+    { path: 'vouchers/new', lazy: screens.voucher },
+    { path: 'vouchers/:id', lazy: screens.voucher },
+    { path: 'automation', lazy: screens.automation },
+    { path: 'imports', lazy: screens.imports },
+    { path: 'catalog', lazy: screens.catalog },
+    ...['reports', 'receivables'].map(path => ({ path, lazy: screens.reports })),
+    ...['settings', 'help'].map(path => ({ path, lazy: screens.workspace })),
     { path: '*', element: <Result status="404" title="Không tìm thấy trang" subTitle="Đường dẫn không tồn tại trong ứng dụng." extra={<Link to="/"><Button type="primary">Về tổng quan</Button></Link>} /> },
   ],
 }]);

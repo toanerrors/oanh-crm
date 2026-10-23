@@ -422,3 +422,48 @@ test('menu chức năng có nhãn, mở đúng thu chi hóa đơn, Excel và d�
   await expect(page.getByRole('menuitem', { name: 'Chuyển tiền nội bộ', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+
+test('tìm nhanh, debounce, Back giữ nháp và phím tắt không tự ghi sổ', async ({ page }) => {
+  await login(page);
+  await page.goto('/cash?status=draft&sort=amount&direction=asc');
+  const requests: string[] = [];
+  page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/v1/documents' && url.searchParams.get('q')?.startsWith('uxprobe')) requests.push(url.searchParams.get('q')!); });
+  const search = page.getByRole('textbox', { name: 'Tìm trong danh sách chứng từ', exact: true });
+  await search.pressSequentially('uxprobe');
+  await expect(page).toHaveURL(/q=uxprobe/);
+  expect(requests).toEqual(['uxprobe']);
+  await search.fill(''); await search.press('Enter');
+  await expect(page).not.toHaveURL(/q=/);
+  const returnTo = new URL(page.url()).pathname + new URL(page.url()).search;
+  await page.getByRole('button', { name: 'Thu tiền', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Lý do nộp', exact: false }).fill('Thu kiểm thử thao tác nhanh');
+  const amount = page.getByRole('spinbutton', { name: 'Số tiền dòng 1', exact: true });
+  await amount.click(); await amount.press('ControlOrMeta+A'); await amount.press('Backspace'); await amount.pressSequentially('9007199254740993');
+  await page.goBack();
+  await expect(page).toHaveURL(url => url.pathname + url.search === returnTo);
+  await page.getByRole('button', { name: 'Tiếp tục phiếu đang nhập', exact: true }).click();
+  await expect(amount).toHaveValue('9.007.199.254.740.993');
+  await expect(page.getByRole('combobox', { name: 'Lý do nộp', exact: false })).toHaveValue('Thu kiểm thử thao tác nhanh');
+  await choose(page, 'Tài khoản đối ứng dòng 1', '4111');
+  await amount.click(); await amount.press('ControlOrMeta+A'); await amount.press('Backspace'); await amount.pressSequentially('5000000');
+  await amount.press('ControlOrMeta+s');
+  await expect(page).toHaveURL(/\/vouchers\/[A-Z2-7]+$/);
+  const id = new URL(page.url()).pathname.split('/').at(-1);
+  let saved = await (await page.request.get(`/api/v1/documents/${id}/voucher`)).json();
+  expect(saved.document.status).toBe('draft');
+  expect(saved.input.amount).toBe('5000000');
+  await amount.press('ControlOrMeta+Enter');
+  await expect(page.getByRole('tab', { name: 'Bút toán server tính', exact: true })).toBeVisible();
+  saved = await (await page.request.get(`/api/v1/documents/${id}/voucher`)).json();
+  expect(saved.document.status).toBe('draft');
+  await page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).click();
+  await expect(page).toHaveURL(url => url.pathname + url.search === returnTo);
+  await search.press('ControlOrMeta+k');
+  const palette = page.getByRole('dialog', { name: 'Tìm nhanh', exact: true });
+  await expect(palette).toBeVisible();
+  const quick = palette.getByRole('combobox', { name: 'Tìm chứng từ trong kỳ', exact: true });
+  await quick.fill('chi tien'); await quick.press('ArrowDown'); await quick.press('Enter');
+  await expect(page).toHaveURL(/kind=payment&account=1121/);
+  await page.getByRole('button', { name: 'Đóng chứng từ', exact: true }).click();
+});

@@ -1,4 +1,4 @@
-import { Alert, App, Button, Input, Select, Table, Tabs } from 'antd';
+import { Alert, App, Button, Select, Table, Tabs } from 'antd';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { partnerBalances, trialBalance } from '../../shared/accounting/ledger';
@@ -16,6 +16,8 @@ import { workspaceKey } from '../../shared/data/workspace';
 import { exactRow } from '../../shared/data/reports';
 import { FinancialReports } from './FinancialReports';
 import { OpeningBalances } from './OpeningBalances';
+import { DebouncedSearchInput } from '../../shared/ui/DebouncedSearchInput';
+import { samePaginationScope } from '../../shared/data/pagination-scope';
 import { accountingModule } from '../../app/module-navigation';
 import type { ServerReport } from '../../shared/data/reports';
 
@@ -29,7 +31,7 @@ export function Component() {
 }
 
 function BookReports() {
-  const { data, period, openDocument, refresh } = useWorkspace();
+  const { data, period, openDocument } = useWorkspace();
   const { message } = App.useApp();
   const { pathname } = useLocation();
   const [params, setParams] = useSearchParams();
@@ -47,7 +49,8 @@ function BookReports() {
   const debtType = params.get('debt') === 'payable' ? 'payable' : 'receivable';
   const setDebtType = (value: string) => setFilter('debt', value);
   const serverParams = new URLSearchParams({ period, kind: tab, account: isDebt ? debtType : account, q: search, page: String(page), pageSize: '10', revision: String(data?.revision ?? 0) });
-  const server = useQuery({ queryKey: [...workspaceKey(), 'report', serverParams.toString()], queryFn: ({ signal }) => api<ServerReport>(`/reports?${serverParams}`, { signal }), enabled: !isDemo && Boolean(data), retry: false });
+  const queryKey = [...workspaceKey(), 'report', serverParams.toString()];
+  const server = useQuery<ServerReport>({ queryKey, placeholderData: (previous, query) => samePaginationScope(queryKey, query?.queryKey) ? previous : undefined, queryFn: ({ signal }) => api<ServerReport>(`/reports?${serverParams}`, { signal }), enabled: !isDemo && Boolean(data), retry: false });
   if (!data) return <DataBoundary><></></DataBoundary>;
   const posted = data.documents.filter(item => item.status === 'posted' && item.date.slice(0, 7) <= period);
   const current = posted.filter(item => item.date.startsWith(`${period}-`));
@@ -64,24 +67,25 @@ function BookReports() {
     ...(tab === 'trial' ? [['Mã', 'Tên', 'Dư đầu Nợ', 'Dư đầu Có', 'Phát sinh Nợ', 'Phát sinh Có', 'Dư cuối Nợ', 'Dư cuối Có'], ...filtered.map(row => [row.code, row.name, ...[row.openingDebit, row.openingCredit, row.debit, row.credit, row.closingDebit, row.closingCredit].map(value => `${formatMoney(value ?? 0n)} VND`)])] : [['Mã chứng từ / đối tượng', 'Ngày', 'Diễn giải / tên', 'Tài khoản', 'Nợ', 'Có'], ...filtered.map(row => [row.code, row.date ?? '', row.description ?? row.name, row.account ?? '', `${formatMoney(row.debit)} VND`, `${formatMoney(row.credit)} VND`])]),
   ]); };
 
-  const pageActions = <>{!isDemo && tab === 'trial' && <><OpeningBalances /><ImportExcelButton kind="opening" /></>}{!isDemo && isDebt && <Link to={module && 'tradeKind' in module ? `${module.path}/settlements` : '/settlements'}><ToolbarButton label="Công nợ theo chứng từ" icon="users" /></Link>}{!isDemo && <ToolbarButton onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }} label="In báo cáo" icon="print" />}<ToolbarButton onClick={exportReport} disabled={!filtered.length} label="Xuất CSV" icon="download" /></>;
+  const pageActions = <>{!isDemo && tab === 'trial' && <><OpeningBalances /><ImportExcelButton kind="opening" /></>}{!isDemo && isDebt && <Link to={module && 'tradeKind' in module ? `${module.path}/settlements` : '/settlements'}><ToolbarButton label="Công nợ theo chứng từ" icon="users" /></Link>}{!isDemo && <ToolbarButton onClick={() => { const preview = window.open(`/api/v1/reports/print?${serverParams}`, '_blank'); if (preview) preview.addEventListener('load', () => preview.print(), { once: true }); }} label="In báo cáo" icon="print" />}<ToolbarButton onClick={exportReport} disabled={!filtered.length || server.isPlaceholderData} label="Xuất CSV" icon="download" /></>;
 
   return <DataBoundary>
     <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} />
     <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : 'book'} /></span><div><strong>{titles[tab]} · Kỳ {period.split('-').reverse().join('/')}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
-    {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={refresh}>Tải lại dữ liệu</Button>} />}
+    {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={() => void server.refetch()}>Tải lại dữ liệu</Button>} />}
     <section className={styles.panel}>
       {(!isDebt || module) && <div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setParams({ tab: value, ...(value === 'debt' ? { debt: module && 'tradeKind' in module && module.tradeKind === 'purchase' ? 'payable' : 'receivable' } : {}) }); }} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, ...(module && 'tradeKind' in module ? [{ key: 'debt', label: 'Công nợ theo đối tượng' }] : []), ...(!isDemo ? [{ key: 'financial', label: 'Báo cáo tài chính' }] : [])]} /></div>}
-      <PageToolbar label="Công cụ báo cáo" actions={pageActions}><Input prefix={<Icon name="search" size={17} />} value={search} onChange={event => { setSearch(event.target.value); }} aria-label="Tìm trong báo cáo" placeholder="Tìm mã, tên hoặc diễn giải…" allowClear className={styles.filterSearch} />{tab === 'ledger' && <Select aria-label="Chọn tài khoản sổ cái" showSearch={searchOptions} value={account} onChange={value => { setAccount(value); }} style={{ minWidth: 240 }} options={[{ value: 'all', label: 'Tất cả tài khoản' }, ...data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{isDebt && <Select aria-label="Loại công nợ" value={debtType} onChange={value => { setDebtType(value); }} style={{ minWidth: 210 }} options={[{ value: 'receivable', label: 'Phải thu khách hàng · 131' }, { value: 'payable', label: 'Phải trả người bán · 331' }]} />}</PageToolbar>
+      <PageToolbar label="Công cụ báo cáo" actions={pageActions}><DebouncedSearchInput scopeKey={`${period}-${pathname}-${tab}-${account}-${debtType}`} prefix={<Icon name="search" size={17} />} value={search} onSearch={setSearch} aria-label="Tìm trong báo cáo" placeholder="Tìm mã, tên hoặc diễn giải…" allowClear className={styles.filterSearch} />{tab === 'ledger' && <Select aria-label="Chọn tài khoản sổ cái" showSearch={searchOptions} value={account} onChange={value => { setAccount(value); }} style={{ minWidth: 240 }} options={[{ value: 'all', label: 'Tất cả tài khoản' }, ...data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{isDebt && <Select aria-label="Loại công nợ" value={debtType} onChange={value => { setDebtType(value); }} style={{ minWidth: 210 }} options={[{ value: 'receivable', label: 'Phải thu khách hàng · 131' }, { value: 'payable', label: 'Phải trả người bán · 331' }]} />}</PageToolbar>
       {ledgerBalance && <div className={styles.ledgerBalances}>{[['Dư đầu Nợ', ledgerBalance.openingDebit], ['Dư đầu Có', ledgerBalance.openingCredit], ['Dư cuối Nợ', ledgerBalance.closingDebit], ['Dư cuối Có', ledgerBalance.closingCredit]].map(([label, value]) => <span key={String(label)}>{label}<strong>{formatMoney(value as bigint)}<small>VND</small></strong></span>)}</div>}
-      <Table<ReportRow> loading={!isDemo && server.isPending} key={`${tab}-${period}-${account}`} rowKey="key" dataSource={filtered} scroll={{ x: tab === 'trial' ? 1300 : 850 }} pagination={{ current: page, onChange: setPage, total: isDemo ? filtered.length : server.data?.total ?? 0, pageSize: 10, hideOnSinglePage: true, showSizeChanger: false, showTotal: total => `${total} dòng` }} columns={tab === 'trial' ? [
+      {server.isPlaceholderData && <div role="status" className={styles.searchHint}>Đang tải trang {page}… Nội dung đang cập nhật.</div>}
+      <Table<ReportRow> loading={{ spinning: !isDemo && server.isFetching, delay: 120 }} key={`${tab}-${period}-${account}`} rowKey="key" dataSource={filtered} scroll={{ x: tab === 'trial' ? 1300 : 850 }} pagination={{ current: page, onChange: setPage, total: isDemo ? filtered.length : server.data?.total ?? 0, pageSize: 10, hideOnSinglePage: true, showSizeChanger: false, showTotal: total => `${total} dòng` }} columns={tab === 'trial' ? [
         { title: 'TÀI KHOẢN', dataIndex: 'code', width: 110, fixed: 'left' }, { title: 'TÊN TÀI KHOẢN', dataIndex: 'name', width: 220 },
         { title: 'DƯ ĐẦU KỲ', children: [amountColumn('Nợ', 'openingDebit'), amountColumn('Có', 'openingCredit')] },
         { title: 'PHÁT SINH TRONG KỲ', children: [amountColumn('Nợ', 'debit'), amountColumn('Có', 'credit')] },
         { title: 'DƯ CUỐI KỲ', children: [amountColumn('Nợ', 'closingDebit'), amountColumn('Có', 'closingCredit')] },
       ] : isDebt ? [{ title: 'MÃ ĐỐI TƯỢNG', dataIndex: 'code', width: 150 }, { title: 'TÊN ĐỐI TƯỢNG', dataIndex: 'name' }, amountColumn('DƯ NỢ (VND)', 'debit'), amountColumn('DƯ CÓ (VND)', 'credit')] : [
         { title: 'NGÀY', dataIndex: 'date', width: 105, render: formatDate },
-        { title: 'CHỨNG TỪ', dataIndex: 'code', width: 135, render: (value: string, row) => <button className={styles.tableLink} onClick={() => openDocument(row.documentId ?? null)}>{value}</button> },
+        { title: 'CHỨNG TỪ', dataIndex: 'code', width: 135, render: (value: string, row) => <button className={styles.tableLink} disabled={server.isPlaceholderData} onClick={() => openDocument(row.documentId ?? null)}>{value}</button> },
         { title: 'DIỄN GIẢI', dataIndex: 'description', render: (value: string, row) => <>{value}<small className={styles.cellSub}>{row.name}</small></> },
         { title: 'TK', dataIndex: 'account', width: 65 }, amountColumn('NỢ (VND)', 'debit'), amountColumn('CÓ (VND)', 'credit'),
       ]} summary={() => !isDemo && !server.data ? null : tab === 'trial' ? <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell>{[sumField('openingDebit'), sumField('openingCredit'), debit, credit, sumField('closingDebit'), sumField('closingCredit')].map((value, index) => <Table.Summary.Cell index={index + 2} align="right" key={index}><strong className={styles.tableAmount}>{formatMoney(value)}</strong></Table.Summary.Cell>)}</Table.Summary.Row> : <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={isDebt ? 2 : 4}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 2 : 4} align="right"><strong>{formatMoney(debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 3 : 5} align="right"><strong>{formatMoney(credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />

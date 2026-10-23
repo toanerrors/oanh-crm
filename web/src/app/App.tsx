@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Avatar, Badge, Button, Drawer, Dropdown, Modal, Select, Tooltip } from 'antd';
+import { Avatar, Badge, Button, Drawer, Dropdown, Modal, Select, Spin, Tooltip } from 'antd';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useNavigation } from 'react-router-dom';
 import { useWorkspace } from './WorkspaceProvider';
 import { Icon } from '../shared/ui/Icon';
@@ -71,7 +71,7 @@ export function AppShell() {
         <Button className={styles.mobileMenu} type="text" icon={<Icon name="menu" />} aria-label="Mở điều hướng" onClick={() => setMobileOpen(true)} />
         <button type="button" className={styles.companySwitch} aria-label="Thiết lập công ty" title={companyName} onClick={() => navigate('/settings')}><span className={styles.companyIcon}><Icon name="building" size={20} /></span><span><strong>{companyName}</strong><small>Kế toán doanh nghiệp</small></span><Icon name="down" size={14} /></button>
         <div className={styles.topbarActions}>
-          <DocumentSearch />
+          <DocumentSearch shortcuts={shortcuts} pinnedIds={pins.ids} />
           <Tooltip title="Hướng dẫn sử dụng"><Button type="text" icon={<Icon name="help" />} aria-label="Hướng dẫn sử dụng" onClick={() => navigate('/help')} /></Tooltip>
           <Badge dot={draftCount > 0} offset={[-7, 6]}><Button type="text" icon={<Icon name="bell" />} aria-label="Xem thông báo" onClick={() => setNotificationsOpen(true)} /></Badge>
           <div className={styles.headerDivider} />
@@ -80,11 +80,11 @@ export function AppShell() {
       </header>
       {navigationState.state !== 'idle' && <div className={styles.routeProgress} role="progressbar" aria-label="Đang chuyển trang" />}
       <main id="main-content" className={`${styles.main} ${!isDemo && module ? styles.denseWorkspace : ''}`} tabIndex={-1}>
-        <div className={styles.contextBar}><span><span className={styles.liveDot} /> Không gian kế toán của bạn</span><div>{voucherDraft && <Button type="text" onClick={() => navigate(voucherDraft.draftId ? `/vouchers/${voucherDraft.draftId}` : '/vouchers/new')}>Tiếp tục phiếu đang nhập</Button>}{draft && <Button type="text" onClick={() => setDraftOpen(true)} icon={<Icon name="file" size={14} />}>Tiếp tục nháp</Button>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch={searchOptions} aria-label="Chọn kỳ kế toán" value={period} onChange={setPeriod} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
+        <div className={styles.contextBar}><span><span className={styles.liveDot} /> Không gian kế toán của bạn</span><div>{voucherDraft && <Button type="text" onClick={() => navigate(voucherDraft.draftId ? `/vouchers/${voucherDraft.draftId}` : '/vouchers/new', { state: { returnTo: location.pathname + location.search } })}>Tiếp tục phiếu đang nhập</Button>}{draft && <Button type="text" onClick={() => setDraftOpen(true)} icon={<Icon name="file" size={14} />}>Tiếp tục nháp</Button>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch={searchOptions} aria-label="Chọn kỳ kế toán" value={period} onChange={value => { if (value === period) return; setPeriod(value); const params = new URLSearchParams(location.search); if (params.has('page')) { params.delete('page'); navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true, state: location.state }); } }} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
         <Outlet />
       </main>
     </div>
-    <Suspense fallback={null}>{draft && <DocumentEditor />}{detailId && <DocumentDetail />}</Suspense>
+    <Suspense fallback={<Spin fullscreen tip="Đang mở chứng từ…" />}>{draft && <DocumentEditor />}{detailId && <DocumentDetail />}</Suspense>
     <Modal title={isDemo ? 'Thông báo trong phiên mẫu' : 'Chứng từ cần kiểm tra'} open={notificationsOpen} onCancel={() => setNotificationsOpen(false)} footer={<Button onClick={() => setNotificationsOpen(false)}>Đóng</Button>}>
       <div className={styles.notificationIntro}><Icon name="clock" />Có {draftCount} bản nháp trong kỳ cần kiểm tra.</div>
       {drafts.map(item => <button className={styles.notification} key={item.id} onClick={() => { setNotificationsOpen(false); navigate('/documents?status=draft'); }}><span><strong>{item.reference}</strong><small>{item.description}</small></span><Icon name="chevron" size={16} /></button>)}

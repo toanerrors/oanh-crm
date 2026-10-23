@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react';
 import { Popover, Tooltip } from 'antd';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Icon } from '../shared/ui/Icon';
+import { preloadRoute } from './route-preload';
 import type { SidebarItem, SidebarShortcut } from './sidebar-shortcuts';
 import appStyles from './App.module.css';
 import styles from './SidebarNavigation.module.css';
@@ -37,7 +38,7 @@ export function SidebarNavigation(props: Props) {
       <div className={appStyles.navGroup}>ĐÃ GHIM</div>
       <div className={styles.pinnedList}>{pinned.map(item => <div key={item.id} className={styles.pinnedRow}>
         <Tooltip title={compact ? `${item.label} · ${item.moduleLabel}` : undefined} placement="right" trigger={['hover', 'focus']}>
-          {item.to ? <Link to={item.to} className={`${appStyles.navLink} ${styles.pinnedLink}`} aria-label={`${item.label} · ${item.moduleLabel}`} onClick={close}><Icon name={item.icon} size={18} /><span className={appStyles.navLabel}>{item.label}<small>{item.moduleLabel}</small></span></Link> : <button type="button" className={`${appStyles.navLink} ${styles.pinnedLink}`} aria-label={`${item.label} · ${item.moduleLabel}`} onClick={() => { close(); props.onJournal(); }}><Icon name={item.icon} size={18} /><span className={appStyles.navLabel}>{item.label}<small>{item.moduleLabel}</small></span></button>}
+          {item.to ? <Link to={item.to} onMouseEnter={() => preloadRoute(item.to!)} onFocus={() => preloadRoute(item.to!)} state={{ returnTo: location.pathname + location.search }} className={`${appStyles.navLink} ${styles.pinnedLink}`} aria-label={`${item.label} · ${item.moduleLabel}`} onClick={close}><Icon name={item.icon} size={18} /><span className={appStyles.navLabel}>{item.label}<small>{item.moduleLabel}</small></span></Link> : <button type="button" className={`${appStyles.navLink} ${styles.pinnedLink}`} aria-label={`${item.label} · ${item.moduleLabel}`} onClick={() => { close(); props.onJournal(); }}><Icon name={item.icon} size={18} /><span className={appStyles.navLabel}>{item.label}<small>{item.moduleLabel}</small></span></button>}
         </Tooltip>
         {!compact && <PinButton item={item} pinned toggle={props.togglePin} />}
         {compact && <span className={styles.pinDot}><Icon name="star" size={8} /></span>}
@@ -74,13 +75,13 @@ function ModuleEntry({ item, entries, open, setOpen, close, compact, mobile, dra
       if (open) focusFirst(); else { focusOnOpen.current = true; setOpen(true); }
     }
   }
-  const link = <NavLink ref={trigger} to={item.path} end={item.path === '/'} onClick={close} onKeyDown={handleKey} onFocus={() => { if (!mobile && entries.length) setOpen(true); }} onBlur={event => { if (!mobile && !panel.current?.contains(event.relatedTarget)) setOpen(false); }} aria-expanded={entries.length && !mobile ? open : undefined} aria-controls={entries.length && !mobile && open ? id : undefined} aria-haspopup={entries.length && !mobile ? 'dialog' : undefined} className={({ isActive }) => `${appStyles.navLink} ${isActive ? appStyles.activeNav : ''}`}><Icon name={item.icon} size={19} /><span className={appStyles.navLabel}>{item.label}</span>{item.path === '/documents' && draftCount > 0 && <span className={appStyles.navCount}>{draftCount}</span>}</NavLink>;
+  const link = <NavLink ref={trigger} to={item.path} end={item.path === '/'} onClick={close} onKeyDown={handleKey} onMouseEnter={() => preloadRoute(item.path)} onFocus={() => { preloadRoute(item.path); if (!mobile && entries.length) setOpen(true); }} onBlur={event => { if (!mobile && !panel.current?.contains(event.relatedTarget)) setOpen(false); }} aria-expanded={entries.length && !mobile ? open : undefined} aria-controls={entries.length && !mobile && open ? id : undefined} aria-haspopup={entries.length && !mobile ? 'dialog' : undefined} className={({ isActive }) => `${appStyles.navLink} ${isActive ? appStyles.activeNav : ''}`}><Icon name={item.icon} size={19} /><span className={appStyles.navLabel}>{item.label}</span>{item.path === '/documents' && draftCount > 0 && <span className={appStyles.navCount}>{draftCount}</span>}</NavLink>;
   const content = <div ref={panel} id={id} role={mobile ? 'region' : 'dialog'} aria-label={`Chức năng ${item.label}`} className={`${styles.functionPanel} ${mobile ? styles.inlinePanel : ''}`} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); trigger.current?.focus(); setOpen(false); } }} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget) && !trigger.current?.contains(event.relatedTarget)) setOpen(false); }}>
     {!mobile && <div className={styles.panelTitle}><Icon name={item.icon} size={19} /><strong>{item.label}</strong><span>Ghim bằng <Icon name="star" size={12} /></span></div>}
     {(['Nghiệp vụ', 'Danh mục', 'Báo cáo'] as const).map(group => {
       const rows = entries.filter(entry => entry.group === group);
       return rows.length > 0 && <section key={group} className={styles.functionGroup} aria-label={group}><h3>{group}</h3>{rows.map(entry => <div key={entry.id} className={styles.functionRow}>
-        {entry.to ? <Link to={entry.to} onClick={close}>{entry.label}</Link> : <button type="button" className={styles.actionLink} onClick={() => { close(); onJournal(); }}>{entry.label}</button>}
+        {entry.to ? <Link to={entry.to} onMouseEnter={() => preloadRoute(entry.to!)} onFocus={() => preloadRoute(entry.to!)} state={{ returnTo: item.path }} onClick={close}>{entry.label}</Link> : <button type="button" className={styles.actionLink} onClick={() => { close(); onJournal(); }}>{entry.label}</button>}
         <PinButton item={entry} pinned={pinnedIds.includes(entry.id)} toggle={togglePin} />
       </div>)}</section>;
     })}

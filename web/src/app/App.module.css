@@ -422,3 +422,13 @@
   .sidebarCollapsed .sidebar .navCount { position: absolute; top: 0; right: 0; min-width: 14px; max-width: 22px; padding: 0 3px; font-size: 10px; line-height: 14px; overflow: hidden; text-overflow: ellipsis; }
 }
 @media (max-width: 760px) { .sidebarToggle.sidebarToggle { display: none; } }
+
+.quickAction { display: flex; align-items: center; gap: 10px; padding: 5px 4px; }
+.quickAction > span { flex: 1; min-width: 0; }
+.quickAction strong, .quickAction small { display: block; white-space: normal; }
+.quickAction strong { font-size: 13px; font-weight: 500; }
+.quickAction small { color: #63766a; font-size: 12px; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .workspace, .brandName, .navGroup, .navLabel, .routeProgress { transition: none; }
+  .routeProgress { animation: none; }
+}

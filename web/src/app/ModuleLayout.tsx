@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { isDemo } from '../shared/api/client';
 import { accountingModule, activeModuleTab, moduleTabs } from './module-navigation';
 import styles from './App.module.css';
+import { preloadRoute } from './route-preload';
 
 export function ModuleLayout() {
   const { pathname, search } = useLocation();
@@ -17,7 +18,7 @@ export function ModuleLayout() {
   }, [key, pathname, search]);
   return <>
     {!isDemo && <nav className={styles.moduleNavigation} aria-label="Điều hướng phân hệ">
-      {moduleTabs(pathname).map(tab => <Button key={tab.key} type="text" aria-current={active === tab.key ? 'page' : undefined} className={active === tab.key ? styles.moduleActive : undefined} onClick={() => navigate(targets[`${module?.path}/${tab.key}`] ?? tab.to)}>{tab.label}</Button>)}
+      {moduleTabs(pathname).map(tab => <Button key={tab.key} type="text" aria-current={active === tab.key ? 'page' : undefined} className={active === tab.key ? styles.moduleActive : undefined} onMouseEnter={() => preloadRoute(tab.to)} onFocus={() => preloadRoute(tab.to)} onClick={() => navigate(targets[`${module?.path}/${tab.key}`] ?? tab.to)}>{tab.label}</Button>)}
     </nav>}
     <Outlet />
   </>;

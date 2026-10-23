@@ -78,3 +78,6 @@
 .options > small { max-width: 640px; color: #56665d; }
 .modal:global(.ant-modal) { margin: 0; }
 .screen :global(.ant-input-disabled), .screen :global(.ant-select-disabled), .screen :global(.ant-input-number-disabled), .screen :global(.ant-select-disabled .ant-select-content), .screen :global(.ant-input-number-disabled input) { color: #425248; }
+
+.shortcut { color: #65756b; font-size: 10px; margin-left: 4px; font-family: inherit; }
+@media (max-width: 640px) { .shortcut { display: none; } }
