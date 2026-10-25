@@ -1,6 +1,6 @@
 # Trạng thái dự án
 
-Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
+Cập nhật: 25/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
 
 ## Phạm vi đã chốt
 
@@ -9,6 +9,12 @@ Cập nhật: 23/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Go + SQLite; React + TypeScript strict + Vite SPA, Ant Design Form/Table, React Router, TanStack Query; pnpm. Frontend và driver Go `modernc.org/sqlite` đã được chấp thuận cài đặt.
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
+
+## Tạo nhanh khách hàng / nhà cung cấp / đối tượng trong phiếu — 0.16.9
+
+- Bổ sung `PartnerSelect` (ô chọn tìm kiếm kèm nút `+` tạo nhanh) và tách `PartnerEditor` dùng chung cho danh mục đối tượng (`Catalog`), phiếu mua/bán hàng hóa và dịch vụ, phiếu thu/chi, dòng chi tiết thu/chi (`VoucherForm`), ngăn nhập chứng từ khác (`DocumentDrawer`) và màn hình nghiệp vụ tự động (`Automation`, `TreasuryFields`).
+- Khi nhấn `+` tại `Mã khách hàng` / `Mã nhà cung cấp` / `Mã đối tượng`, hộp thoại tạo đối tượng mở ngay trên phiếu với vai trò mặc định theo ngữ cảnh chứng từ (`Khách hàng` cho bán/thu, `Nhà cung cấp` cho mua/chi) và khóa lựa chọn vai trò trái chiều trên phiếu mua/bán. Sau khi lưu, cập nhật danh mục trong cache, tự chọn mã vừa tạo và điền ngay tên đối tượng trên phiếu; phím `Ctrl/⌘ S` hoặc `Ctrl/⌘ Enter` trong hộp thoại chỉ lưu đối tượng, không gửi nháp/xem trước chứng từ bên dưới. Không thay đổi backend, schema hoặc quy tắc ghi sổ.
+- Validation: 73 unit test Node (thêm 2 test lọc vai trò và tìm kiếm đối tượng không dấu), `tsc --noEmit`, `vite build`, 16/16 E2E `workspace.spec.ts` và 3/3 E2E backend thật `purchase-accounts.spec.ts` (gồm tạo nhanh khách hàng/nhà cung cấp bằng `Ctrl+S` ngay trong phiếu bán/mua dịch vụ và tự điền tên đối tượng) đều đạt.
 
 ## Tối ưu các phím chức năng chân trang và dưới bảng trong phiếu mobile — 0.16.8
 

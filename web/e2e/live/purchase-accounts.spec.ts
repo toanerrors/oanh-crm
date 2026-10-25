@@ -22,6 +22,15 @@ for (const kind of ['purchase', 'sale']) test(`TK công nợ sửa được và 
   const bank = await page.request.post('/api/v1/bank-accounts', { data: { id: `counter-bank-${kind}`, number: `TEST-${kind}`, bankName: 'Ngân hàng kiểm thử', accountId: '1121', active: true }, headers: { 'X-Dataset-Epoch': context.epoch, 'Idempotency-Key': crypto.randomUUID() } });
   expect(bank.ok(), await bank.text()).toBe(true);
   await page.goto(`/vouchers/new?kind=${kind}&service=1`);
+  const partyLabel = kind === 'purchase' ? 'Mã nhà cung cấp' : 'Mã khách hàng';
+  const partyRole = kind === 'purchase' ? 'nhà cung cấp' : 'khách hàng';
+  const partyNameLabel = kind === 'purchase' ? 'Tên nhà cung cấp' : 'Tên khách hàng';
+  await page.getByRole('button', { name: `${partyLabel}: thêm ${partyRole}`, exact: true }).click();
+  await page.getByLabel('Mã đối tượng', { exact: true }).fill(`dt-${kind}`);
+  await page.getByLabel('Tên đối tượng', { exact: true }).fill(`Đối tác tạo nhanh ${kind}`);
+  await page.getByLabel('Tên đối tượng', { exact: true }).press('Control+s');
+  await expect(page.getByLabel(partyLabel, { exact: true }).locator('..')).toContainText(`DT-${kind.toUpperCase()} · Đối tác tạo nhanh ${kind}`);
+  await expect(page.getByLabel(partyNameLabel, { exact: true })).toHaveValue(`Đối tác tạo nhanh ${kind}`);
   const account = page.getByLabel('Tài khoản công nợ dòng 1', { exact: true });
   await expect(account).toBeVisible();
   await expect(account).toBeEnabled();

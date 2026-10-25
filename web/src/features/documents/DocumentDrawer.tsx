@@ -17,6 +17,7 @@ import { MoneyInput } from '../../shared/ui/MoneyInput';
 import { StatusTag } from '../../shared/ui/Page';
 import { searchOptions, suggestionOptions } from '../../shared/ui/search';
 import { DateInput } from '../../shared/ui/DateInput';
+import { PartnerSelect } from '../vouchers/PartnerSelect';
 import styles from '../../app/App.module.css';
 import { api, apiScope, command, isDemo } from '../../shared/api/client';
 
@@ -52,7 +53,6 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
   if (!data) return null;
   const accountOptions = data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }));
   const descriptions = suggestionOptions(data.documents.map(item => item.description));
-  const partnerOptions = data.partners.filter(item => item.active).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }));
 
   function exportDraft() {
     const document = { ...initial, ...form.getFieldsValue(true), lines: validLines };
@@ -70,7 +70,7 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
       <div className={styles.manualHeader}>
         <div className={styles.manualParty}>
           <Form.Item name="type" label="Loại chứng từ" rules={[{ required: true }]}><Select onChange={type => { if (initial.version === 0) newDraft(type); }} options={Object.entries(documentTypes).map(([value, label]) => ({ value, label }))} /></Form.Item>
-          <Form.Item name="partnerId" label="Đối tượng"><Select allowClear showSearch={searchOptions} placeholder="Chọn khách hàng / nhà cung cấp" options={partnerOptions} /></Form.Item>
+          <Form.Item name="partnerId" label="Đối tượng"><PartnerSelect label="Đối tượng" placeholder="Chọn khách hàng / nhà cung cấp" onSelected={() => setDraft({ ...initial, ...form.getFieldsValue(true) })} /></Form.Item>
           <Form.Item name="description" label="Diễn giải" className={isDemo ? styles.formFull : undefined} rules={[{ required: true, whitespace: true, message: 'Nhập diễn giải chứng từ' }]}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn diễn giải đã dùng" maxLength={500} /></AutoComplete></Form.Item>
           {!isDemo && <Form.Item name="sourceId" label="Mã chứng từ nguồn (nếu có)"><Input placeholder="Mã nguồn dùng thống nhất khi nhập tay / import" maxLength={100} /></Form.Item>}
         </div>
@@ -94,7 +94,7 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
           setDraft({ ...initial, ...form.getFieldsValue(true) });
         };
         const accountCell = (field: Field, label: string) => <Form.Item name={[field.name, 'accountId']} rules={[{ required: true, message: `Chọn ${label}` }]}><Select aria-label={label} showSearch={searchOptions} options={accountOptions} placeholder="Chọn tài khoản" /></Form.Item>;
-        const partnerCell = (field: Field, label: string) => <Form.Item name={[field.name, 'partnerId']}><Select aria-label={label} allowClear showSearch={searchOptions} options={partnerOptions} placeholder="Chọn đối tượng" /></Form.Item>;
+        const partnerCell = (field: Field, label: string) => <Form.Item name={[field.name, 'partnerId']}><PartnerSelect label={label} placeholder="Chọn đối tượng" onSelected={() => setDraft({ ...initial, ...form.getFieldsValue(true) })} /></Form.Item>;
         const columns = (side: JournalSide) => {
           const title = side === 'debit' ? 'Nợ' : 'Có';
           return [
