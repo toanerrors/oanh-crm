@@ -20,14 +20,6 @@ func (s *Service) validateAccountParentTx(ctx context.Context, tx *sql.Tx, id, p
 	if parent == id {
 		return accounting.Fail("INVALID_PARENT", "Tài khoản không thể là tài khoản cha của chính nó.")
 	}
-	var used int
-	if err := tx.QueryRowContext(ctx, `WITH RECURSIVE branch(id) AS (SELECT ? UNION SELECT p.account_id FROM account_current_parents p JOIN branch b ON p.parent_id=b.id)
- SELECT count(*) FROM document_lines WHERE account_id IN(SELECT id FROM branch)`, id).Scan(&used); err != nil {
-		return err
-	}
-	if used > 0 {
-		return accounting.Fail("HISTORY_LOCKED", "Tài khoản hoặc tài khoản con đã có chứng từ; giữ nguyên tài khoản cha.")
-	}
 	if parent == "" {
 		return nil
 	}

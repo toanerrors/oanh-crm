@@ -1,6 +1,6 @@
 # Release bằng Docker trên máy chủ
 
-Bản phát hành: `0.16.8`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
+Bản phát hành: `0.17.0`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
 
 ## Build và chạy
 
@@ -12,7 +12,7 @@ docker compose up -d --wait --wait-timeout 90
 docker compose ps
 ```
 
-Image: `oanh-crm:0.16.8`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
+Image: `oanh-crm:0.17.0`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
 
 Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Mã nguồn dùng remote `origin` tại [toanerrors/oanh-crm](https://github.com/toanerrors/oanh-crm). Sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker → healthcheck. Image hiện được lưu local trên server, chưa cấu hình registry. Không force-push hoặc thay đổi tag đã phát hành; không in thông tin xác thực trong output Git.
 

@@ -41,6 +41,9 @@ var accountHierarchySchema string
 //go:embed opening_adjustments.sql
 var openingAdjustmentsSchema string
 
+//go:embed editable.sql
+var editableSchema string
+
 func schemaHash(version int) string {
 	if version == 1 {
 		return Hash([]byte(schema))
@@ -63,7 +66,10 @@ func schemaHash(version int) string {
 	if version == 7 {
 		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema))
 	}
-	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema + auditSchema))
+	if version == 8 {
+		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema + auditSchema))
+	}
+	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema + auditSchema + editableSchema))
 }
 
 func migrationChecksum(version int, source string) string {
@@ -216,7 +222,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
 		return err
 	}
-	if maximum > 8 {
+	if maximum > 9 {
 		return fmt.Errorf("database schema is newer than this application")
 	}
 	if maximum > 0 {
@@ -224,7 +230,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema, auditSchema} {
+	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema, auditSchema, editableSchema} {
 		version := index + 1
 		if version <= maximum {
 			continue

@@ -392,7 +392,7 @@ func (s *Store) Stage(ctx context.Context, archivePath string) (Staged, error) {
 		return staged, err
 	}
 	m := staged.Manifest
-	if m.Format != 1 || (m.SchemaHash != schemaHash(1) && m.SchemaHash != schemaHash(2) && m.SchemaHash != schemaHash(3) && m.SchemaHash != schemaHash(4) && m.SchemaHash != schemaHash(5) && m.SchemaHash != schemaHash(6) && m.SchemaHash != schemaHash(7) && m.SchemaHash != schemaHash(8)) || len(seen) != len(m.Files)+1 {
+	if m.Format != 1 || (m.SchemaHash != schemaHash(1) && m.SchemaHash != schemaHash(2) && m.SchemaHash != schemaHash(3) && m.SchemaHash != schemaHash(4) && m.SchemaHash != schemaHash(5) && m.SchemaHash != schemaHash(6) && m.SchemaHash != schemaHash(7) && m.SchemaHash != schemaHash(8) && m.SchemaHash != schemaHash(9)) || len(seen) != len(m.Files)+1 {
 		return staged, fmt.Errorf("unsupported backup format or schema")
 	}
 	listed := map[string]bool{}

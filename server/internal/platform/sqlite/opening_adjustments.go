@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 
 	"oanh.local/accounting/internal/accounting"
 )
@@ -205,7 +206,7 @@ func verifyOpeningAdjustments(ctx context.Context, db *sql.DB) error {
 		if err != nil {
 			return err
 		}
-		if code != a.Code || name != a.Name || kind != a.Kind || start != a.StartPeriod || accounting.Text(cost) != a.Cost || accounting.Text(residual) != a.Residual || months != a.Months || expected.Cmp(big.NewInt(allocated)) != 0 {
+		if strings.TrimSpace(code) == "" || strings.TrimSpace(name) == "" || kind != a.Kind || start != a.StartPeriod || accounting.Text(cost) != a.Cost || residual < 0 || residual >= cost || months < 1 || expected.Cmp(big.NewInt(allocated)) != 0 {
 			return fmt.Errorf("current opening asset differs from effective snapshot")
 		}
 	}

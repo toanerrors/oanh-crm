@@ -132,8 +132,7 @@ func verifyOpening(ctx context.Context, db *sql.DB) error {
 			add(expected, "242", "", cost-allocated, 0)
 		}
 		if status == "posted" {
-			residual, e := money(a.Residual)
-			if e != nil {
+			if _, e := money(a.Residual); e != nil {
 				return e
 			}
 			var elapsed int
@@ -142,8 +141,8 @@ func verifyOpening(ctx context.Context, db *sql.DB) error {
 			query := "SELECT o.elapsed,o.allocated,a.recognized_document FROM opening_assets o JOIN assets a ON a.id=o.asset_id WHERE o.asset_id=?"
 			args := []any{a.ID}
 			if corrected == 0 {
-				query += " AND a.cost=? AND a.start_period=? AND a.kind=? AND a.code=? AND a.name=? AND a.residual=? AND a.months=?"
-				args = append(args, cost, a.StartPeriod, a.Kind, a.Code, a.Name, residual, a.Months)
+				query += " AND a.cost=? AND a.start_period=? AND a.kind=?"
+				args = append(args, cost, a.StartPeriod, a.Kind)
 			}
 			if e = db.QueryRowContext(ctx, query, args...).Scan(&elapsed, &initial, &recognized); e != nil {
 				return e

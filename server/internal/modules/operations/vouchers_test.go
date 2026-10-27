@@ -230,3 +230,88 @@ func TestReferenceProductionCostsDoNotCloseToProfit(t *testing.T) {
 		}
 	}
 }
+
+func TestEditPostedVoucherDocumentAndAsset(t *testing.T) {
+	f := treasuryFixture(t)
+	ctx := context.Background()
+	if _, err := f.ops.SaveItem(ctx, f.cmd("goods-item"), Item{ID: "goods", Code: "HH-EDIT", Name: "Hàng sửa trực tiếp", Unit: "cái", Tracked: true, Active: true}); err != nil {
+		t.Fatal(err)
+	}
+	// 1. Draft kind change and discard
+	draftIn := Input{Kind: "receipt", Date: "2026-10-01", SourceID: "draft-switch", Description: "Nháp thu đổi sang chi", MoneyAccount: "111", Amount: "100", TreasuryLines: []TreasuryLine{{CounterAccount: "511", Description: "Thu", Amount: "100"}}}
+	rawDraft, err := f.ops.SaveVoucher(ctx, f.cmd("draft-save-1"), draftIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var savedDraft Voucher
+	if err = json.Unmarshal(rawDraft, &savedDraft); err != nil {
+		t.Fatal(err)
+	}
+	savedDraft.Input.Kind = "payment"
+	savedDraft.Input.TreasuryLines = []TreasuryLine{{CounterAccount: "642", Description: "Chi", Amount: "200"}}
+	savedDraft.Input.Amount = "200"
+	rawDraft, err = f.ops.SaveVoucher(ctx, f.cmd("draft-save-2"), savedDraft.Input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(rawDraft, &savedDraft); err != nil || savedDraft.Input.Kind != "payment" || savedDraft.Document.Type != "payment" {
+		t.Fatal(savedDraft, err)
+	}
+	if _, err = f.ops.DiscardVoucher(ctx, f.cmd("draft-discard"), ledger.Post{ID: savedDraft.Document.ID, Version: savedDraft.Document.Version}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.ops.Voucher(ctx, savedDraft.Document.ID); accounting.Code(err) != "NOT_FOUND" {
+		t.Fatal(err)
+	}
+
+	// 2. Direct edit of posted purchase and sale vouchers with stock & settlement
+	purchaseIn := tradeInput("edit-purchase", "purchase", "100")
+	purchaseIn.TradeMode = "goods"
+	purchaseIn.Lines[0].ItemID = "goods"
+	purchaseIn.Lines[0].Quantity = "10"
+	purchaseIn.PaymentAccount = "111"
+	postedPurchase := executeTreasury(t, f, "post-purchase", purchaseIn)
+	if postedPurchase.Document.Reference != "MH-2026-000001" || postedPurchase.PaymentDocument == nil {
+		t.Fatal(postedPurchase)
+	}
+	loadedPurchase, err := f.ops.Voucher(ctx, postedPurchase.Document.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loadedPurchase.Input.Lines[0].Quantity = "12"
+	loadedPurchase.Input.Lines[0].UnitPrice = "150"
+	loadedPurchase.Input.PaymentAccount = ""
+	preview, err := f.ops.Preview(ctx, identity.User{ID: f.actor, Role: "owner"}, f.epoch, loadedPurchase.Input)
+	if err != nil || preview.Amounts["base"] != "1800" {
+		t.Fatal(preview, err)
+	}
+	editedPurchase := executeTreasury(t, f, "edit-posted-purchase", loadedPurchase.Input)
+	if editedPurchase.Document.ID != postedPurchase.Document.ID || editedPurchase.Document.Reference != "MH-2026-000001" || editedPurchase.PaymentDocument != nil {
+		t.Fatal(editedPurchase)
+	}
+
+	// 3. Direct edit of posted manual journal document
+	manualDoc := f.draft("manual-edit")
+	rawManual, err := f.ledger.Save(ctx, f.cmd("manual-save"), manualDoc)
+	manualSaved := decodeDocument(t, rawManual, err)
+	rawManual, err = f.ledger.Post(ctx, f.cmd("manual-post"), ledger.Post{ID: manualSaved.ID, Version: manualSaved.Version})
+	manualPosted := decodeDocument(t, rawManual, err)
+	manualPosted.Description = "Đã sửa trực tiếp chứng từ đã ghi sổ"
+	manualPosted.Lines[0].Debit = "500"
+	manualPosted.Lines[1].Credit = "500"
+	rawManual, err = f.ledger.Save(ctx, f.cmd("manual-edit-posted"), manualPosted)
+	manualUpdated := decodeDocument(t, rawManual, err)
+	if manualUpdated.Status != "posted" || manualUpdated.Reference != manualPosted.Reference || manualUpdated.Lines[0].Debit != "500" {
+		t.Fatal(manualUpdated)
+	}
+
+	// 4. Direct edit of registered asset
+	assetIn := Input{Kind: "asset", SourceID: "asset-edit-src", Date: "2026-10-01", Description: "Ghi tăng TS", PartnerID: "supplier", Asset: Asset{ID: "asset-edit", Code: "TS-EDIT-1", Name: "Tài sản gốc", Kind: "fixed", Cost: "1200", Residual: "0", Months: 12, StartPeriod: "2026-10"}}
+	executeTreasury(t, f, "post-asset", assetIn)
+	if _, err = f.ops.SaveAsset(ctx, f.cmd("save-asset"), Asset{ID: "asset-edit", Code: "TS-EDIT-2", Name: "Tài sản đã sửa", Kind: "prepaid", Cost: "2400", Residual: "0", Months: 24, StartPeriod: "2026-10"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = sqlite.Check(ctx, f.store.Read); err != nil {
+		t.Fatal(err)
+	}
+}

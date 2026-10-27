@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"oanh.local/accounting/internal/accounting"
+	"oanh.local/accounting/internal/modules/ledger"
 	"oanh.local/accounting/internal/modules/operations"
 )
 
@@ -42,6 +43,30 @@ func (s *Server) saveVoucher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b, e := s.Operations.SaveVoucher(r.Context(), s.command(r, u), input)
+	s.result(w, r, b, e)
+}
+func (s *Server) discardVoucher(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, false)
+	if !ok {
+		return
+	}
+	var input ledger.Post
+	if !s.decode(w, r, &input) {
+		return
+	}
+	b, e := s.Operations.DiscardVoucher(r.Context(), s.command(r, u), input)
+	s.result(w, r, b, e)
+}
+func (s *Server) saveAsset(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, false)
+	if !ok {
+		return
+	}
+	var input operations.Asset
+	if !s.decode(w, r, &input) {
+		return
+	}
+	b, e := s.Operations.SaveAsset(r.Context(), s.command(r, u), input)
 	s.result(w, r, b, e)
 }
 func (s *Server) voucher(w http.ResponseWriter, r *http.Request) {

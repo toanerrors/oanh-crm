@@ -22,7 +22,7 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 	}
 	if in.InvoiceNumber != "" {
 		var duplicate int
-		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM operations WHERE kind=? AND json_extract(payload,'$.invoiceNumber')=? AND COALESCE(json_extract(payload,'$.invoiceSeries'),'')=? AND (?='sale' OR json_extract(payload,'$.partnerId')=?)`, in.Kind, in.InvoiceNumber, in.InvoiceSeries, in.Kind, in.PartnerID).Scan(&duplicate); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM operations WHERE kind=? AND document_id<>? AND json_extract(payload,'$.invoiceNumber')=? AND COALESCE(json_extract(payload,'$.invoiceSeries'),'')=? AND (?='sale' OR json_extract(payload,'$.partnerId')=?)`, in.Kind, doc.ID, in.InvoiceNumber, in.InvoiceSeries, in.Kind, in.PartnerID).Scan(&duplicate); err != nil {
 			return err
 		}
 		if duplicate > 0 {

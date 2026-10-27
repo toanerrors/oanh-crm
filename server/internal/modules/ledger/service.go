@@ -103,7 +103,7 @@ func manualSource(kind, source string) (string, error) {
 	return kind, nil
 }
 func (s *Service) Save(ctx context.Context, cmd Command, doc Document) (json.RawMessage, error) {
-	if doc.PolicyID != "" || doc.ReversalOf != "" || reservedSource(doc.SourceType) || doc.Status != "" && doc.Status != "draft" {
+	if doc.PolicyID != "" || doc.ReversalOf != "" || reservedSource(doc.SourceType) || doc.Status != "" && doc.Status != "draft" && doc.Status != "posted" {
 		return nil, accounting.Fail("DERIVED_FIELD", "Không được tự đặt trạng thái ghi sổ, chính sách hoặc liên kết đảo.")
 	}
 	source, err := manualSource(doc.Type, doc.SourceType)
@@ -118,6 +118,34 @@ func (s *Service) Save(ctx context.Context, cmd Command, doc Document) (json.Raw
 		}
 		if count > 0 {
 			return nil, accounting.Fail("SUBLEDGER_REQUIRED", "Mở biểu mẫu nghiệp vụ để sửa nháp và tính lại dữ liệu.")
+		}
+		var status, oldDate, policyID, reversalOf, sourceType string
+		var version int
+		err := tx.QueryRowContext(ctx, "SELECT status,version,date,COALESCE(policy_id,''),COALESCE(reversal_of,''),source_type FROM documents WHERE id=?", doc.ID).Scan(&status, &version, &oldDate, &policyID, &reversalOf, &sourceType)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+		if err == nil && status == "posted" {
+			if policyID != "" || reversalOf != "" || reservedSource(sourceType) {
+				return nil, accounting.Fail("SUBLEDGER_REQUIRED", "Chứng từ tự động hoặc chứng từ đảo cần sửa tại nghiệp vụ nguồn.")
+			}
+			if version != doc.Version {
+				return nil, accounting.Fail("VERSION_CONFLICT", "Chứng từ đã thay đổi. Tải lại và đối chiếu nội dung.")
+			}
+			var closed bool
+			if e := tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", oldDate[:7]).Scan(&closed); e == sql.ErrNoRows || closed {
+				return nil, accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán của chứng từ đã khóa.")
+			} else if e != nil {
+				return nil, e
+			}
+			if _, e := tx.ExecContext(ctx, "UPDATE documents SET status='draft' WHERE id=?", doc.ID); e != nil {
+				return nil, e
+			}
+			saved, e := s.SaveTx(ctx, tx, doc)
+			if e != nil {
+				return nil, e
+			}
+			return s.PostTx(ctx, tx, Post{ID: saved.ID, Version: saved.Version})
 		}
 		return s.SaveTx(ctx, tx, doc)
 	})
@@ -215,7 +243,7 @@ func (s *Service) saveTx(ctx context.Context, tx *sql.Tx, doc Document, historic
 	if version == 0 {
 		_, err = tx.ExecContext(ctx, "INSERT INTO documents(id,reference,type,date,description,partner_id,status,version,source_type,source_id,reversal_of,policy_id) VALUES(?,?,?,?,?,?,'draft',?,?,?,?,?)", doc.ID, doc.Reference, doc.Type, doc.Date, doc.Description, nullable(doc.PartnerID), doc.Version, doc.SourceType, doc.SourceID, nullable(doc.ReversalOf), nullable(doc.PolicyID))
 	} else {
-		_, err = tx.ExecContext(ctx, "UPDATE documents SET type=?,date=?,description=?,partner_id=?,version=?,source_type=?,source_id=? WHERE id=?", doc.Type, doc.Date, doc.Description, nullable(doc.PartnerID), doc.Version, doc.SourceType, doc.SourceID, doc.ID)
+		_, err = tx.ExecContext(ctx, "UPDATE documents SET type=?,date=?,description=?,partner_id=?,version=?,source_type=?,source_id=?,policy_id=? WHERE id=?", doc.Type, doc.Date, doc.Description, nullable(doc.PartnerID), doc.Version, doc.SourceType, doc.SourceID, nullable(doc.PolicyID), doc.ID)
 	}
 	if err != nil {
 		return doc, err
@@ -309,12 +337,6 @@ func (s *Service) postTx(ctx context.Context, tx *sql.Tx, input Post, historical
 	if IsOpening(doc.SourceType) {
 		scope = doc.SourceType + ":" + doc.Date[:4]
 	}
-	if err = tx.QueryRowContext(ctx, "INSERT INTO counters VALUES(?,1) ON CONFLICT(scope) DO UPDATE SET value=value+1 RETURNING value", scope).Scan(&number); err != nil {
-		return doc, err
-	}
-	if err = tx.QueryRowContext(ctx, "INSERT INTO counters VALUES('posting-order',1) ON CONFLICT(scope) DO UPDATE SET value=value+1 RETURNING value").Scan(&order); err != nil {
-		return doc, err
-	}
 	prefix := map[string]string{"receipt": "PT", "payment": "PC", "sale": "BH", "purchase": "MH", "journal": "CT"}[doc.Type]
 	if doc.SourceType == "opening" {
 		prefix = "SDDK"
@@ -325,10 +347,32 @@ func (s *Service) postTx(ctx context.Context, tx *sql.Tx, input Post, historical
 	if doc.SourceType == "opening_adjustment_reversal" {
 		prefix = "SDDC-D"
 	}
-	doc.Reference = fmt.Sprintf("%s-%s-%06d", prefix, doc.Date[:4], number)
+	var existingRef string
+	var existingPostedAt sql.NullString
+	var existingPostedOrder sql.NullInt64
+	if err = tx.QueryRowContext(ctx, "SELECT reference,posted_at,posted_order FROM documents WHERE id=?", doc.ID).Scan(&existingRef, &existingPostedAt, &existingPostedOrder); err != nil {
+		return doc, err
+	}
+	expectedPrefix := fmt.Sprintf("%s-%s-", prefix, doc.Date[:4])
+	if existingPostedOrder.Valid && strings.HasPrefix(existingRef, expectedPrefix) {
+		doc.Reference = existingRef
+		order = existingPostedOrder.Int64
+	} else {
+		if err = tx.QueryRowContext(ctx, "INSERT INTO counters VALUES(?,1) ON CONFLICT(scope) DO UPDATE SET value=value+1 RETURNING value", scope).Scan(&number); err != nil {
+			return doc, err
+		}
+		if err = tx.QueryRowContext(ctx, "INSERT INTO counters VALUES('posting-order',1) ON CONFLICT(scope) DO UPDATE SET value=value+1 RETURNING value").Scan(&order); err != nil {
+			return doc, err
+		}
+		doc.Reference = fmt.Sprintf("%s-%s-%06d", prefix, doc.Date[:4], number)
+	}
+	postedAt := sqlite.Now()
+	if existingPostedAt.Valid && existingPostedAt.String != "" {
+		postedAt = existingPostedAt.String
+	}
 	doc.Status = "posted"
 	doc.Version++
-	_, err = tx.ExecContext(ctx, "UPDATE documents SET reference=?,status='posted',version=?,posted_at=?,posted_order=? WHERE id=?", doc.Reference, doc.Version, sqlite.Now(), order, doc.ID)
+	_, err = tx.ExecContext(ctx, "UPDATE documents SET reference=?,status='posted',version=?,posted_at=?,posted_order=? WHERE id=?", doc.Reference, doc.Version, postedAt, order, doc.ID)
 	return doc, err
 }
 func (s *Service) Reverse(ctx context.Context, cmd Command, input Reversal) (json.RawMessage, error) {

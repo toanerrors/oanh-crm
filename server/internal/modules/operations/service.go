@@ -150,8 +150,14 @@ func (s *Service) saveItemTx(ctx context.Context, tx *sql.Tx, item Item) (any, e
 	if err != nil {
 		return nil, err
 	}
-	if item.HasReferences && (code != item.Code || unit != item.Unit || tracked != item.Tracked) {
-		return nil, accounting.Fail("HISTORY_LOCKED", "Mã đã có chứng từ hoặc số dư kho: giữ mã, đơn vị và loại hàng hóa/dịch vụ. Bạn vẫn sửa được tên và trạng thái sử dụng.")
+	if err == nil && tracked && !item.Tracked {
+		var stockUsed int
+		if err = tx.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM stock_movements WHERE item_id=?)+(SELECT count(*) FROM stock_lots WHERE item_id=?)+(SELECT count(*) FROM opening_balances o,json_each(o.payload,'$.stocks') l WHERE json_extract(l.value,'$.itemId')=?)+(SELECT count(*) FROM opening_adjustments o,json_each(o.after_payload,'$.stocks') l WHERE json_extract(l.value,'$.itemId')=?)`, item.ID, item.ID, item.ID, item.ID).Scan(&stockUsed); err != nil {
+			return nil, err
+		}
+		if stockUsed > 0 {
+			return nil, accounting.Fail("HISTORY_LOCKED", "Mã hàng đã có biến động hoặc số dư tồn kho; không thể chuyển sang dịch vụ khi còn dữ liệu kho.")
+		}
 	}
 	var duplicate int
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM items WHERE code=? COLLATE NOCASE AND id<>?", item.Code, item.ID).Scan(&duplicate); err != nil {
@@ -188,9 +194,6 @@ func (s *Service) saveEmployeeTx(ctx context.Context, tx *sql.Tx, e Employee) (a
 	e.HasReferences, err = catalogHasReferences(ctx, tx, employeeReferences, e.ID)
 	if err != nil {
 		return nil, err
-	}
-	if e.HasReferences && code != e.Code {
-		return nil, accounting.Fail("HISTORY_LOCKED", "Nhân viên đã có chứng từ lương: giữ mã, các thông tin khác vẫn sửa được cho lần tính tiếp theo.")
 	}
 	var duplicate int
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM employees WHERE code=? COLLATE NOCASE AND id<>?", e.Code, e.ID).Scan(&duplicate); err != nil {
@@ -346,6 +349,9 @@ func (s *Service) Preview(ctx context.Context, user identity.User, epoch string,
 	if c.Epoch != epoch {
 		return empty, accounting.Fail("DATASET_CHANGED", "Phiên dữ liệu đã thay đổi.")
 	}
+	if _, err = tx.ExecContext(ctx, "INSERT OR IGNORE INTO audit_context(id,audit_id,actor_name) VALUES(1,0,'preview')"); err != nil {
+		return empty, err
+	}
 	return s.run(ctx, tx, input)
 }
 func (s *Service) Execute(ctx context.Context, cmd ledger.Command, input Input) (json.RawMessage, error) {
@@ -398,24 +404,31 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 		r.Notes = append(r.Notes, "Thay thế "+original.Reference+"; chứng từ đảo "+reversal.Document.Reference+" và phiếu mới được ghi trong cùng lần xác nhận.")
 	}
 	doc := ledger.Document{ID: sqlite.ID(), Type: "journal", Date: input.Date, Description: input.Description, PartnerID: input.PartnerID, SourceType: input.Kind, SourceID: input.SourceID, PolicyID: p.ID, Lines: []ledger.Line{}}
+	editingPosted := false
 	if input.DraftID != "" {
 		saved, e := ledger.ReadDocument(ctx, tx, input.DraftID)
 		if e != nil {
 			return r, e
 		}
 		var original string
-		if e = tx.QueryRowContext(ctx, "SELECT payload FROM voucher_inputs WHERE document_id=?", input.DraftID).Scan(&original); e != nil {
+		if e = tx.QueryRowContext(ctx, "SELECT payload FROM voucher_inputs WHERE document_id=? UNION ALL SELECT payload FROM operations WHERE document_id=? LIMIT 1", input.DraftID, input.DraftID).Scan(&original); e != nil {
 			return r, accounting.Fail("INVALID_SOURCE", "Không tìm thấy nháp nghiệp vụ.")
 		}
 		var previous Input
 		if e = json.Unmarshal([]byte(original), &previous); e != nil {
 			return r, e
 		}
-		if saved.Status != "draft" || saved.Version != input.DraftVersion {
+		if saved.Version != input.DraftVersion {
 			return r, accounting.Fail("VERSION_CONFLICT", "Nháp đã thay đổi hoặc đã ghi sổ. Tải lại trước khi tiếp tục.")
 		}
-		if previous.Kind != input.Kind {
-			return r, accounting.Fail("INVALID_SOURCE", "Không đổi loại nghiệp vụ của nháp đã lưu.")
+		if saved.Status == "posted" {
+			if !voucherKind(previous.Kind) || !voucherKind(input.Kind) {
+				return r, accounting.Fail("INVALID_SOURCE", "Chứng từ này không hỗ trợ sửa trực tiếp qua biểu mẫu phiếu.")
+			}
+			if e = s.unpostVoucherTx(ctx, tx, &saved); e != nil {
+				return r, e
+			}
+			editingPosted = true
 		}
 		doc.ID, doc.Version = saved.ID, saved.Version
 	}
@@ -473,7 +486,7 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 		if e != nil {
 			return r, e
 		}
-		if _, e = tx.ExecContext(ctx, "UPDATE voucher_inputs SET payload=? WHERE document_id=?", string(b), doc.ID); e != nil {
+		if _, e = tx.ExecContext(ctx, "INSERT INTO voucher_inputs VALUES(?,?) ON CONFLICT(document_id) DO UPDATE SET payload=excluded.payload", doc.ID, string(b)); e != nil {
 			return r, e
 		}
 	}
@@ -513,6 +526,14 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 			return r, e
 		}
 		_, err = tx.ExecContext(ctx, "UPDATE operations SET calculation=? WHERE document_id=?", string(calculation), doc.ID)
+	}
+	if editingPosted && err == nil {
+		if _, e := costSources(ctx, tx, "9999-12-31"); e != nil {
+			return r, e
+		}
+		if e := verifyEditedVoucherLinksTx(ctx, tx, doc.ID); e != nil {
+			return r, e
+		}
 	}
 	return r, err
 }

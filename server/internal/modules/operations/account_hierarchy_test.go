@@ -91,7 +91,7 @@ func TestAccountHierarchyExplicitParentsCyclesVersionsAndHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	legacy.ParentID = accountParent("128")
-	if _, err = f.ledger.SaveAccount(ctx, f.cmd("move-used-branch"), legacy); accounting.Code(err) != "HISTORY_LOCKED" {
+	if _, err = f.ledger.SaveAccount(ctx, f.cmd("move-used-branch"), legacy); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = f.store.Write.Exec("INSERT INTO account_hierarchy VALUES(?,999,?)", a.ID, b.ID); err == nil {

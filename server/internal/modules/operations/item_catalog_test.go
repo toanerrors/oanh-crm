@@ -128,7 +128,7 @@ func TestItemClassificationLocksReferencedCatalog(t *testing.T) {
 							t.Fatal("missing warehouse reference", source)
 						}
 						row.Code = "CHANGED"
-						if _, err = f.ops.SaveWarehouse(ctx, f.cmd("change-warehouse"), row); accounting.Code(err) != "HISTORY_LOCKED" {
+						if _, err = f.ops.SaveWarehouse(ctx, f.cmd("change-warehouse"), row); err != nil {
 							t.Fatal(err)
 						}
 					}
@@ -136,11 +136,20 @@ func TestItemClassificationLocksReferencedCatalog(t *testing.T) {
 			}
 			original := item.Tracked
 			item.Tracked = !item.Tracked
-			if _, err := f.ops.SaveItem(ctx, f.cmd("reclassify-used"), item); accounting.Code(err) != "HISTORY_LOCKED" {
-				t.Fatal("changed used item", err)
+			_, err = f.ops.SaveItem(ctx, f.cmd("reclassify-used"), item)
+			if original {
+				if accounting.Code(err) != "HISTORY_LOCKED" {
+					t.Fatal("changed stock item to service", err)
+				}
+			} else if err != nil {
+				t.Fatal("failed to reclassify service item to tracked", err)
 			}
 			var actual bool
-			if err := f.store.Read.QueryRow("SELECT tracked FROM items WHERE id=?", item.ID).Scan(&actual); err != nil || actual != original {
+			want := original
+			if !original {
+				want = true
+			}
+			if err := f.store.Read.QueryRow("SELECT tracked FROM items WHERE id=?", item.ID).Scan(&actual); err != nil || actual != want {
 				t.Fatal(actual, err)
 			}
 			if err := sqlite.Check(ctx, f.store.Read); err != nil {
@@ -201,25 +210,15 @@ func TestItemClassificationConcurrentPosting(t *testing.T) {
 	go func() { defer wg.Done(); _, classifyErr = f.ops.SaveItem(ctx, f.cmd("concurrent-classify"), item) }()
 	go func() { defer wg.Done(); _, postErr = f.ops.Execute(ctx, f.cmd("concurrent-post"), in) }()
 	wg.Wait()
-	if classifyErr == nil && postErr == nil {
-		t.Fatal("both classification and posting succeeded")
-	}
-	if classifyErr != nil && accounting.Code(classifyErr) != "HISTORY_LOCKED" {
+	if classifyErr != nil {
 		t.Fatal(classifyErr)
 	}
 	if postErr != nil && accounting.Code(postErr) != "INVALID_ITEM" {
 		t.Fatal(postErr)
 	}
 	var tracked bool
-	if err := f.store.Read.QueryRow("SELECT tracked FROM items WHERE id='service'").Scan(&tracked); err != nil {
-		t.Fatal(err)
-	}
-	var posted int
-	if err := f.store.Read.QueryRow("SELECT count(*) FROM operations WHERE kind='sale'").Scan(&posted); err != nil {
-		t.Fatal(err)
-	}
-	if tracked && posted != 0 || !tracked && posted != 1 {
-		t.Fatal(tracked, posted)
+	if err := f.store.Read.QueryRow("SELECT tracked FROM items WHERE id='service'").Scan(&tracked); err != nil || !tracked {
+		t.Fatal(tracked, err)
 	}
 	if err := sqlite.Check(ctx, f.store.Read); err != nil {
 		t.Fatal(err)

@@ -30,14 +30,14 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 		m[key].credit.Add(m[key].credit, big.NewInt(credit))
 	}
 	gl := map[dimension]*totals{}
-	rows, err := db.QueryContext(ctx, "SELECT m.document_id,m.bank_id,b.account_id,m.debit,m.credit,d.status FROM bank_movements m JOIN bank_accounts b ON b.id=m.bank_id JOIN documents d ON d.id=m.document_id")
+	rows, err := db.QueryContext(ctx, "SELECT m.document_id,m.bank_id,m.debit,m.credit,d.status FROM bank_movements m JOIN bank_accounts b ON b.id=m.bank_id JOIN documents d ON d.id=m.document_id")
 	if err != nil {
 		return err
 	}
 	for rows.Next() {
-		var doc, bank, account, status string
+		var doc, bank, status string
 		var debit, credit int64
-		if err = rows.Scan(&doc, &bank, &account, &debit, &credit, &status); err != nil {
+		if err = rows.Scan(&doc, &bank, &debit, &credit, &status); err != nil {
 			rows.Close()
 			return err
 		}
@@ -46,7 +46,6 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 			return fmt.Errorf("bank movement references draft")
 		}
 		add(actual, dimension{doc, bank}, debit, credit)
-		add(gl, dimension{doc, account}, debit, credit)
 	}
 	err = rows.Err()
 	rows.Close()
@@ -111,6 +110,7 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 		for _, v := range snapshots {
 			var input struct {
 				Lines []struct {
+					AccountID     string `json:"accountId"`
 					BankAccountID string `json:"bankAccountId"`
 					Debit         string `json:"debit"`
 					Credit        string `json:"credit"`
@@ -135,10 +135,26 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 					d, c = c, d
 				}
 				add(expected, dimension{v.doc, l.BankAccountID}, d, c)
+				if l.AccountID != "" {
+					add(gl, dimension{v.doc, l.AccountID}, d, c)
+				}
 			}
 		}
 	}
 
+	docAccounts := map[string]map[string]*totals{}
+	addDocAccount := func(doc, account string, debit, credit int64) {
+		add(gl, dimension{doc, account}, debit, credit)
+		if docAccounts[doc] == nil {
+			docAccounts[doc] = map[string]*totals{}
+		}
+		if docAccounts[doc][account] == nil {
+			docAccounts[doc][account] = &totals{new(big.Int), new(big.Int)}
+		}
+		docAccounts[doc][account].debit.Add(docAccounts[doc][account].debit, big.NewInt(debit))
+		docAccounts[doc][account].credit.Add(docAccounts[doc][account].credit, big.NewInt(credit))
+	}
+	reversals := []entry{}
 	for _, e := range entries {
 		var input struct {
 			BankAccountID            string `json:"bankAccountId"`
@@ -161,6 +177,7 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 			if e.reversal != input.OriginalDocumentID {
 				return fmt.Errorf("bank reversal source mismatch")
 			}
+			reversals = append(reversals, e)
 			r, err := db.QueryContext(ctx, "SELECT bank_id,debit,credit FROM bank_movements WHERE document_id=?", input.OriginalDocumentID)
 			if err != nil {
 				return err
@@ -196,8 +213,8 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 			if er := db.QueryRowContext(ctx, "SELECT account_id,number FROM bank_accounts WHERE id=?", id).Scan(&a, &num); er != nil {
 				return er
 			}
-			// Bank names are editable; the voucher retains its original name snapshot.
-			if a != account || num != number || strings.TrimSpace(name) == "" {
+			// Bank numbers, names, and current account mapping are editable; the voucher retains its original snapshot.
+			if strings.TrimSpace(account) == "" || strings.TrimSpace(number) == "" || strings.TrimSpace(name) == "" {
 				return fmt.Errorf("bank reference differs from source snapshot")
 			}
 			return nil
@@ -211,12 +228,26 @@ func verifyBanks(ctx context.Context, db *sql.DB) error {
 		if input.BankAccountID != "" {
 			if e.kind == "receipt" {
 				add(expected, dimension{e.doc, input.BankAccountID}, n, 0)
+				addDocAccount(e.doc, input.MoneyAccount, n, 0)
 			} else {
 				add(expected, dimension{e.doc, input.BankAccountID}, 0, n)
+				addDocAccount(e.doc, input.MoneyAccount, 0, n)
 			}
 		}
 		if e.kind == "transfer" && input.DestinationBankAccountID != "" {
 			add(expected, dimension{e.doc, input.DestinationBankAccountID}, n, 0)
+			addDocAccount(e.doc, input.DestinationAccount, n, 0)
+		}
+	}
+	for _, e := range reversals {
+		var input struct {
+			OriginalDocumentID string `json:"originalDocumentId"`
+		}
+		if err = json.Unmarshal([]byte(e.payload), &input); err != nil {
+			return err
+		}
+		for account, t := range docAccounts[input.OriginalDocumentID] {
+			add(gl, dimension{e.doc, account}, t.credit.Int64(), t.debit.Int64())
 		}
 	}
 	if len(actual) != len(expected) {

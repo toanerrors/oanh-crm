@@ -421,7 +421,11 @@ func changedOpeningStocks(before, after []OpeningStock, scale int) ([]openingSto
 	})
 	return keys, b, a, nil
 }
-func sameAssetValues(a, b Asset) bool { a.Name, b.Name = "", ""; return reflect.DeepEqual(a, b) }
+func sameAssetValues(a, b Asset) bool {
+	a.Name, b.Name = "", ""
+	a.Code, b.Code = "", ""
+	return reflect.DeepEqual(a, b)
+}
 func (s *Service) openingAdjustmentBlockers(ctx context.Context, tx *sql.Tx, state OpeningState, a OpeningAdjustment, p Policy) ([]OpeningBlocker, error) {
 	out := []OpeningBlocker{}
 	add := func(code, msg, id string) { out = append(out, OpeningBlocker{code, msg, id}) }
@@ -492,8 +496,14 @@ func (s *Service) openingAdjustmentBlockers(ctx context.Context, tx *sql.Tx, sta
 	}
 	for id, b := range before {
 		n, exists := after[id]
-		if exists && b.Code != n.Code {
-			add("ASSET_CODE_LOCKED", "Mã tài sản "+b.Code+" đã có lịch sử; giữ nguyên mã khi điều chỉnh.", "")
+		if exists && !strings.EqualFold(b.Code, n.Code) {
+			var dup int
+			if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM assets WHERE code=? COLLATE NOCASE AND id<>?", n.Code, id).Scan(&dup); err != nil {
+				return nil, err
+			}
+			if dup > 0 {
+				add("DUPLICATE_CODE", "Mã tài sản "+n.Code+" đã tồn tại.", "")
+			}
 		}
 		if exists && sameAssetValues(b, n) {
 			continue
@@ -612,8 +622,8 @@ func (s *Service) adjustOpeningSubledgers(ctx context.Context, tx *sql.Tx, a Ope
 	for _, v := range a.Input.Assets {
 		b, exists := old[v.ID]
 		if exists && sameAssetValues(b, v) {
-			if b.Name != v.Name {
-				if _, err = tx.ExecContext(ctx, "UPDATE assets SET name=? WHERE id=?", v.Name, v.ID); err != nil {
+			if b.Name != v.Name || b.Code != v.Code {
+				if _, err = tx.ExecContext(ctx, "UPDATE assets SET code=?,name=? WHERE id=?", v.Code, v.Name, v.ID); err != nil {
 					return err
 				}
 			}
@@ -623,7 +633,7 @@ func (s *Service) adjustOpeningSubledgers(ctx context.Context, tx *sql.Tx, a Ope
 		residual, _ := accounting.Money(v.Residual)
 		allocated, _ := accounting.Money(v.Allocated)
 		if exists {
-			_, err = tx.ExecContext(ctx, "UPDATE assets SET name=?,kind=?,cost=?,residual=?,months=?,start_period=?,allocated=? WHERE id=?", v.Name, v.Kind, cost, residual, v.Months, v.StartPeriod, allocated, v.ID)
+			_, err = tx.ExecContext(ctx, "UPDATE assets SET code=?,name=?,kind=?,cost=?,residual=?,months=?,start_period=?,allocated=? WHERE id=?", v.Code, v.Name, v.Kind, cost, residual, v.Months, v.StartPeriod, allocated, v.ID)
 		} else {
 			_, err = tx.ExecContext(ctx, "INSERT INTO assets VALUES(?,?,?,?,?,?,?,?,?,?)", v.ID, v.Code, v.Name, v.Kind, cost, residual, v.Months, v.StartPeriod, a.Document.ID, allocated)
 		}

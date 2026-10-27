@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"math/big"
 	"strings"
 	"time"
@@ -10,6 +11,121 @@ import (
 	"oanh.local/accounting/internal/accounting"
 	"oanh.local/accounting/internal/modules/ledger"
 )
+
+func (s *Service) SaveAsset(ctx context.Context, cmd ledger.Command, a Asset) (json.RawMessage, error) {
+	return s.Ledger.Write(ctx, cmd, "admin.asset.save", a, func(tx *sql.Tx) (any, error) {
+		return s.saveAssetTx(ctx, tx, a)
+	})
+}
+
+func (s *Service) saveAssetTx(ctx context.Context, tx *sql.Tx, a Asset) (any, error) {
+	a.Code = strings.ToUpper(strings.TrimSpace(a.Code))
+	a.Name = strings.TrimSpace(a.Name)
+	cost, err := accounting.Money(a.Cost)
+	if err != nil {
+		return nil, err
+	}
+	residual, err := accounting.Money(a.Residual)
+	if err != nil {
+		return nil, err
+	}
+	if !accounting.ID(a.ID) || !accounting.ID(a.Code) || a.Name == "" || a.Kind != "fixed" && a.Kind != "prepaid" || cost == 0 || residual >= cost || a.Months < 1 || a.Months > 1200 || !accounting.Period(a.StartPeriod) {
+		return nil, accounting.Fail("VALIDATION", "Thông tin tài sản/khoản phân bổ không hợp lệ.")
+	}
+	if cost-residual < int64(a.Months) {
+		return nil, accounting.Fail("INVALID_ALLOCATION", "Giá trị phân bổ phải đủ ít nhất một đồng cho mỗi kỳ.")
+	}
+	var oldCode, oldName, oldKind, oldStart, recognizedDoc string
+	var oldCost, oldResidual, allocated int64
+	var oldMonths int
+	err = tx.QueryRowContext(ctx, "SELECT code,name,kind,cost,residual,months,start_period,recognized_document,allocated FROM assets WHERE id=?", a.ID).Scan(
+		&oldCode, &oldName, &oldKind, &oldCost, &oldResidual, &oldMonths, &oldStart, &recognizedDoc, &allocated,
+	)
+	if err == sql.ErrNoRows {
+		return nil, accounting.Fail("NOT_FOUND", "Không tìm thấy tài sản/khoản phân bổ.")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if allocated > cost-residual {
+		return nil, accounting.Fail("INVALID_ALLOCATION", "Giá trị còn lại cần phân bổ không được nhỏ hơn số đã phân bổ.")
+	}
+	var dup int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM assets WHERE code=? COLLATE NOCASE AND id<>?", a.Code, a.ID).Scan(&dup); err != nil {
+		return nil, err
+	}
+	if dup > 0 {
+		return nil, accounting.Fail("DUPLICATE_CODE", "Mã tài sản/khoản phân bổ đã tồn tại.")
+	}
+	if oldCost != cost || oldKind != a.Kind || oldStart != a.StartPeriod {
+		var depCount int
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM operations WHERE kind='depreciation' AND substr(source_id,1,length(?))=?", a.ID+":", a.ID+":").Scan(&depCount); err != nil {
+			return nil, err
+		}
+		if depCount > 0 {
+			return nil, accounting.Fail("HISTORY_LOCKED", "Tài sản đã phát sinh khấu hao/phân bổ; không đổi nguyên giá, phân loại hoặc kỳ bắt đầu.")
+		}
+		doc, err := ledger.ReadDocument(ctx, tx, recognizedDoc)
+		if err != nil {
+			return nil, err
+		}
+		if ledger.IsOpening(doc.SourceType) {
+			return nil, accounting.Fail("SUBLEDGER_REQUIRED", "Tài sản đầu kỳ cần điều chỉnh nguyên giá/loại/kỳ bắt đầu tại màn hình Số dư đầu kỳ.")
+		}
+		if a.StartPeriod < doc.Date[:7] {
+			return nil, accounting.Fail("VALIDATION", "Kỳ bắt đầu không được trước kỳ ghi tăng.")
+		}
+		var closed bool
+		if err = tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", doc.Date[:7]).Scan(&closed); err == sql.ErrNoRows || closed {
+			return nil, accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán ghi tăng tài sản đã khóa.")
+		} else if err != nil {
+			return nil, err
+		}
+		if _, err = tx.ExecContext(ctx, "UPDATE documents SET status='draft' WHERE id=?", doc.ID); err != nil {
+			return nil, err
+		}
+		account := "211"
+		if a.Kind == "prepaid" {
+			account = "242"
+		}
+		doc.Lines = []ledger.Line{
+			{AccountID: account, Description: "Ghi tăng: " + a.Name, Debit: a.Cost, Credit: "0"},
+			{AccountID: "331", PartnerID: doc.PartnerID, Description: "Phải trả ghi tăng tài sản", Debit: "0", Credit: a.Cost},
+		}
+		doc, err = s.Ledger.SaveTx(ctx, tx, doc)
+		if err != nil {
+			return nil, err
+		}
+		doc, err = s.Ledger.PostTx(ctx, tx, ledger.Post{ID: doc.ID, Version: doc.Version})
+		if err != nil {
+			return nil, err
+		}
+		var rawPayload, rawCalc string
+		if err = tx.QueryRowContext(ctx, "SELECT payload,calculation FROM operations WHERE document_id=?", doc.ID).Scan(&rawPayload, &rawCalc); err == nil {
+			var opIn Input
+			var opRes Result
+			if json.Unmarshal([]byte(rawPayload), &opIn) == nil && json.Unmarshal([]byte(rawCalc), &opRes) == nil {
+				opIn.Asset = a
+				opIn.Asset.Allocated = accounting.Text(allocated)
+				if opRes.Amounts == nil {
+					opRes.Amounts = map[string]string{}
+				}
+				opRes.Amounts["cost"] = a.Cost
+				opRes.Document = doc
+				newP, _ := json.Marshal(opIn)
+				newC, _ := json.Marshal(opRes)
+				if _, err = tx.ExecContext(ctx, "UPDATE operations SET payload=?,calculation=? WHERE document_id=?", string(newP), string(newC), doc.ID); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	if _, err = tx.ExecContext(ctx, "UPDATE assets SET code=?,name=?,kind=?,cost=?,residual=?,months=?,start_period=? WHERE id=?", a.Code, a.Name, a.Kind, cost, residual, a.Months, a.StartPeriod, a.ID); err != nil {
+		return nil, err
+	}
+	a.Allocated = accounting.Text(allocated)
+	return a, nil
+}
 
 func (s *Service) registerAsset(_ context.Context, _ *sql.Tx, in Input, doc *ledger.Document, result *Result) error {
 	a := in.Asset

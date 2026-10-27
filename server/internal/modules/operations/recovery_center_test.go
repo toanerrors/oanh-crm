@@ -42,7 +42,7 @@ func TestRecoveryCatalogReplayVerificationAndReopen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Debit != "9007199254740993" || (m.Attachments == nil || *m.Attachments != 1) || m.SchemaVersion != 8 || m.FirstDate != "2026-10-21" {
+	if m.Debit != "9007199254740993" || (m.Attachments == nil || *m.Attachments != 1) || m.SchemaVersion != 9 || m.FirstDate != "2026-10-21" {
 		t.Fatal(m)
 	}
 	again, _, err := f.store.BackupWithOptions(ctx, options)

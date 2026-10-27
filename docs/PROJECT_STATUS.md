@@ -1,6 +1,6 @@
 # Trạng thái dự án
 
-Cập nhật: 25/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
+Cập nhật: 27/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
 
 ## Phạm vi đã chốt
 
@@ -9,6 +9,14 @@ Cập nhật: 25/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Go + SQLite; React + TypeScript strict + Vite SPA, Ant Design Form/Table, React Router, TanStack Query; pnpm. Frontend và driver Go `modernc.org/sqlite` đã được chấp thuận cài đặt.
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
+
+## Mở khóa sửa toàn bộ danh mục, chứng từ đã ghi sổ và nháp — 0.17.0
+
+- Đã làm: bỏ khóa sửa mã/tên/vai trò/đơn vị/loại/TK ngân hàng/TK cha… của đối tượng, tài khoản, hàng hóa, kho, ngân hàng, nhân viên, tài sản và tên đăng nhập người dùng dù đã có chứng từ. Thêm `POST /api/v1/assets` (sửa tài sản/CCDC, cập nhật chứng từ ghi tăng khi đổi nguyên giá/loại/kỳ) và `POST /api/v1/voucher-drafts/discard` (xóa nháp).
+- Sửa trực tiếp chứng từ đã ghi sổ (phiếu thu/chi/chuyển tiền, bán, mua, chứng từ nhập tay): server gỡ ghi sổ cũ, dựng lại lô kho, ngân hàng, thanh toán liên kết và bút toán trong cùng một transaction, giữ số chứng từ; migration 9 (`editable.sql`) chỉ cho trigger chuyển `posted→draft` trong giao dịch có audit. Nháp cho phép đổi loại phiếu thu/chi và hàng hóa/dịch vụ.
+- Đã kiểm tra: `go vet`, `go test -race ./internal/... ./cmd/server` đạt (gồm `TestEditPostedVoucherDocumentAndAsset`, `sqlite.Check` sau sửa), `tsc --noEmit`, 73 unit test Node, `vite build`.
+- Chưa kiểm tra: E2E Playwright (`workspace.spec.ts`, `live/*`) chưa chạy lại sau thay đổi UI; chưa nghiệm thu kế toán các trường hợp sửa hồi tố sang kỳ đã khóa/tồn kho âm — server từ chối theo kiểm tra hiện có.
+- Rủi ro: sửa trực tiếp làm thay đổi sổ đã ghi, chỉ dựa vào nhật ký audit; cần cân nhắc quy trình phê duyệt nếu cần kiểm soát chặt hơn.
 
 ## Tạo nhanh khách hàng / nhà cung cấp / đối tượng trong phiếu — 0.16.9
 

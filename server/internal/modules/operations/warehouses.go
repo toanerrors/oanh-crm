@@ -47,9 +47,6 @@ func (s *Service) saveWarehouseTx(ctx context.Context, tx *sql.Tx, w Warehouse) 
 	if e != nil {
 		return nil, e
 	}
-	if w.HasReferences && old.Code != w.Code {
-		return nil, accounting.Fail("HISTORY_LOCKED", "Kho đã có chứng từ hoặc số dư: giữ mã kho. Bạn vẫn sửa được tên và trạng thái sử dụng.")
-	}
 	var count int
 	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM warehouses WHERE code=? COLLATE NOCASE AND id<>?", w.Code, w.ID).Scan(&count); e != nil {
 		return nil, e

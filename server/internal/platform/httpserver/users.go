@@ -74,6 +74,13 @@ func (s *Server) saveUser(w http.ResponseWriter, r *http.Request) {
 		PasswordVerifier string `json:"passwordVerifier"`
 	}{input.User, hex.EncodeToString(fingerprint)}
 	b, e := s.Ledger.Write(r.Context(), cmd, "admin.user.save", payload, func(tx *sql.Tx) (any, error) {
+		var dup int
+		if err := tx.QueryRowContext(r.Context(), "SELECT count(*) FROM users WHERE username=? COLLATE NOCASE AND id<>?", input.Username, input.ID).Scan(&dup); err != nil {
+			return nil, err
+		}
+		if dup > 0 {
+			return nil, accounting.Fail("DUPLICATE_CODE", "Tên đăng nhập đã tồn tại.")
+		}
 		var oldRole, oldUsername string
 		var active bool
 		err := tx.QueryRowContext(r.Context(), "SELECT role,active,username FROM users WHERE id=?", input.ID).Scan(&oldRole, &active, &oldUsername)
@@ -86,9 +93,6 @@ func (s *Server) saveUser(w http.ResponseWriter, r *http.Request) {
 			}
 			_, err = tx.ExecContext(r.Context(), "INSERT INTO users VALUES(?,?,?,?,?,?)", input.ID, input.Username, input.Name, input.Role, hash, input.Active)
 		} else {
-			if oldUsername != input.Username {
-				return nil, accounting.Fail("HISTORY_LOCKED", "Giữ nguyên tên đăng nhập đã tạo.")
-			}
 			if oldRole == "owner" && active && (!input.Active || input.Role != "owner") {
 				var n int
 				if err = tx.QueryRowContext(r.Context(), "SELECT count(*) FROM users WHERE role='owner' AND active=1").Scan(&n); err != nil {
@@ -98,7 +102,7 @@ func (s *Server) saveUser(w http.ResponseWriter, r *http.Request) {
 					return nil, accounting.Fail("LAST_OWNER", "Phải giữ ít nhất một chủ sở hữu đang hoạt động.")
 				}
 			}
-			_, err = tx.ExecContext(r.Context(), "UPDATE users SET name=?,role=?,active=? WHERE id=?", input.Name, input.Role, input.Active, input.ID)
+			_, err = tx.ExecContext(r.Context(), "UPDATE users SET username=?,name=?,role=?,active=? WHERE id=?", input.Username, input.Name, input.Role, input.Active, input.ID)
 			if err == nil && hash != "" {
 				_, err = tx.ExecContext(r.Context(), "UPDATE users SET password_hash=? WHERE id=?", hash, input.ID)
 			}

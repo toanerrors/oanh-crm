@@ -55,9 +55,6 @@ func (s *Service) saveBankTx(ctx context.Context, tx *sql.Tx, b BankAccount) (an
 	if err != nil {
 		return nil, err
 	}
-	if b.HasReferences && (old.Number != b.Number || old.AccountID != b.AccountID) {
-		return nil, accounting.Fail("HISTORY_LOCKED", "Đã có chứng từ hoặc số dư ngân hàng: giữ số tài khoản và tài khoản kế toán. Bạn vẫn sửa được tên ngân hàng và trạng thái sử dụng.")
-	}
 	var duplicate int
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM bank_accounts WHERE number=? AND id<>?", b.Number, b.ID).Scan(&duplicate); err != nil {
 		return nil, err

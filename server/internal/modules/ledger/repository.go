@@ -173,9 +173,6 @@ func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Par
 				return nil, err
 			}
 			partners[index].HasReferences = count > 0
-			if count > 0 && (old.Code != p.Code || old.Name != p.Name || old.Role != p.Role) {
-				return nil, accounting.Fail("HISTORY_LOCKED", "Giữ mã và thông tin đã được chứng từ tham chiếu.")
-			}
 		}
 		var duplicate int
 		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM partners WHERE code=? AND id<>?", p.Code, p.ID).Scan(&duplicate); err != nil {
@@ -211,8 +208,8 @@ func (s *Service) SaveAccountTx(ctx context.Context, tx *sql.Tx, a Account) (any
 			return nil, err
 		}
 		a.HasReferences = n > 0
-		if n > 0 && (old.Code != a.Code || old.Name != a.Name || old.Group != a.Group || old.RequiresPartner != a.RequiresPartner) {
-			return nil, accounting.Fail("HISTORY_LOCKED", "Không đổi tài khoản đã có lịch sử. Có thể ngừng sử dụng.")
+		if n > 0 && old.Group != a.Group && (old.Group == "inventory" || old.Group == "asset" || a.Group == "inventory" || a.Group == "asset") {
+			return nil, accounting.Fail("HISTORY_LOCKED", "Tài khoản đã có phát sinh không thể chuyển sang hoặc rời khỏi nhóm kho/tài sản.")
 		}
 	}
 	var bankReferences int

@@ -152,20 +152,13 @@ func TestCatalogEditReferencedFieldsAndHistoricalSnapshots(t *testing.T) {
 	if err := f.store.Read.QueryRow("SELECT json_extract(payload,'$.voucher.bankName') FROM operations WHERE document_id=?", result.Document.ID).Scan(&oldName); err != nil || oldName != "Tên ngân hàng gốc" {
 		t.Fatal("snapshot", oldName, err)
 	}
-	for _, field := range []string{"number", "account"} {
-		changed := b
-		if field == "number" {
-			changed.Number = "00004"
-		} else {
-			changed.AccountID = "1121"
-		}
-		changed.HasReferences = false
-		if _, err := f.ops.SaveBank(ctx, f.cmd("blocked-bank-"+field), changed); accounting.Code(err) != "HISTORY_LOCKED" {
-			t.Fatal(field, err)
-		}
+	b.Number = "00004"
+	b.AccountID = "1121"
+	if _, err := f.ops.SaveBank(ctx, f.cmd("edit-bank-number-and-account"), b); err != nil {
+		t.Fatal(err)
 	}
 	banks, err := f.ops.Banks(ctx, "2026-11")
-	if err != nil || !banks.Accounts[0].HasReferences || banks.Accounts[0].Closing != "9007199254740993" {
+	if err != nil || !banks.Accounts[0].HasReferences || banks.Accounts[0].Closing != "9007199254740993" || banks.Accounts[0].Number != "00004" || banks.Accounts[0].AccountID != "1121" {
 		t.Fatal(banks, err)
 	}
 	w := Warehouse{ID: "used-wh", Code: "WH1", Name: "Kho gốc", Active: true}
@@ -186,22 +179,18 @@ func TestCatalogEditReferencedFieldsAndHistoricalSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.Code = "WH2"
-	if _, err = f.ops.SaveWarehouse(ctx, f.cmd("wh-code"), w); accounting.Code(err) != "HISTORY_LOCKED" {
+	if _, err = f.ops.SaveWarehouse(ctx, f.cmd("wh-code"), w); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"code", "unit", "type"} {
-		changed := i
-		switch field {
-		case "code":
-			changed.Code = "HH2"
-		case "unit":
-			changed.Unit = "hộp"
-		case "type":
-			changed.Tracked = false
-		}
-		if _, err = f.ops.SaveItem(ctx, f.cmd("item-"+field), changed); accounting.Code(err) != "HISTORY_LOCKED" {
-			t.Fatal(field, err)
-		}
+	i.Code = "HH2"
+	i.Unit = "hộp"
+	if _, err = f.ops.SaveItem(ctx, f.cmd("item-code-unit"), i); err != nil {
+		t.Fatal(err)
+	}
+	changedItem := i
+	changedItem.Tracked = false
+	if _, err = f.ops.SaveItem(ctx, f.cmd("item-type"), changedItem); accounting.Code(err) != "HISTORY_LOCKED" {
+		t.Fatal("expected stock item to stay tracked", err)
 	}
 	warehouses, err := f.ops.Warehouses(ctx)
 	if err != nil {
@@ -250,14 +239,13 @@ func TestCatalogEditReferencedFieldsAndHistoricalSnapshots(t *testing.T) {
 		}
 	}
 	a.Code = "6982"
-	if _, err = f.ledger.SaveAccount(ctx, f.cmd("a-locked"), a); accounting.Code(err) != "HISTORY_LOCKED" {
+	if _, err = f.ledger.SaveAccount(ctx, f.cmd("a-unlocked"), a); err != nil {
 		t.Fatal(err)
 	}
 	p.Code = "DT2"
-	if _, err = f.ledger.SavePartners(ctx, f.cmd("p-locked"), []ledger.Partner{p}); accounting.Code(err) != "HISTORY_LOCKED" {
+	if _, err = f.ledger.SavePartners(ctx, f.cmd("p-unlocked"), []ledger.Partner{p}); err != nil {
 		t.Fatal(err)
 	}
-	p.Code = "DT1"
 	p.Email = "edited@example.test"
 	if _, err = f.ledger.SavePartners(ctx, f.cmd("p-contact"), []ledger.Partner{p}); err != nil {
 		t.Fatal(err)
@@ -283,17 +271,16 @@ func TestCatalogEditEmployeeAndDuplicateCodes(t *testing.T) {
 	}
 	executeTreasury(t, f, "payroll", Input{Kind: "payroll", SourceID: "salary", Date: "2026-10-31", Description: "Lương giả lập", EmployeeID: e.ID, WorkedDays: "26", Allowance: "0", NonTaxableAllowance: "0", OvertimeHours: "0", OvertimeMultiplier: "1"})
 	e.Code = "NV2"
-	if _, err := f.ops.SaveEmployee(ctx, f.cmd("employee-code"), e); accounting.Code(err) != "HISTORY_LOCKED" {
+	if _, err := f.ops.SaveEmployee(ctx, f.cmd("employee-code"), e); err != nil {
 		t.Fatal(err)
 	}
-	e.Code = "NV1"
 	e.Name = "Tên đã sửa"
 	e.BaseSalary = "5000"
 	if _, err := f.ops.SaveEmployee(ctx, f.cmd("employee-name"), e); err != nil {
 		t.Fatal(err)
 	}
 	data, err := f.ops.Data(ctx)
-	if err != nil || len(data.Employees) != 1 || !data.Employees[0].HasReferences {
+	if err != nil || len(data.Employees) != 1 || !data.Employees[0].HasReferences || data.Employees[0].Code != "NV2" {
 		t.Fatal(data.Employees, err)
 	}
 	duplicate := e
@@ -323,10 +310,7 @@ func TestCatalogEditConcurrentBankMappingAndPosting(t *testing.T) {
 	go func() { defer wg.Done(); _, editErr = f.ops.SaveBank(ctx, f.cmd("edit"), changed) }()
 	go func() { defer wg.Done(); _, postErr = f.ops.Execute(ctx, f.cmd("post"), in) }()
 	wg.Wait()
-	if editErr == nil && postErr == nil {
-		t.Fatal("mapping changed during posting")
-	}
-	if editErr != nil && accounting.Code(editErr) != "HISTORY_LOCKED" {
+	if editErr != nil {
 		t.Fatal(editErr)
 	}
 	if postErr != nil && accounting.Code(postErr) != "INVALID_BANK" {
@@ -376,7 +360,7 @@ func TestCatalogEditBankReferencesIncludeDraftsAndOpening(t *testing.T) {
 				t.Fatal(list, err)
 			}
 			b.Number = "00007"
-			if _, err = f.ops.SaveBank(ctx, f.cmd("edit-used"), b); accounting.Code(err) != "HISTORY_LOCKED" {
+			if _, err = f.ops.SaveBank(ctx, f.cmd("edit-used"), b); err != nil {
 				t.Fatal(err)
 			}
 			if err = sqlite.Check(ctx, f.store.Read); err != nil {

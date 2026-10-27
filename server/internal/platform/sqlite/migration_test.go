@@ -44,7 +44,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 	defer upgraded.Close()
 	var version int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 8 {
+	if version != 9 {
 		t.Fatal(version)
 	}
 	var name string
@@ -74,7 +74,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 		t.Fatal(after, err)
 	}
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 8 {
+	if version != 9 {
 		t.Fatal(version)
 	}
 	if err = Check(ctx, upgraded.Read); err != nil {
@@ -186,7 +186,7 @@ func TestOpeningMigrationFromVersionThree(t *testing.T) {
 	defer upgraded.Close()
 	var version, count int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 8 {
+	if version != 9 {
 		t.Fatal(version)
 	}
 	if err = upgraded.Read.QueryRow("SELECT count(*) FROM financial_reports WHERE id='report' AND version=1").Scan(&count); err != nil || count != 1 {
@@ -243,7 +243,7 @@ func TestExcelMigrationPreservesVersionFourAndReopens(t *testing.T) {
 	}
 	var version, revision int
 	var epoch string
-	if err = upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 8 {
+	if err = upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 9 {
 		t.Fatal(version, err)
 	}
 	if err = upgraded.Read.QueryRow("SELECT revision,epoch FROM meta").Scan(&revision, &epoch); err != nil || revision != 9 || epoch != "before-imports" || before != schemaHash(4) {
@@ -314,7 +314,7 @@ func TestAccountHierarchyMigrationFromFivePreservesIDsAndNames(t *testing.T) {
 	if err = store.Read.QueryRow("SELECT revision FROM meta").Scan(&revision); err != nil || revision != 9 {
 		t.Fatal(revision, err)
 	}
-	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 8 || before != schemaHash(5) {
+	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 9 || before != schemaHash(5) {
 		t.Fatal(version, err)
 	}
 	if err = Check(ctx, store.Read); err != nil {
@@ -366,7 +366,7 @@ func TestOpeningAdjustmentMigrationFromSixPreservesLedger(t *testing.T) {
 	if err = store.Read.QueryRow("SELECT revision FROM meta").Scan(&revision); err != nil || revision != 11 {
 		t.Fatal(revision, err)
 	}
-	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 8 || before != schemaHash(6) {
+	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 9 || before != schemaHash(6) {
 		t.Fatal(version, err)
 	}
 	if err = store.Read.QueryRow("SELECT CAST(debit AS TEXT),account_name FROM document_lines WHERE document_id='doc' AND position=0").Scan(&money, &name); err != nil || money != "9007199254740993" || name != "Tiền lịch sử" {
