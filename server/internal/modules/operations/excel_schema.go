@@ -38,7 +38,7 @@ func ExcelSchemas(role string) []ExcelSchema {
 	code := f("code", "Mã", "code", true)
 	name := f("name", "Tên", "text", true)
 	schemas := []ExcelSchema{
-		{Key: "partners", Label: "Khách hàng, nhà cung cấp", Group: "Danh mục", Fields: []ExcelField{code, name, f("role", "Vai trò", "choice", true, "customer", "supplier", "both"), f("email", "Email", "text", false), f("phone", "Điện thoại", "identifier", false), active}},
+		{Key: "partners", Label: "Khách hàng, nhà cung cấp", Group: "Danh mục", Fields: []ExcelField{code, name, f("role", "Vai trò", "choice", true, "customer", "supplier", "both"), f("taxCode", "Mã số thuế", "identifier", false), f("address", "Địa chỉ", "text", false), f("email", "Email", "text", false), f("phone", "Điện thoại", "identifier", false), active}},
 		{Key: "accounts", Label: "Tài khoản kế toán", Group: "Danh mục", Owner: true, Fields: []ExcelField{code, name, f("parentCode", "Mã tài khoản cha", "code", false), f("group", "Nhóm tài khoản", "choice", true, "cash", "receivable", "payable", "revenue", "expense", "inventory", "capital", "asset", "tax", "liability", "wip"), f("requiresPartner", "Yêu cầu đối tượng", "bool", true), active}},
 		{Key: "items", Label: "Hàng hóa, dịch vụ", Group: "Danh mục", Fields: []ExcelField{code, name, f("unit", "Đơn vị tính", "text", true), f("tracked", "Theo dõi tồn kho", "bool", true), active}},
 		{Key: "warehouses", Label: "Kho", Group: "Danh mục", Fields: []ExcelField{code, name, active}},
@@ -84,6 +84,9 @@ func ExcelSchemas(role string) []ExcelSchema {
 			if schema.Key == "accounts" && field.Key == "parentCode" {
 				field.Basic = true
 			}
+			if schema.Key == "partners" && (field.Key == "taxCode" || field.Key == "address") {
+				field.Basic = true
+			}
 			if (schema.Key == "receipt" || schema.Key == "payment") && (field.Key == "counterAccount" || field.Key == "bankNumber") {
 				field.Basic = true
 			}
@@ -92,6 +95,8 @@ func ExcelSchemas(role string) []ExcelSchema {
 				field.Aliases = append(field.Aliases, "TK cha", "Tài khoản cha")
 			}
 			switch field.Key {
+			case "taxCode":
+				field.Aliases = append(field.Aliases, "MST", "Mã số thuế đối tượng")
 			case "sourceId":
 				field.Aliases = append(field.Aliases, "Số chứng từ", "Mã nguồn", "sourceId")
 			case "date":

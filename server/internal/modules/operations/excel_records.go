@@ -111,7 +111,7 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 		active := values["active"] == "true"
 		switch config.Kind {
 		case "partners":
-			_, err = s.Ledger.SavePartnersTx(ctx, tx, []ledger.Partner{{ID: id, Code: code, Name: values["name"], Role: values["role"], Email: values["email"], Phone: values["phone"], Active: active}})
+			_, err = s.Ledger.SavePartnersTx(ctx, tx, []ledger.Partner{{ID: id, Code: code, Name: values["name"], Role: values["role"], TaxCode: values["taxCode"], Address: values["address"], Email: values["email"], Phone: values["phone"], Active: active}})
 		case "accounts":
 			account := ledger.Account{ID: id, Code: code, Name: values["name"], Group: values["group"], RequiresPartner: values["requiresPartner"] == "true", Active: active}
 			if _, mapped := config.Mapping["parentCode"]; mapped {

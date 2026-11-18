@@ -26,18 +26,22 @@ export function PartnerEditor({ partner, existing = false, allowedRole = 'all', 
     onError: error => void message.error(error.message),
   });
   return <Modal open title={existing ? 'Thông tin đối tượng' : isDemo ? 'Thêm đối tượng mẫu' : 'Thêm đối tượng'} onCancel={() => { if (!mutation.isPending) onClose(); }} footer={null} closable={!mutation.isPending} mask={{ closable: !mutation.isPending }}>
-    <p className={styles.muted}>{isDemo ? 'Thay đổi chỉ tồn tại trong phiên mẫu.' : 'Thay đổi được lưu vào cơ sở dữ liệu của doanh nghiệp.'} Bạn có thể sửa mã, tên, vai trò, thông tin liên hệ và trạng thái sử dụng.</p>
-    <Form<Partner> form={form} layout="vertical" onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 's' || event.key === 'Enter')) { event.preventDefault(); event.stopPropagation(); if (!mutation.isPending) form.submit(); } }} initialValues={partner} disabled={mutation.isPending} onFinish={values => mutation.mutate({ ...partner, ...values })}>
+    <p className={styles.muted}>{isDemo ? 'Thay đổi chỉ tồn tại trong phiên mẫu.' : 'Thay đổi được lưu vào cơ sở dữ liệu của doanh nghiệp.'} Bạn có thể sửa mã, tên, mã số thuế, địa chỉ, vai trò, thông tin liên hệ và trạng thái sử dụng.</p>
+    <Form<Partner> form={form} layout="vertical" onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 's' || event.key === 'Enter')) { event.preventDefault(); event.stopPropagation(); if (!mutation.isPending) form.submit(); } }} initialValues={{ taxCode: '', address: '', ...partner }} disabled={mutation.isPending} onFinish={values => mutation.mutate({ ...partner, ...values })}>
       <div className={styles.formGrid}>
         <Form.Item name="code" label="Mã đối tượng" rules={[{ required: true, whitespace: true, message: 'Nhập mã đối tượng' }, { pattern: /^[A-Za-z0-9_-]+$/, message: 'Dùng chữ không dấu, chữ số, dấu gạch ngang hoặc gạch dưới' }]}><Input maxLength={40} disabled={mutation.isPending} placeholder={partner.role === 'supplier' ? 'VD: NCC005' : 'VD: KH005'} /></Form.Item>
         <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}><Select options={Object.entries(partnerRoles).map(([value, label]) => ({ value, label, disabled: allowedRole !== 'all' && value !== 'both' && value !== allowedRole }))} disabled={mutation.isPending} /></Form.Item>
       </div>
       <Form.Item name="name" label="Tên đối tượng" rules={[{ required: true, whitespace: true, message: 'Nhập tên đối tượng' }]}><Input maxLength={200} disabled={mutation.isPending} /></Form.Item>
       <div className={styles.formGrid}>
-        <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email không đúng định dạng' }]}><Input type="email" autoComplete="email" spellCheck={false} maxLength={254} /></Form.Item>
+        <Form.Item name="taxCode" label="Mã số thuế" rules={[{ pattern: /^[0-9A-Za-z -]*$/, message: 'Mã số thuế không hợp lệ' }]}><Input maxLength={40} placeholder="VD: 0318088925" /></Form.Item>
         <Form.Item name="phone" label="Điện thoại" rules={[{ pattern: /^[+\d ()-]*$/, message: 'Số điện thoại không hợp lệ' }]}><Input type="tel" autoComplete="tel" maxLength={30} /></Form.Item>
       </div>
-      <Form.Item name="active" label="Đang sử dụng" valuePropName="checked"><Switch /></Form.Item>
+      <Form.Item name="address" label="Địa chỉ"><Input maxLength={500} placeholder="Số nhà, đường, phường/xã, tỉnh/thành phố" /></Form.Item>
+      <div className={styles.formGrid}>
+        <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email không đúng định dạng' }]}><Input type="email" autoComplete="email" spellCheck={false} maxLength={254} /></Form.Item>
+        <Form.Item name="active" label="Đang sử dụng" valuePropName="checked"><Switch /></Form.Item>
+      </div>
       <div className={styles.modalActions}><Button disabled={mutation.isPending} onClick={onClose}>Đóng</Button><Button type="primary" htmlType="submit" loading={mutation.isPending}>{isDemo ? 'Lưu trong phiên mẫu' : 'Lưu đối tượng'}</Button></div>
     </Form>
   </Modal>;

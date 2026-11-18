@@ -78,11 +78,11 @@ func (s *Service) ImportCatalogOptionalTx(ctx context.Context, tx *sql.Tx, kind,
 			return nil, err
 		}
 	case "partners":
-		var email, phone string
-		if err := tx.QueryRowContext(ctx, "SELECT email,phone,active FROM partners WHERE id=?", id).Scan(&email, &phone, &active); err != nil {
+		var taxCode, address, email, phone string
+		if err := tx.QueryRowContext(ctx, "SELECT tax_code,address,email,phone,active FROM partners WHERE id=?", id).Scan(&taxCode, &address, &email, &phone, &active); err != nil {
 			return nil, err
 		}
-		values["email"], values["phone"] = email, phone
+		values["taxCode"], values["address"], values["email"], values["phone"] = taxCode, address, email, phone
 	default:
 		return nil, accounting.Fail("VALIDATION", "Loại danh mục không hợp lệ.")
 	}

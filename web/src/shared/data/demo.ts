@@ -24,12 +24,12 @@ export const initialWorkspace: Workspace = {
     { id: '642', code: '642', name: 'Chi phí quản lý doanh nghiệp', group: 'expense' },
   ],
   partners: [
-    { id: 'p1', code: 'KH001', name: 'Công ty TNHH Minh Anh', role: 'customer', email: 'minhanh@example.com', phone: '0901234001', active: true },
-    { id: 'p2', code: 'KH002', name: 'Công ty CP Nội thất An Phát', role: 'customer', email: 'anphat@example.com', phone: '0901234002', active: true },
-    { id: 'p3', code: 'NCC001', name: 'Công ty TNHH Thương mại Việt Hưng', role: 'supplier', email: 'viethung@example.com', phone: '0901234003', active: true },
-    { id: 'p4', code: 'KH003', name: 'Công ty TNHH Green Home', role: 'both', email: 'greenhome@example.com', phone: '0901234004', active: true },
-    { id: 'p5', code: 'NCC002', name: 'Công ty CP Công nghệ Sao Mai', role: 'supplier', email: 'saomai@example.com', phone: '0901234005', active: true },
-    { id: 'p6', code: 'KH004', name: 'Công ty TNHH Dịch vụ Đại Việt', role: 'customer', email: 'daiviet@example.com', phone: '0901234006', active: true },
+    { id: 'p1', code: 'KH001', name: 'Công ty TNHH Minh Anh', role: 'customer', taxCode: '0316540001', address: '12 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh', email: 'minhanh@example.com', phone: '0901234001', active: true },
+    { id: 'p2', code: 'KH002', name: 'Công ty CP Nội thất An Phát', role: 'customer', taxCode: '0316540002', address: '45 Điện Biên Phủ, Quận Bình Thạnh, TP. Hồ Chí Minh', email: 'anphat@example.com', phone: '0901234002', active: true },
+    { id: 'p3', code: 'NCC001', name: 'Công ty TNHH Thương mại Việt Hưng', role: 'supplier', taxCode: '0316540003', address: '88 Cộng Hòa, Quận Tân Bình, TP. Hồ Chí Minh', email: 'viethung@example.com', phone: '0901234003', active: true },
+    { id: 'p4', code: 'KH003', name: 'Công ty TNHH Green Home', role: 'both', taxCode: '0316540004', address: '19 Nguyễn Văn Linh, Quận 7, TP. Hồ Chí Minh', email: 'greenhome@example.com', phone: '0901234004', active: true },
+    { id: 'p5', code: 'NCC002', name: 'Công ty CP Công nghệ Sao Mai', role: 'supplier', taxCode: '0316540005', address: '102 Võ Văn Tần, Quận 3, TP. Hồ Chí Minh', email: 'saomai@example.com', phone: '0901234005', active: true },
+    { id: 'p6', code: 'KH004', name: 'Công ty TNHH Dịch vụ Đại Việt', role: 'customer', taxCode: '0316540006', address: '25 Phan Đăng Lưu, Quận Phú Nhuận, TP. Hồ Chí Minh', email: 'daiviet@example.com', phone: '0901234006', active: true },
   ],
   documents: [
     entry('opening', 'NV-DAU', '2026-01-01', 'journal', 'Bộ số mẫu: góp vốn bằng tiền gửi', '980000000', '1121', '411'),

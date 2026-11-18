@@ -178,8 +178,19 @@ func ReadAuditChanges(ctx context.Context, tx *sql.Tx, id int64) ([]AuditChange,
 	}
 	return values, rows.Err()
 }
+
+var activeAuditTables = func() []auditTable {
+	items := append([]auditTable(nil), auditTables...)
+	for i := range items {
+		if items[i].name == "partners" {
+			items[i].columns = "id code name role email phone active tax_code address"
+		}
+	}
+	return items
+}()
+
 func AuditRow(ctx context.Context, tx *sql.Tx, table, key string) (json.RawMessage, error) {
-	for _, spec := range auditTables {
+	for _, spec := range activeAuditTables {
 		if spec.name == table {
 			var keys []string
 			if err := json.Unmarshal([]byte(key), &keys); err != nil {
@@ -242,7 +253,7 @@ func RecoveryVersion(ctx context.Context, tx *sql.Tx, table, id string) (int, er
 }
 
 func validateAuditChange(change AuditChange) error {
-	for _, spec := range auditTables {
+	for _, spec := range activeAuditTables {
 		if spec.name == change.Table {
 			var keys []string
 			if err := json.Unmarshal([]byte(change.Key), &keys); err != nil {
@@ -252,6 +263,10 @@ func validateAuditChange(change AuditChange) error {
 			if len(keys) != len(primary) {
 				return fmt.Errorf("invalid audit primary key")
 			}
+			allowedSets := [][]string{strings.Fields(spec.columns)}
+			if spec.name == "partners" {
+				allowedSets = append(allowedSets, strings.Fields("id code name role email phone active"))
+			}
 			for _, raw := range []json.RawMessage{change.Before, change.After} {
 				if len(raw) == 0 {
 					continue
@@ -260,14 +275,25 @@ func validateAuditChange(change AuditChange) error {
 				if err := json.Unmarshal(raw, &state); err != nil {
 					return err
 				}
-				columns := strings.Fields(spec.columns)
-				if len(state) != len(columns) {
-					return fmt.Errorf("incomplete audit state")
-				}
-				for _, column := range columns {
-					if _, ok := state[column]; !ok {
-						return fmt.Errorf("missing audit field")
+				matched := false
+				for _, columns := range allowedSets {
+					if len(state) != len(columns) {
+						continue
 					}
+					ok := true
+					for _, column := range columns {
+						if _, exists := state[column]; !exists {
+							ok = false
+							break
+						}
+					}
+					if ok {
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					return fmt.Errorf("incomplete audit state")
 				}
 				for i, column := range primary {
 					if state[column] == nil || *state[column] != keys[i] {

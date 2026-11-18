@@ -42,6 +42,8 @@ type Partner struct {
 	Code          string `json:"code"`
 	Name          string `json:"name"`
 	Role          string `json:"role"`
+	TaxCode       string `json:"taxCode"`
+	Address       string `json:"address"`
 	Email         string `json:"email"`
 	Phone         string `json:"phone"`
 	Active        bool   `json:"active"`

@@ -718,7 +718,7 @@ func CatalogAccounts(accounts []Account, query string) []Account {
 func CatalogPartners(partners []Partner, query, role string) []Partner {
 	out := []Partner{}
 	for _, partner := range partners {
-		if (role == "" || role == "all" || partner.Role == role || partner.Role == "both") && strings.Contains(search(partner.Code+" "+partner.Name+" "+partner.Email+" "+partner.Phone), search(query)) {
+		if (role == "" || role == "all" || partner.Role == role || partner.Role == "both") && strings.Contains(search(partner.Code+" "+partner.Name+" "+partner.TaxCode+" "+partner.Address+" "+partner.Email+" "+partner.Phone), search(query)) {
 			out = append(out, partner)
 		}
 	}

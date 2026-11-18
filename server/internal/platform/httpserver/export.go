@@ -162,7 +162,7 @@ func (s *Server) exportCatalog(w http.ResponseWriter, r *http.Request) {
 		s.failure(w, r, accounting.Fail("VERSION_CONFLICT", "Danh mục đã thay đổi. Tải lại dữ liệu trước khi xuất."))
 		return
 	}
-	table := spreadsheet.ExportTable{Name: "Đối tượng", Headers: []string{"Mã đối tượng", "Tên đối tượng", "Vai trò", "Email", "Điện thoại", "Trạng thái"}}
+	table := spreadsheet.ExportTable{Name: "Đối tượng", Headers: []string{"Mã đối tượng", "Tên đối tượng", "Mã số thuế", "Địa chỉ", "Vai trò", "Email", "Điện thoại", "Trạng thái"}}
 	title := "Danh mục khách hàng và nhà cung cấp"
 	active := func(value bool) string {
 		if value {
@@ -192,7 +192,7 @@ func (s *Server) exportCatalog(w http.ResponseWriter, r *http.Request) {
 	} else {
 		roles := map[string]string{"customer": "Khách hàng", "supplier": "Nhà cung cấp", "both": "Khách hàng và nhà cung cấp"}
 		for _, partner := range ledger.CatalogPartners(workspace.Partners, f.Query, role) {
-			table.Rows = append(table.Rows, []string{partner.Code, partner.Name, roles[partner.Role], partner.Email, partner.Phone, active(partner.Active)})
+			table.Rows = append(table.Rows, []string{partner.Code, partner.Name, partner.TaxCode, partner.Address, roles[partner.Role], partner.Email, partner.Phone, active(partner.Active)})
 		}
 	}
 	if len(table.Rows) > exportLimit(format) {

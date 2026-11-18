@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -44,7 +45,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 	defer upgraded.Close()
 	var version int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 10 {
+	if version != 11 {
 		t.Fatal(version)
 	}
 	var name string
@@ -74,7 +75,7 @@ func TestLegacyMigrationAndBackupRestore(t *testing.T) {
 		t.Fatal(after, err)
 	}
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 10 {
+	if version != 11 {
 		t.Fatal(version)
 	}
 	if err = Check(ctx, upgraded.Read); err != nil {
@@ -186,7 +187,7 @@ func TestOpeningMigrationFromVersionThree(t *testing.T) {
 	defer upgraded.Close()
 	var version, count int
 	upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version)
-	if version != 10 {
+	if version != 11 {
 		t.Fatal(version)
 	}
 	if err = upgraded.Read.QueryRow("SELECT count(*) FROM financial_reports WHERE id='report' AND version=1").Scan(&count); err != nil || count != 1 {
@@ -243,7 +244,7 @@ func TestExcelMigrationPreservesVersionFourAndReopens(t *testing.T) {
 	}
 	var version, revision int
 	var epoch string
-	if err = upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 10 {
+	if err = upgraded.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 11 {
 		t.Fatal(version, err)
 	}
 	if err = upgraded.Read.QueryRow("SELECT revision,epoch FROM meta").Scan(&revision, &epoch); err != nil || revision != 9 || epoch != "before-imports" || before != schemaHash(4) {
@@ -314,7 +315,7 @@ func TestAccountHierarchyMigrationFromFivePreservesIDsAndNames(t *testing.T) {
 	if err = store.Read.QueryRow("SELECT revision FROM meta").Scan(&revision); err != nil || revision != 9 {
 		t.Fatal(revision, err)
 	}
-	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 10 || before != schemaHash(5) {
+	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 11 || before != schemaHash(5) {
 		t.Fatal(version, err)
 	}
 	if err = Check(ctx, store.Read); err != nil {
@@ -366,7 +367,7 @@ func TestOpeningAdjustmentMigrationFromSixPreservesLedger(t *testing.T) {
 	if err = store.Read.QueryRow("SELECT revision FROM meta").Scan(&revision); err != nil || revision != 11 {
 		t.Fatal(revision, err)
 	}
-	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 10 || before != schemaHash(6) {
+	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 11 || before != schemaHash(6) {
 		t.Fatal(version, err)
 	}
 	if err = store.Read.QueryRow("SELECT CAST(debit AS TEXT),account_name FROM document_lines WHERE document_id='doc' AND position=0").Scan(&money, &name); err != nil || money != "9007199254740993" || name != "Tiền lịch sử" {
@@ -530,7 +531,7 @@ func TestOpenPeriodsMigrationFromVersionNineAllowsUnopenedPeriods(t *testing.T) 
 	}
 	defer store.Close()
 	var version, revision int
-	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 10 {
+	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 11 {
 		t.Fatal(version, err)
 	}
 	if err = store.Read.QueryRow("SELECT revision FROM meta").Scan(&revision); err != nil || revision != 15 || before != schemaHash(9) {
@@ -551,6 +552,113 @@ func TestOpenPeriodsMigrationFromVersionNineAllowsUnopenedPeriods(t *testing.T) 
 	}
 	if _, err = store.Write.Exec("UPDATE documents SET status='posted',reference='CT-2026-000002' WHERE id='sep'"); err == nil {
 		t.Fatal("posted into closed period")
+	}
+	if err = Check(ctx, store.Read); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPartnerDetailsMigrationFromVersionTenPreservesAuditAndBackups(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dataset := filepath.Join(root, "datasets", "version-ten")
+	if err := os.MkdirAll(filepath.Join(dataset, "attachments"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := Connect(ctx, filepath.Join(dataset, "accounting.sqlite"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema, auditSchema, editableSchema, openPeriodsSchema}
+	if _, err = db.Exec("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL) STRICT"); err != nil {
+		t.Fatal(err)
+	}
+	for i, source := range sources {
+		if _, err = db.Exec(source); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Exec("INSERT INTO schema_migrations VALUES(?,?)", i+1, migrationChecksum(i+1, source)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, q := range []string{
+		"INSERT INTO meta VALUES(1,'company','Migration partners','ten-epoch',3,'VND','test')",
+		"INSERT INTO users VALUES('owner','owner','Chủ sở hữu','owner','hash',1)",
+	} {
+		if _, err = db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	auditID, err := BeginAudit(ctx, tx, "owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO partners VALUES('p-legacy','0318088925','CÔNG TY CỔ PHẦN HARMONY WORLD','supplier','','',1)"); err != nil {
+		t.Fatal(err)
+	}
+	if err = FinishAudit(ctx, tx, auditID, "owner", "partner.save", "p-legacy", AuditMetadata{Title: "Cập nhật NCC", EntityType: "partners", EntityID: "p-legacy", EntityName: "0318088925", Count: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	beforeHash := schemaHash(10)
+	if err = Check(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err = WriteFile(filepath.Join(root, "active-dataset.json"), []byte(`{"dataset":"version-ten"}`)); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	var version int
+	if err = store.Read.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 11 || beforeHash != schemaHash(10) {
+		t.Fatal(version, err)
+	}
+	readTx, err := store.Read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyChanges, err := ReadAuditChanges(ctx, readTx, auditID)
+	readTx.Rollback()
+	if err != nil || len(legacyChanges) != 1 {
+		t.Fatal(legacyChanges, err)
+	}
+	wtx, err := store.Write.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	auditID2, err := BeginAudit(ctx, wtx, "owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = wtx.ExecContext(ctx, "UPDATE partners SET tax_code='0318088925',address='Số 12 Nguyễn Huệ, Quận 1, TP.HCM' WHERE id='p-legacy'"); err != nil {
+		t.Fatal(err)
+	}
+	if err = FinishAudit(ctx, wtx, auditID2, "owner", "partner.save", "p-legacy", AuditMetadata{Title: "Cập nhật MST/Địa chỉ", EntityType: "partners", EntityID: "p-legacy", EntityName: "0318088925", Count: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err = wtx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	readTx2, err := store.Read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newChanges, err := ReadAuditChanges(ctx, readTx2, auditID2)
+	readTx2.Rollback()
+	if err != nil || len(newChanges) != 1 {
+		t.Fatal(newChanges, err)
 	}
 	if err = Check(ctx, store.Read); err != nil {
 		t.Fatal(err)

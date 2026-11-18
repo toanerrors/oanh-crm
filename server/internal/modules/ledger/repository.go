@@ -85,13 +85,13 @@ func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Wor
 	if err != nil {
 		return w, err
 	}
-	rows, err = tx.QueryContext(ctx, "SELECT p.id,p.code,p.name,p.role,p.email,p.phone,p.active,r.id IS NOT NULL FROM partners p LEFT JOIN (SELECT partner_id AS id FROM document_lines WHERE partner_id IS NOT NULL UNION SELECT partner_id FROM documents WHERE partner_id IS NOT NULL) r ON r.id=p.id ORDER BY p.code")
+	rows, err = tx.QueryContext(ctx, "SELECT p.id,p.code,p.name,p.role,p.tax_code,p.address,p.email,p.phone,p.active,r.id IS NOT NULL FROM partners p LEFT JOIN (SELECT partner_id AS id FROM document_lines WHERE partner_id IS NOT NULL UNION SELECT partner_id FROM documents WHERE partner_id IS NOT NULL) r ON r.id=p.id ORDER BY p.code")
 	if err != nil {
 		return w, err
 	}
 	for rows.Next() {
 		var p Partner
-		if err = rows.Scan(&p.ID, &p.Code, &p.Name, &p.Role, &p.Email, &p.Phone, &p.Active, &p.HasReferences); err != nil {
+		if err = rows.Scan(&p.ID, &p.Code, &p.Name, &p.Role, &p.TaxCode, &p.Address, &p.Email, &p.Phone, &p.Active, &p.HasReferences); err != nil {
 			rows.Close()
 			return w, err
 		}
@@ -158,7 +158,12 @@ func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Par
 	for index, p := range partners {
 		p.Code = strings.ToUpper(strings.TrimSpace(p.Code))
 		p.Name = strings.TrimSpace(p.Name)
-		if !accounting.ID(p.ID) || !accounting.ID(p.Code) || p.Name == "" || len(p.Name) > 300 || len(p.Email) > 254 || len(p.Phone) > 40 || !strings.Contains("|customer|supplier|both|", "|"+p.Role+"|") {
+		p.TaxCode = strings.TrimSpace(p.TaxCode)
+		p.Address = strings.TrimSpace(p.Address)
+		p.Email = strings.TrimSpace(p.Email)
+		p.Phone = strings.TrimSpace(p.Phone)
+		partners[index] = p
+		if !accounting.ID(p.ID) || !accounting.ID(p.Code) || p.Name == "" || len(p.Name) > 300 || len(p.TaxCode) > 100 || len(p.Address) > 500 || len(p.Email) > 254 || len(p.Phone) > 40 || !strings.Contains("|customer|supplier|both|", "|"+p.Role+"|") {
 			return nil, accounting.Fail("VALIDATION", "Thông tin đối tượng không hợp lệ.")
 		}
 		partners[index].HasReferences = false
@@ -181,7 +186,7 @@ func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Par
 		if duplicate > 0 {
 			return nil, accounting.Fail("DUPLICATE_CODE", "Mã đối tượng bị trùng.")
 		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO partners VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET code=excluded.code,name=excluded.name,role=excluded.role,email=excluded.email,phone=excluded.phone,active=excluded.active", p.ID, p.Code, p.Name, p.Role, p.Email, p.Phone, p.Active); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO partners(id,code,name,role,email,phone,active,tax_code,address) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET code=excluded.code,name=excluded.name,role=excluded.role,tax_code=excluded.tax_code,address=excluded.address,email=excluded.email,phone=excluded.phone,active=excluded.active", p.ID, p.Code, p.Name, p.Role, p.Email, p.Phone, p.Active, p.TaxCode, p.Address); err != nil {
 			return nil, err
 		}
 	}

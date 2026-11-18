@@ -35,6 +35,8 @@ export interface Partner {
   code: string;
   name: string;
   role: 'customer' | 'supplier' | 'both';
+  taxCode?: string;
+  address?: string;
   email: string;
   phone: string;
   active: boolean;

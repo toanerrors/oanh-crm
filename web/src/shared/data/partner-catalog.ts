@@ -11,5 +11,5 @@ export const partnerRoles: Record<Partner['role'], string> = {
 
 export function filterCatalogPartners(partners: Partner[], role: PartnerRoleFilter = 'all', search = '', activeOnly = false) {
   const query = normalizeSearch(search);
-  return partners.filter(item => (!activeOnly || item.active) && (role === 'all' || item.role === 'both' || item.role === role) && normalizeSearch(`${item.code} ${item.name} ${item.email} ${item.phone}`).includes(query));
+  return partners.filter(item => (!activeOnly || item.active) && (role === 'all' || item.role === 'both' || item.role === role) && normalizeSearch(`${item.code} ${item.name} ${item.taxCode ?? ''} ${item.address ?? ''} ${item.email} ${item.phone}`).includes(query));
 }

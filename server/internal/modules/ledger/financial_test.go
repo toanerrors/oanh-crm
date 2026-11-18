@@ -187,7 +187,7 @@ func TestFinancialSourceRangeAndPartnerSides(t *testing.T) {
 	defer store.Close()
 	for _, q := range []string{
 		"INSERT INTO periods VALUES('2025-12',0)", "INSERT INTO periods VALUES('2026-01',0)", "INSERT INTO periods VALUES('2027-01',0)",
-		"INSERT INTO partners VALUES('a','A','Khách A','customer','','',1)", "INSERT INTO partners VALUES('b','B','Khách B','customer','','',1)",
+		"INSERT INTO partners(id,code,name,role,email,phone,active) VALUES('a','A','Khách A','customer','','',1)", "INSERT INTO partners(id,code,name,role,email,phone,active) VALUES('b','B','Khách B','customer','','',1)",
 		"INSERT INTO documents(id,reference,type,date,description,status,version,source_type,source_id) VALUES('before','CT-1','journal','2025-12-31','Giả lập','draft',1,'journal','before')",
 		"INSERT INTO document_lines VALUES('before',0,'131','a','A','Phải thu','',100,0)", "INSERT INTO document_lines VALUES('before',1,'131','b','B','Phải thu','',0,40)", "INSERT INTO document_lines VALUES('before',2,'411',NULL,'','Vốn','',0,60)", "UPDATE documents SET status='posted' WHERE id='before'",
 		"INSERT INTO documents(id,reference,type,date,description,status,version,source_type,source_id) VALUES('now','CT-2','journal','2026-01-01','Giả lập','draft',1,'journal','now')",

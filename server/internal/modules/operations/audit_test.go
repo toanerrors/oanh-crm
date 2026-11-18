@@ -474,3 +474,114 @@ func TestAuditRestoreRequiresUnchangedPreviewAndReason(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPartnerTaxCodeAddressAuditExcelAndReopen(t *testing.T) {
+	f := openFixture(t)
+	ctx := context.Background()
+	initial := ledger.Partner{
+		ID:      "harmony",
+		Code:    "0318088925",
+		Name:    "CÔNG TY CỔ PHẦN HARMONY WORLD",
+		Role:    "supplier",
+		TaxCode: "  0318088925  ",
+		Address: "  12 Nguyễn Huệ, Quận 1, TP.HCM  ",
+		Email:   "ketoan@harmony.invalid",
+		Phone:   "0901234567",
+		Active:  true,
+	}
+	if _, err := f.ledger.SavePartners(ctx, f.cmd("partner-create"), []ledger.Partner{initial}); err != nil {
+		t.Fatal(err)
+	}
+	updated := initial
+	updated.TaxCode = "0318088925-001"
+	updated.Address = "45 Lê Lợi, Quận 1, TP.HCM"
+	if _, err := f.ledger.SavePartners(ctx, f.cmd("partner-update"), []ledger.Partner{updated}); err != nil {
+		t.Fatal(err)
+	}
+	undo, err := auditRestore(t, f, lastAudit(t, f, "partner.save"), "partner-undo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := f.ledger.Snapshot(ctx, "2026-10", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got *ledger.Partner
+	for i := range snap.Partners {
+		if snap.Partners[i].ID == "harmony" {
+			got = &snap.Partners[i]
+		}
+	}
+	if got == nil || got.TaxCode != "0318088925" || got.Address != "12 Nguyễn Huệ, Quận 1, TP.HCM" {
+		t.Fatalf("unexpected undone partner: %+v", got)
+	}
+	if _, err = auditRestore(t, f, undo, "partner-redo"); err != nil {
+		t.Fatal(err)
+	}
+	snap, err = f.ledger.Snapshot(ctx, "2026-10", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byTax := ledger.CatalogPartners(snap.Partners, "0318088925-001", "")
+	if len(byTax) != 1 || byTax[0].ID != "harmony" || byTax[0].Address != "45 Lê Lợi, Quận 1, TP.HCM" {
+		t.Fatalf("catalog search by taxCode failed: %+v", byTax)
+	}
+	byAddr := ledger.CatalogPartners(snap.Partners, "Le Loi", "")
+	if len(byAddr) != 1 || byAddr[0].ID != "harmony" {
+		t.Fatalf("catalog search by address failed: %+v", byAddr)
+	}
+
+	batch, cfg := stageExcelTest(t, f, "partners-tax-addr", "partners",
+		[]string{"code", "name", "role", "taxCode", "address"},
+		[][]string{{"NCC-HN", "Công ty Hà Nội", "supplier", "0101245486", "88 Láng Hạ, Hà Nội"}},
+	)
+	preview := excelPreviewTest(t, f, batch, cfg)
+	if preview.ErrorCount != 0 {
+		t.Fatalf("unexpected excel preview errors: %+v", preview)
+	}
+	excelCommitTest(t, f, batch, cfg, preview, "commit-partners-tax-addr")
+
+	unmappedBatch, unmappedCfg := stageExcelTest(t, f, "partners-preserve-unmapped", "partners",
+		[]string{"code", "name", "role"},
+		[][]string{{"0318088925", "CÔNG TY CỔ PHẦN HARMONY WORLD (CN)", "supplier"}},
+	)
+	unmappedCfg.Mode = "update"
+	unmappedPreview := excelPreviewTest(t, f, unmappedBatch, unmappedCfg)
+	if unmappedPreview.ErrorCount != 0 {
+		t.Fatalf("unexpected unmapped preview errors: %+v", unmappedPreview)
+	}
+	excelCommitTest(t, f, unmappedBatch, unmappedCfg, unmappedPreview, "commit-partners-preserve")
+
+	f.store.Close()
+	reopened, err := sqlite.Open(ctx, f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	f.store, f.ledger.Store = reopened, reopened
+	if err = sqlite.Check(ctx, reopened.Read); err != nil {
+		t.Fatal(err)
+	}
+	snap, err = f.ledger.Snapshot(ctx, "2026-10", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundHarmony, foundHN := false, false
+	for _, p := range snap.Partners {
+		if p.Code == "0318088925" {
+			foundHarmony = true
+			if p.TaxCode != "0318088925-001" || p.Address != "45 Lê Lợi, Quận 1, TP.HCM" || p.Name != "CÔNG TY CỔ PHẦN HARMONY WORLD (CN)" {
+				t.Fatalf("harmony lost taxCode/address on unmapped update or reopen: %+v", p)
+			}
+		}
+		if p.Code == "NCC-HN" {
+			foundHN = true
+			if p.TaxCode != "0101245486" || p.Address != "88 Láng Hạ, Hà Nội" {
+				t.Fatalf("imported partner wrong taxCode/address: %+v", p)
+			}
+		}
+	}
+	if !foundHarmony || !foundHN {
+		t.Fatalf("missing expected partners after reopen: harmony=%v hn=%v", foundHarmony, foundHN)
+	}
+}

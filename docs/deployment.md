@@ -1,6 +1,6 @@
 # Release bằng Docker trên máy chủ
 
-Bản phát hành: `0.18.6`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
+Bản phát hành: `0.18.7`. Một container phục vụ cả frontend và API Go, SQLite/file đính kèm nằm trong volume `oanh_data`. Container chạy UID/GID 65532, root filesystem chỉ đọc, healthcheck qua API và tự khởi động lại với `unless-stopped`.
 
 ## Build và chạy
 
@@ -12,7 +12,7 @@ docker compose up -d --wait --wait-timeout 90
 docker compose ps
 ```
 
-Image: `oanh-crm:0.18.6`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
+Image: `oanh-crm:0.18.7`. Dockerfile pin Node.js/Go theo phiên bản và digest, build frontend bằng pnpm theo lockfile, biên dịch Go static rồi chỉ chép binary và file tĩnh vào image scratch. Healthcheck kiểm tra được kết nối database qua `GET /api/v1/session` trước hoặc sau khi khởi tạo tài khoản.
 
 Bản release cũng được gắn thêm tag image theo commit để đối chiếu/giữ bản cũ. Mã nguồn dùng remote `origin` tại [toanerrors/oanh-crm](https://github.com/toanerrors/oanh-crm). Sau mỗi task có thay đổi: validation → commit → push nhánh/tag liên quan → release Docker → healthcheck. Image hiện được lưu local trên server, chưa cấu hình registry. Không force-push hoặc thay đổi tag đã phát hành; không in thông tin xác thực trong output Git.
 
@@ -85,3 +85,7 @@ Trước release: backup nguội toàn bộ volume đã dừng, dùng verifier h
 ## Nhật ký thao tác — schema8 (0.12.0)
 
 Migration thêm metadata/snapshot bất biến và version tombstone của nháp bị bỏ. Không thay tiền, bút toán, người dùng hay session hiện có; không backfill snapshot cũ. Trước release sao chép nguội toàn bộ `/data`, kiểm tra schema7/integrity/FK/đối soát bằng verifier hỗ trợ schema8, đóng gói kèm checksum. Giữ volume `oanh_data`, image và Git tag theo commit. Backup/Stage nhận schema1–8. Binary0.11.x không đọc schema8; không rollback binary trực tiếp hoặc tự restore đè dữ liệu.
+
+## Chi tiết mã số thuế và địa chỉ đối tượng — schema 11 (0.18.7)
+
+Migration 11 (`partner_details.sql`) bổ sung hai cột chuỗi `tax_code TEXT NOT NULL DEFAULT ''` và `address TEXT NOT NULL DEFAULT ''` vào bảng `partners`, đồng thời cập nhật bộ trigger `audit_capture_partners_*` để chụp đủ 9 cột mới trong khi giữ nguyên checksum lịch sử của migration 1–10. Không thay đổi số tiền, bút toán hay chứng từ đã ghi sổ. Backup/Stage nhận schema 1–11; image trước `0.18.7` không đọc schema 11 nên không hạ binary trực tiếp trên volume đã nâng.

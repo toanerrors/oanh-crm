@@ -303,9 +303,10 @@ test('sidebar thu gọn giữ điều hướng, chức năng nhanh và menu mobi
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(expand).toBeHidden();
   await page.getByRole('button', { name: 'Mở điều hướng', exact: true }).click();
-  await expect(page.getByRole('dialog').getByRole('link', { name: 'Mua hàng', exact: true })).toBeVisible();
-  await page.getByRole('dialog').getByRole('link', { name: 'Mua hàng', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeHidden();
+  const mobileDrawer = page.getByRole('dialog', { name: 'Điều hướng', exact: true });
+  await expect(mobileDrawer.getByRole('link', { name: 'Mua hàng', exact: true })).toBeVisible();
+  await mobileDrawer.getByRole('link', { name: 'Mua hàng', exact: true }).click();
+  await expect(mobileDrawer).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Mua hàng', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 820, height: 1000 });
   await expect.poll(async () => (await sidebar.boundingBox())?.width).toBe(64);

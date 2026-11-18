@@ -2609,6 +2609,8 @@ components:
         id: *id002
         code: *id002
         name: *id002
+        taxCode: *id002
+        address: *id002
         email: *id002
         phone: *id002
         role:

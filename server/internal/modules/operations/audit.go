@@ -122,6 +122,29 @@ func (s *Service) RestoreAudit(ctx context.Context, cmd ledger.Command, in Audit
 		}{strconv.FormatInt(id, 10), e.ID, value}, nil
 	})
 }
+func equalAuditState(table string, current, recorded json.RawMessage) bool {
+	if bytes.Equal(current, recorded) {
+		return true
+	}
+	if table != "partners" || len(current) == 0 || len(recorded) == 0 {
+		return false
+	}
+	var curMap, recMap map[string]*string
+	if json.Unmarshal(current, &curMap) != nil || json.Unmarshal(recorded, &recMap) != nil || len(recMap) != 7 || len(curMap) != 9 {
+		return false
+	}
+	if curMap["tax_code"] == nil || *curMap["tax_code"] != "" || curMap["address"] == nil || *curMap["address"] != "" {
+		return false
+	}
+	for key, val := range recMap {
+		cur, ok := curMap[key]
+		if !ok || (val == nil) != (cur == nil) || (val != nil && *val != *cur) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Service) auditRestoreSource(ctx context.Context, tx *sql.Tx, in AuditRestoreInput) (ledger.AuditEntry, string, int64, error) {
 	var e ledger.AuditEntry
 	reason := strings.TrimSpace(in.Reason)
@@ -157,7 +180,7 @@ func (s *Service) auditRestoreSource(ctx context.Context, tx *sql.Tx, in AuditRe
 		if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM audit_changes WHERE table_name=? AND row_key=? AND audit_id>?)", change.Table, change.Key, id).Scan(&later); err != nil {
 			return e, "", 0, err
 		}
-		if later > 0 || !bytes.Equal(current, change.After) {
+		if later > 0 || !equalAuditState(change.Table, current, change.After) {
 			return e, "", 0, accounting.Fail("VERSION_CONFLICT", "Dữ liệu này đã có thao tác mới hơn. Chọn nhật ký mới nhất để tránh ghi đè.")
 		}
 	}
@@ -367,7 +390,7 @@ func (s *Service) applyAuditRestore(ctx context.Context, tx *sql.Tx, cmd ledger.
 					return nil, err
 				}
 			}
-			values = append(values, ledger.Partner{ID: r.text("id"), Code: r.text("code"), Name: r.text("name"), Role: r.text("role"), Email: r.text("email"), Phone: r.text("phone"), Active: !create && r.flag("active")})
+			values = append(values, ledger.Partner{ID: r.text("id"), Code: r.text("code"), Name: r.text("name"), Role: r.text("role"), TaxCode: r.text("tax_code"), Address: r.text("address"), Email: r.text("email"), Phone: r.text("phone"), Active: !create && r.flag("active")})
 		}
 		return s.Ledger.SavePartnersTx(ctx, tx, values)
 	case "admin.account.save":

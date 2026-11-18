@@ -150,3 +150,8 @@ Không bỏ lịch sử điều chỉnh khi backup/restore; không lấy riêng 
 Snapshot gồm audit_details/audit_changes và audit_recovery_versions, không chỉ bản ghi hiện hành. Kiểm chứng thêm audit_context rỗng, số thay đổi khớp metadata, liên kết khôi phục về sự kiện trước với cùng loại nghiệp vụ và version bản phục hồi vượt tombstone. Backup/Stage hỗ trợ schema1–8, giữ hash và checksum1–7. Migration7→8 không tự tạo snapshot cho lịch sử cũ và không thay số liệu đã ghi sổ.
 
 Trước release dừng container, sao chép toàn bộ volume và kiểm chứng bản sao schema7. Binary trước0.12.0 không đọc schema8. Không hạ schema hoặc tự chép đè volume. Restore dữ liệu vẫn qua vùng staging, đối soát và đổi dataset_epoch; khôi phục một thao tác trong nhật ký là nghiệp vụ riêng, không thay dataset và không xóa lịch sử.
+
+## Schema 9–11 (0.17.0, 0.18.0, 0.18.7)
+
+- Schema 9 (`editable.sql`) và schema 10 (`open_periods.sql`) cập nhật trigger ghi sổ/mở kỳ, giữ nguyên dữ liệu lịch sử.
+- Schema 11 (`partner_details.sql`, `0.18.7`) thêm `tax_code` và `address` vào `partners` với giá trị mặc định `''`, cập nhật trigger audit của `partners` sang 9 cột và vẫn đọc/khôi phục tương thích các snapshot audit `partners` 7 cột từ schema 8–10. Backup/Stage hỗ trợ đầy đủ các gói từ schema 1 đến 11, chỉ nâng schema trên vùng staging trước khi đổi con trỏ.

@@ -226,20 +226,34 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   await command('/policies', { regime: 'Chế độ kiểm thử', effectiveFrom: '2026-01-01', confirmed: true, rounding: 'half_up', vatMethod: 'deduction', vatRates: ['0', '8', '10'], inventoryMethod: 'fifo', quantityScale: 2, standardDays: '26', hoursPerDay: '8', personalDeduction: '100', dependentDeduction: '50', corporateTaxRate: '20', insurance: [{ name: 'Khoản BH thử', employeeRate: '10', employerRate: '20' }], pitBrackets: [{ upTo: '1000', rate: '5' }, { upTo: '', rate: '10' }], depreciationMethod: 'straight_line', residualMethod: 'last_period' });
   await command('/items', { id: 'rent-service-uuid', code: 'DV-THUE', name: 'THUÊ NHÀ', unit: 'tháng', tracked: false, active: true });
   await page.goto('/vouchers/new?kind=purchase&service=1');
+  const deductibleSelect = page.getByLabel('Khấu trừ VAT dòng 1', { exact: true }).locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]');
+  await expect(deductibleSelect).toContainText('Có');
   const partnerSaved = page.waitForResponse(response => response.url().endsWith('/api/v1/partners') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Mã nhà cung cấp: thêm nhà cung cấp', exact: true }).click();
-  await page.getByLabel('Mã đối tượng', { exact: true }).fill('0318088925');
-  await page.getByLabel('Tên đối tượng', { exact: true }).fill('CÔNG TY CỔ PHẦN HARMONY WORLD');
-  await page.getByLabel('Tên đối tượng', { exact: true }).press('Control+s');
+  const partnerDialog = page.getByRole('dialog', { name: 'Thêm đối tượng', exact: true });
+  await partnerDialog.getByLabel('Mã đối tượng', { exact: true }).fill('0318088925');
+  await partnerDialog.getByLabel('Tên đối tượng', { exact: true }).fill('CÔNG TY CỔ PHẦN HARMONY WORLD');
+  await partnerDialog.getByLabel('Mã số thuế', { exact: true }).fill('0318088925');
+  await partnerDialog.getByLabel('Địa chỉ', { exact: true }).fill('12 Nguyễn Huệ, Quận 1, TP.HCM');
+  await partnerDialog.getByLabel('Tên đối tượng', { exact: true }).press('Control+s');
   const createdPartners = await (await partnerSaved).json();
   const createdPartner = createdPartners.find((item: { code: string }) => item.code === '0318088925');
   expect(createdPartner.id).toMatch(/^[0-9a-f-]{36}$/);
+  expect(createdPartner.taxCode).toBe('0318088925');
+  expect(createdPartner.address).toBe('12 Nguyễn Huệ, Quận 1, TP.HCM');
+  await expect(page.getByLabel('Địa chỉ', { exact: true })).toHaveValue('12 Nguyễn Huệ, Quận 1, TP.HCM');
+  await page.getByRole('tab', { name: 'Thuế / hóa đơn', exact: true }).click();
+  await expect(page.getByLabel('Mã số thuế', { exact: true })).toHaveValue('0318088925');
+  await page.getByRole('tab', { name: 'Hạch toán', exact: true }).click();
   await page.getByLabel('Diễn giải', { exact: true }).fill('Thuê nhà tháng 11');
   await choose(page, 'Hàng dịch vụ dòng 1', 'DV-THUE');
   await choose(page, 'Tài khoản dòng 1', '64271');
   await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('2000000');
   await choose(page, 'VAT dòng 1', '8');
+  await choose(page, 'Khấu trừ VAT dòng 1', 'Không');
+  await expect(deductibleSelect).toContainText('Không');
   await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
+  await expect(deductibleSelect).toContainText('Có');
   await page.getByRole('button', { name: /Tính và xem trước/ }).click();
   await expect(page.getByRole('heading', { name: /Bút toán server tính/ })).toBeVisible();
   const previewPanel = page.locator('section').filter({ has: page.getByRole('heading', { name: /Bút toán server tính/ }) }).last();
@@ -272,11 +286,11 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
 
   await page.goto('/vouchers/new?kind=purchase&service=1');
   await choose(page, 'Mã nhà cung cấp', '0318088925');
+  await expect(page.getByLabel('Địa chỉ', { exact: true })).toHaveValue('12 Nguyễn Huệ, Quận 1, TP.HCM');
   await page.getByLabel('Diễn giải', { exact: true }).fill('Thuê nhà kỳ tiếp theo chưa thanh toán');
   await choose(page, 'Hàng dịch vụ dòng 1', 'DV-THUE');
   await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('2000000');
   await choose(page, 'VAT dòng 1', '8');
-  await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
   await page.getByRole('button', { name: /Tính và xem trước/ }).click();
   const unpaidResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/operations') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click();
@@ -346,7 +360,6 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   await choose(page, 'Hàng dịch vụ dòng 1', 'DV-THUE');
   await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('1500000');
   await choose(page, 'VAT dòng 1', '8');
-  await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
   await page.getByRole('button', { name: /Tính và xem trước/ }).click();
   const augPostedResp = page.waitForResponse(response => response.url().endsWith('/api/v1/operations') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click();
@@ -355,9 +368,17 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   const augVoucher = await (await page.request.get(`/api/v1/documents/${augPosted.document.id}/voucher`)).json();
   expect(augVoucher.input.date).toBe('2026-08-04');
   expect(augVoucher.input.voucher.documentDate).toBe('2026-08-02');
+  expect(augVoucher.input.voucher.address).toBe('12 Nguyễn Huệ, Quận 1, TP.HCM');
+  expect(augVoucher.input.voucher.taxCode).toBe('0318088925');
   expect(augVoucher.input.invoiceDate).toBe('2026-08-04');
   expect(augVoucher.input.invoiceNumber).toBe('0000803');
+  expect(augVoucher.document.lines.find((line: { accountId: string }) => line.accountId === '1331').debit).toBe('120000');
   await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+
+  await page.goto('/catalog');
+  await expect(page.getByText('12 Nguyễn Huệ, Quận 1, TP.HCM', { exact: false })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Tìm trong danh mục' }).fill('nguyen hue');
+  await expect(page.getByRole('button', { name: '0318088925', exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/purchases');

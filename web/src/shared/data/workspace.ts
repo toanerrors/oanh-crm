@@ -40,10 +40,26 @@ export async function saveDemoDraft(document: AccountingDocument): Promise<Accou
 }
 
 export async function saveDemoPartners(partners: Partner[]): Promise<Partner[]> {
-  const normalized = partners.map(item => ({ ...item, code: item.code.trim().toUpperCase(), name: item.name.trim().normalize('NFC'), email: (item.email ?? '').trim(), phone: (item.phone ?? '').trim() }));
+  const normalized = partners.map(item => ({
+    ...item,
+    code: item.code.trim().toUpperCase(),
+    name: item.name.trim().normalize('NFC'),
+    taxCode: (item.taxCode ?? '').trim(),
+    address: (item.address ?? '').trim().normalize('NFC'),
+    email: (item.email ?? '').trim(),
+    phone: (item.phone ?? '').trim(),
+  }));
   if (!isDemo) {
     const saved = await command<Partner[]>('/partners', { partners: normalized });
-    return saved.map((item, index) => ({ ...item, code: normalized[index]?.code ?? item.code, name: normalized[index]?.name ?? item.name, email: normalized[index]?.email ?? item.email, phone: normalized[index]?.phone ?? item.phone }));
+    return saved.map((item, index) => ({
+      ...item,
+      code: normalized[index]?.code ?? item.code,
+      name: normalized[index]?.name ?? item.name,
+      taxCode: normalized[index]?.taxCode ?? item.taxCode ?? '',
+      address: normalized[index]?.address ?? item.address ?? '',
+      email: normalized[index]?.email ?? item.email,
+      phone: normalized[index]?.phone ?? item.phone,
+    }));
   }
   const ids = new Set<string>();
   const codes = new Set<string>();

@@ -24,7 +24,7 @@ export function PartnerSelect({ id, value, onChange, onSelected, role = 'all', d
   };
   return <div style={{ display: 'flex', gap: 4, minWidth: 0 }}>
     <Select id={id} style={{ flex: 1, minWidth: 0 }} allowClear value={value} aria-label={label} disabled={disabled} loading={!data} showSearch={searchOptions} placeholder={placeholder ?? `Chọn ${name}`} options={options} notFoundContent={!data ? 'Đang tải danh mục…' : `Không tìm thấy ${name} phù hợp. Kiểm tra vai trò hoặc nhấn + để thêm.`} onChange={choose} />
-    {!disabled && canWrite && <Button icon={<Icon name="plus" size={14} />} aria-label={`${label}: thêm ${name}`} title={`Thêm ${name}`} onClick={() => setEditing({ id: crypto.randomUUID(), code: '', name: '', role: defaultRole ?? (role === 'supplier' ? 'supplier' : 'customer'), email: '', phone: '', active: true })} />}
+    {!disabled && canWrite && <Button icon={<Icon name="plus" size={14} />} aria-label={`${label}: thêm ${name}`} title={`Thêm ${name}`} onClick={() => setEditing({ id: crypto.randomUUID(), code: '', name: '', role: defaultRole ?? (role === 'supplier' ? 'supplier' : 'customer'), taxCode: '', address: '', email: '', phone: '', active: true })} />}
     {editing && <PartnerEditor key={editing.id} partner={editing} allowedRole={role} onClose={() => setEditing(null)} onSaved={partner => { if (partner.active) { onChange?.(partner.id); onSelected?.(partner); } }} />}
   </div>;
 }
