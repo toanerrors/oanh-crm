@@ -432,13 +432,12 @@ func (s *Service) openingAdjustmentBlockers(ctx context.Context, tx *sql.Tx, sta
 	if a.BaseVersion != state.BalanceVersion {
 		add("VERSION_CONFLICT", "Đã có phiên bản số dư mới; mở lại bản hiệu lực.", "")
 	}
-	var closed bool
-	err := tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", a.Input.Cutoff[:7]).Scan(&closed)
-	if err != nil && err != sql.ErrNoRows {
+	closed, err := ledger.PeriodClosedTx(ctx, tx, a.Input.Cutoff[:7])
+	if err != nil {
 		return nil, err
 	}
-	if err == sql.ErrNoRows || closed {
-		add("PERIOD_CLOSED", "Kỳ chuyển đổi chưa mở hoặc đã khóa. Xử lý kỳ trong Thiết lập rồi xác nhận lại.", "")
+	if closed {
+		add("PERIOD_CLOSED", "Kỳ chuyển đổi đã khóa. Xử lý mở lại kỳ trong Thiết lập rồi xác nhận lại.", "")
 	}
 	rows, err := tx.QueryContext(ctx, "SELECT period FROM periods WHERE closed=1 AND period>? ORDER BY period", a.Input.Cutoff[:7])
 	if err != nil {

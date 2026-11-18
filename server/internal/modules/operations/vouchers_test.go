@@ -315,3 +315,51 @@ func TestEditPostedVoucherDocumentAndAsset(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPeriodsAreOpenByDefaultAndLockOnCloseOrClosing(t *testing.T) {
+	f := treasuryFixture(t)
+	ctx := context.Background()
+
+	// Month 2026-11 has no row in periods, yet posting and editing posted vouchers must succeed immediately.
+	novReceipt := executeTreasury(t, f, "nov-open-default", Input{Kind: "receipt", SourceID: "nov-open-default", Date: "2026-11-15", Description: "Thu tháng 11 không cần mở kỳ", MoneyAccount: "111", CounterAccount: "511", Amount: "5000"})
+	if novReceipt.Document.Status != "posted" {
+		t.Fatal(novReceipt.Document)
+	}
+	loaded, err := f.ops.Voucher(ctx, novReceipt.Document.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded.Input.Amount = "6000"
+	updated := executeTreasury(t, f, "nov-edit-default", loaded.Input)
+	if updated.Document.Lines[0].Debit != "6000" {
+		t.Fatal(updated.Document)
+	}
+
+	// Closing 2026-11 (which had no row in periods) must insert closed=1 and block further posting.
+	if _, err = f.ops.Execute(ctx, f.cmd("nov-closing"), Input{Kind: "closing", SourceID: "nov-closing", Date: "2026-11-30", Description: "Kết chuyển tháng 11"}); err != nil {
+		t.Fatal(err)
+	}
+	var closed bool
+	if err = f.store.Read.QueryRow("SELECT closed FROM periods WHERE period='2026-11'").Scan(&closed); err != nil || !closed {
+		t.Fatal(closed, err)
+	}
+	if _, err = f.ops.Execute(ctx, f.cmd("nov-after-closing"), Input{Kind: "receipt", SourceID: "nov-after-closing", Date: "2026-11-20", Description: "Sau kết chuyển", MoneyAccount: "111", CounterAccount: "511", Amount: "100"}); accounting.Code(err) != "PERIOD_CLOSED" {
+		t.Fatal(err)
+	}
+
+	// Reopening 2026-11 allows posting again; explicitly locking 2026-12 (never opened before) blocks posting.
+	if _, err = f.ledger.ReopenPeriod(ctx, f.cmd("nov-reopen"), ledger.Reopen{Period: "2026-11", Reason: "Điều chỉnh tháng 11"}); err != nil {
+		t.Fatal(err)
+	}
+	executeTreasury(t, f, "nov-reopened-post", Input{Kind: "receipt", SourceID: "nov-reopened-post", Date: "2026-11-25", Description: "Sau mở lại kỳ", MoneyAccount: "111", CounterAccount: "511", Amount: "200"})
+
+	if _, err = f.ledger.SavePeriod(ctx, f.cmd("dec-lock"), ledger.Period{Period: "2026-12", Closed: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.ops.Execute(ctx, f.cmd("dec-blocked"), Input{Kind: "receipt", SourceID: "dec-blocked", Date: "2026-12-05", Description: "Tháng 12 đã khóa", MoneyAccount: "111", CounterAccount: "511", Amount: "100"}); accounting.Code(err) != "PERIOD_CLOSED" {
+		t.Fatal(err)
+	}
+	if err = sqlite.Check(ctx, f.store.Read); err != nil {
+		t.Fatal(err)
+	}
+}

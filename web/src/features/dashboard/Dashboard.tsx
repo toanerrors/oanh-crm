@@ -25,8 +25,8 @@ export function Component() {
   const m = dashboardModel(data, period);
   const canWrite = isDemo || apiScope().permissions !== 'viewer';
   const owner = !isDemo && apiScope().permissions === 'owner';
-  const closed = data.periods?.find(p => p.period === period)?.closed;
-  const periodStatus = closed === undefined && !isDemo ? <Tag>Chưa mở kỳ</Tag> : <Tag color={closed ? 'default' : 'green'}>{closed ? 'Kỳ đã khóa' : 'Kỳ đang mở'}</Tag>;
+  const closed = data.periods?.find(p => p.period === period)?.closed ?? false;
+  const periodStatus = <Tag color={closed ? 'default' : 'green'}>{closed ? 'Kỳ đã khóa' : 'Kỳ đang mở'}</Tag>;
   const quick: { label: string; icon: IconName; type: DocumentType; to: string }[] = [
     { label: 'Phiếu thu', icon: 'arrowDown', type: 'receipt', to: '/vouchers/new?kind=receipt&account=111' },
     { label: 'Phiếu chi', icon: 'arrowUp', type: 'payment', to: '/vouchers/new?kind=payment&account=111' },

@@ -213,11 +213,12 @@ func (s *Service) DiscardVoucher(ctx context.Context, cmd ledger.Command, in led
 }
 
 func (s *Service) unpostVoucherTx(ctx context.Context, tx *sql.Tx, saved *ledger.Document) error {
-	var closed bool
-	if err := tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", saved.Date[:7]).Scan(&closed); err == sql.ErrNoRows || closed {
-		return accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán của chứng từ đã khóa.")
-	} else if err != nil {
+	closed, err := ledger.PeriodClosedTx(ctx, tx, saved.Date[:7])
+	if err != nil {
 		return err
+	}
+	if closed {
+		return accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán của chứng từ đã khóa.")
 	}
 	var reversed int
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM documents WHERE reversal_of=? AND status='posted'", saved.ID).Scan(&reversed); err != nil {
@@ -227,7 +228,7 @@ func (s *Service) unpostVoucherTx(ctx context.Context, tx *sql.Tx, saved *ledger
 		return accounting.Fail("DOCUMENT_POSTED", "Chứng từ đã có chứng từ đảo; không sửa trực tiếp.")
 	}
 	var settlementID string
-	err := tx.QueryRowContext(ctx, "SELECT id FROM documents WHERE source_type IN ('receipt','payment') AND source_id=?", "settlement:"+saved.ID).Scan(&settlementID)
+	err = tx.QueryRowContext(ctx, "SELECT id FROM documents WHERE source_type IN ('receipt','payment') AND source_id=?", "settlement:"+saved.ID).Scan(&settlementID)
 	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
@@ -311,11 +312,11 @@ func rebuildStockLotsTx(ctx context.Context, tx *sql.Tx, item, warehouse string)
 		return err
 	}
 	type move struct {
-		id              int64
-		doc, date       string
-		qty, val        int64
-		scale           int
-		source, rawPol  string
+		id             int64
+		doc, date      string
+		qty, val       int64
+		scale          int
+		source, rawPol string
 	}
 	moves := []move{}
 	for rows.Next() {

@@ -45,7 +45,6 @@ test('khởi tạo, chính sách, ghi nhận bán hàng và tải lại vẫn gi
   await page.getByRole('button', { name: 'Thiết lập công ty', exact: true }).click();
   await expect(page).toHaveURL(/\/settings$/);
   const session = await (await page.request.get('/api/v1/session')).json(); epoch = session.context.epoch;
-  await command(page.request, '/periods', { period: '2026-10', closed: false });
   await command(page.request, '/policies', policy);
   await command(page.request, '/partners', { partners: [{ id: 'customer', code: 'KH1', name: 'Khách kiểm thử', role: 'customer', email: '', phone: '', active: true }, { id: 'supplier', code: 'NCC1', name: 'Nhà cung cấp kiểm thử', role: 'supplier', email: '', phone: '', active: true }] });
   await command(page.request, '/items', { id: 'service', code: 'DV1', name: 'Dịch vụ kiểm thử', unit: 'lần', tracked: false, active: true });
@@ -173,7 +172,8 @@ test('cài đặt chính sách, danh sách sổ phân trang và tải backup qua
   await page.getByRole('button', { name: 'Lưu phiên bản chính sách', exact: true }).click();
   await expect(page.getByRole('cell', { name: '2026-11-01', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Kỳ kế toán', exact: true }).click();
-  await expect(page.getByRole('cell', { name: '2026-10', exact: true })).toBeVisible();
+  await expect(page.getByText('Chưa có kỳ nào bị khóa. Mọi kỳ đều đang mở.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Khóa kỳ đang chọn', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Sao lưu & khôi phục', exact: true }).click();
   await page.getByRole('button', { name: 'Tạo bản sao', exact: true }).click();
   await page.getByRole('button', { name: 'Tạo và kiểm tra bản sao', exact: true }).click();

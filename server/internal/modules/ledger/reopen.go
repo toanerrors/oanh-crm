@@ -20,10 +20,8 @@ func (s *Service) ReopenPeriod(ctx context.Context, cmd Command, in Reopen) (jso
 		if !accounting.Period(in.Period) || strings.TrimSpace(in.Reason) == "" || len(in.Reason) > 500 {
 			return nil, accounting.Fail("VALIDATION", "Nhập kỳ và lý do mở lại kỳ.")
 		}
-		var closed bool
-		if err := tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", in.Period).Scan(&closed); err == sql.ErrNoRows {
-			return nil, accounting.Fail("NOT_FOUND", "Kỳ chưa được tạo.")
-		} else if err != nil {
+		closed, err := PeriodClosedTx(ctx, tx, in.Period)
+		if err != nil {
 			return nil, err
 		}
 		if !closed {

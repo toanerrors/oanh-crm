@@ -124,7 +124,7 @@ function DocumentsPage({ config }: { config: typeof configs[string] }) {
         ...(config.type === 'purchase' ? [{ key: 'asset', label: 'Mua tài sản / chi phí trả trước', onClick: () => navigate('/automation?kind=asset') }] : []),
         ...(apiScope().permissions === 'owner' && !config.accounts && !config.type ? [
           { key: 'closing', label: 'Kết chuyển lãi lỗ', onClick: () => openVoucher('/vouchers/new?kind=closing') },
-          { key: 'periods', label: 'Quản lý / khóa kỳ', onClick: () => navigate('/settings') },
+          { key: 'periods', label: 'Quản lý / khóa kỳ', onClick: () => navigate('/settings?tab=periods') },
         ] : []),
         ...importItems(),
       ] }} /> : <ToolbarButton type="primary" label={createLabel} icon={config.treasury ? 'arrowDown' : 'plus'} onClick={create} />}</div>}

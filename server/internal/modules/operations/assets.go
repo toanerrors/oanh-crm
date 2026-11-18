@@ -75,11 +75,12 @@ func (s *Service) saveAssetTx(ctx context.Context, tx *sql.Tx, a Asset) (any, er
 		if a.StartPeriod < doc.Date[:7] {
 			return nil, accounting.Fail("VALIDATION", "Kỳ bắt đầu không được trước kỳ ghi tăng.")
 		}
-		var closed bool
-		if err = tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", doc.Date[:7]).Scan(&closed); err == sql.ErrNoRows || closed {
-			return nil, accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán ghi tăng tài sản đã khóa.")
-		} else if err != nil {
+		closed, err := ledger.PeriodClosedTx(ctx, tx, doc.Date[:7])
+		if err != nil {
 			return nil, err
+		}
+		if closed {
+			return nil, accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán ghi tăng tài sản đã khóa.")
 		}
 		if _, err = tx.ExecContext(ctx, "UPDATE documents SET status='draft' WHERE id=?", doc.ID); err != nil {
 			return nil, err

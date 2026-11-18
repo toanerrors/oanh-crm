@@ -1179,7 +1179,7 @@ paths:
               $ref: '#/components/schemas/Account'
   /periods:
     post:
-      summary: Mở hoặc khóa kỳ; từ chối mở kỳ có kết chuyển chưa đảo
+      summary: Khóa hoặc mở lại kỳ không có kết chuyển; mặc định mọi kỳ đang mở
       operationId: post_periods
       description: 'Quyền: owner.'
       responses:

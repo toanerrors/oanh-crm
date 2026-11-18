@@ -1,6 +1,6 @@
 # Trạng thái dự án
 
-Cập nhật: 27/10/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
+Cập nhật: 18/11/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
 
 ## Phạm vi đã chốt
 
@@ -9,6 +9,14 @@ Cập nhật: 27/10/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Go + SQLite; React + TypeScript strict + Vite SPA, Ant Design Form/Table, React Router, TanStack Query; pnpm. Frontend và driver Go `modernc.org/sqlite` đã được chấp thuận cài đặt.
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
+
+## Mặc định mở kỳ kế toán, chỉ khóa khi chốt sổ — 0.18.0
+
+- Đã làm: bỏ yêu cầu phải mở kỳ từng tháng trước khi lập/ghi sổ chứng từ, sửa chứng từ đã ghi sổ, ghi tăng tài sản hay xác nhận/điều chỉnh số dư đầu kỳ. Mọi kỳ chưa có bản ghi trong `periods` hoặc có `closed=0` đều mặc định đang mở (`ledger.PeriodClosedTx`); chỉ chặn khi kỳ có `closed=1`. Khi kết chuyển lãi lỗ (`closing`), server tự upsert `closed=1` vào `periods`.
+- Migration 10 (`open_periods.sql`) cập nhật trigger `document_posting` để chỉ chặn ghi sổ khi `periods` có `closed=1`, giữ nguyên lịch sử và tương thích khôi phục các bản sao schema 1–10.
+- UI (`Dashboard`, `Administration`, `OpeningBalances`, `Documents`, `Workspace`) bỏ nhãn “Chưa mở kỳ” và nút “Mở kỳ”; hiển thị mặc định “Kỳ đang mở”, cung cấp nút “Khóa kỳ đang chọn” / “Mở lại kỳ đang chọn” cho chủ sở hữu trong `Cài đặt → Kỳ kế toán`.
+- Đã kiểm tra: `go vet ./...`, `go test -race ./internal/... ./cmd/...` đạt (gồm `TestOpenPeriodsMigrationFromVersionNineAllowsUnopenedPeriods`, `TestPeriodsAreOpenByDefaultAndLockOnCloseOrClosing`, `TestRecoveryCatalogReplayVerificationAndReopen`), `tsc -b`, `tsc --noEmit`, 73 unit test Node, `vite build`, 16/16 E2E `workspace.spec.ts` và kịch bản live `khởi tạo, chính sách, ghi nhận bán hàng và tải lại vẫn giữ dữ liệu` (ghi sổ không cần gọi `/periods`).
+- Chưa kiểm tra / ghi chú: trong bộ `live/*` cũ còn 3 case lỗi có sẵn từ thay đổi trước (`application.spec.ts:109`, `purchase-accounts.spec.ts:59`, `purchase-accounts.spec.ts:204` sau khi 0.17.0 cho phép sửa chứng từ đã ghi sổ).
 
 ## Mở khóa sửa toàn bộ danh mục, chứng từ đã ghi sổ và nháp — 0.17.0
 

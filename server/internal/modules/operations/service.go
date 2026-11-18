@@ -495,7 +495,7 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 		return r, err
 	}
 	if input.Kind == "closing" {
-		if _, err = tx.ExecContext(ctx, "UPDATE periods SET closed=1 WHERE period=?", input.Date[:7]); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO periods(period,closed) VALUES(?,1) ON CONFLICT(period) DO UPDATE SET closed=1", input.Date[:7]); err != nil {
 			return r, err
 		}
 	}

@@ -52,7 +52,6 @@ function OpeningEditor({ initial, period, onClose, onSaved }: { initial: Opening
   const [error, setError] = useState('');
   const [tab, setTab] = useState('lines');
   const { data } = useWorkspace();
-  const client = useQueryClient();
   const { message, modal } = App.useApp();
   const values = Form.useWatch([], { form, preserve: true }) as OpeningInput | undefined;
   const current = { ...saved, ...values };
@@ -66,8 +65,7 @@ function OpeningEditor({ initial, period, onClose, onSaved }: { initial: Opening
   if (!data) return null;
   const accounts = data.accounts.filter(a => a.active && !['inventory', 'asset', 'revenue', 'expense'].includes(a.group) && a.code !== '911').map(a => ({ value: a.id, label: `${a.code} · ${a.name}` }));
   const conversionPeriod = (data.periods ?? []).find(p => p.period === current.cutoff.slice(0, 7));
-  const periodOpen = conversionPeriod?.closed === false;
-  const openPeriod = async () => { setBusy(true); setError(''); try { await command('/periods', { period: current.cutoff.slice(0, 7), closed: false }, initial.epoch); await client.invalidateQueries({ queryKey: workspaceKey() }); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } };
+  const periodOpen = conversionPeriod?.closed !== true;
   const partners = data.partners.filter(p => p.active).map(p => ({ value: p.id, label: `${p.code} · ${p.name}` }));
   const amount = (_list: 'lines' | 'stocks' | 'assets', index: number, field: string, label: string) => <Form.Item name={[index, field]} rules={[{ validator: (_, value: unknown) => value === undefined || value === '' || typeof value === 'string' && isMoney(value) ? Promise.resolve() : Promise.reject(new Error('Nhập số tiền VND hợp lệ.')) }]}><MoneyInput label={`${label} dòng ${index + 1}`} /></Form.Item>;
   const remove = (index: number, action: (index: number) => void, label: string) => <Button type="text" danger aria-label={`Xóa ${label} dòng ${index + 1}`} disabled={!editable} onClick={() => { action(index); setDirty(true); }} icon={<Icon name="trash" size={16} />} />;
@@ -116,7 +114,7 @@ function OpeningEditor({ initial, period, onClose, onSaved }: { initial: Opening
     <Alert type={posted ? 'success' : 'info'} showIcon title={correcting ? `Nhập số dư đúng tại ${formatDate(saved.cutoff)}` : posted ? `Số dư đã xác nhận tại ${formatDate(saved.cutoff)}` : 'Khởi tạo một lần trước khi ghi sổ chứng từ đầu tiên'} description={correcting ? 'Sửa trực tiếp các giá trị cần thay đổi; giữ nguyên những phần đã đúng. Bước tiếp theo hiển thị đối chiếu và chứng từ liên quan trước khi cập nhật. Phiên bản cũ được giữ trong lịch sử.' : posted ? 'Số dư thuộc cột Dư đầu kỳ, không tính vào phát sinh trong kỳ. Kỳ sau được chuyển tiếp từ cùng nguồn sổ.' : 'Nhập số cuối ngày trước mốc chuyển đổi từ sổ đã đối chiếu. Lưu nháp để kiểm tra; chỉ xác nhận khi tổng Nợ bằng tổng Có và đã đủ chi tiết.'} />
     <Form form={form} initialValues={saved} layout="vertical" disabled={!editable || busy} onValuesChange={() => { setDirty(true); setError(''); }}>
       <div className={styles.parameters}><Form.Item name="cutoff" label="Ngày bắt đầu dữ liệu" rules={[{ required: true, pattern: /^\d{4}-\d{2}-01$/, message: 'Chọn ngày đầu tháng chuyển đổi.' }]}><DateInput disabled={correcting || !editable || busy} aria-label="Ngày bắt đầu số dư" /></Form.Item><Form.Item name="source" label="Nguồn số dư / biên bản đối chiếu" rules={[{ required: true, whitespace: true, max: 900 }]}><Input aria-label="Nguồn số dư đầu kỳ" placeholder="Sổ đã đối chiếu đến ngày trước mốc chuyển đổi" /></Form.Item></div>
-      {!posted && !periodOpen && <Alert className={styles.error} type="warning" title={conversionPeriod?.closed ? 'Kỳ chuyển đổi đã khóa; xử lý mở lại kỳ trong Thiết lập trước khi xác nhận.' : 'Chưa mở kỳ kế toán cho ngày chuyển đổi.'} action={!conversionPeriod && editable ? <Button disabled={busy} onClick={() => void openPeriod()}>Mở kỳ {current.cutoff.slice(0, 7).split('-').reverse().join('/')}</Button> : undefined} />}
+      {!posted && !periodOpen && <Alert className={styles.error} type="warning" title="Kỳ chuyển đổi đã khóa; xử lý mở lại kỳ trong Thiết lập trước khi xác nhận." />}
       {correcting && <Form.Item label="Lý do điều chỉnh" required><Input.TextArea aria-label="Lý do điều chỉnh số dư" value={reason} maxLength={1000} showCount autoSize={{ minRows: 2, maxRows: 4 }} onChange={e => { setReason(e.target.value); setDirty(true); }} placeholder="Ví dụ: cập nhật theo biên bản đối chiếu ngân hàng…" /></Form.Item>}
       <Tabs activeKey={tab} onChange={setTab} items={[{ key: 'lines', label: 'Tài khoản & công nợ' }, { key: 'stocks', label: 'Tồn kho' }, { key: 'assets', label: 'Tài sản & trả trước' }]} />
       <div hidden={tab !== 'lines'}><p className={styles.help}>Nhập riêng từng đối tượng và từng tài khoản ngân hàng. Kho/tài sản nhập tại tab chi tiết, bút toán tương ứng được tạo tự động.</p><Form.List name="lines">{(fields, actions) => <><Table rowKey="key" dataSource={fields} pagination={false} scroll={{ x: 1150 }} columns={[

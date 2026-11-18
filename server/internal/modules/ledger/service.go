@@ -102,6 +102,17 @@ func manualSource(kind, source string) (string, error) {
 	}
 	return kind, nil
 }
+
+// PeriodClosedTx reports whether period has been explicitly locked; missing periods are open by default.
+func PeriodClosedTx(ctx context.Context, q Queryer, period string) (bool, error) {
+	var closed bool
+	err := q.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", period).Scan(&closed)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return closed, err
+}
+
 func (s *Service) Save(ctx context.Context, cmd Command, doc Document) (json.RawMessage, error) {
 	if doc.PolicyID != "" || doc.ReversalOf != "" || reservedSource(doc.SourceType) || doc.Status != "" && doc.Status != "draft" && doc.Status != "posted" {
 		return nil, accounting.Fail("DERIVED_FIELD", "Không được tự đặt trạng thái ghi sổ, chính sách hoặc liên kết đảo.")
@@ -132,11 +143,12 @@ func (s *Service) Save(ctx context.Context, cmd Command, doc Document) (json.Raw
 			if version != doc.Version {
 				return nil, accounting.Fail("VERSION_CONFLICT", "Chứng từ đã thay đổi. Tải lại và đối chiếu nội dung.")
 			}
-			var closed bool
-			if e := tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", oldDate[:7]).Scan(&closed); e == sql.ErrNoRows || closed {
-				return nil, accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán của chứng từ đã khóa.")
-			} else if e != nil {
+			closed, e := PeriodClosedTx(ctx, tx, oldDate[:7])
+			if e != nil {
 				return nil, e
+			}
+			if closed {
+				return nil, accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán của chứng từ đã khóa.")
 			}
 			if _, e := tx.ExecContext(ctx, "UPDATE documents SET status='draft' WHERE id=?", doc.ID); e != nil {
 				return nil, e
@@ -314,13 +326,12 @@ func (s *Service) postTx(ctx context.Context, tx *sql.Tx, input Post, historical
 			return doc, accounting.Fail("BEFORE_CONVERSION", "Ngày chứng từ trước mốc số dư đầu kỳ; không được cộng lại lịch sử trước chuyển đổi.")
 		}
 	}
-	var closed bool
-	err = tx.QueryRowContext(ctx, "SELECT closed FROM periods WHERE period=?", doc.Date[:7]).Scan(&closed)
-	if err == sql.ErrNoRows || closed {
-		return doc, accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán chưa mở hoặc đã khóa.")
-	}
+	closed, err := PeriodClosedTx(ctx, tx, doc.Date[:7])
 	if err != nil {
 		return doc, err
+	}
+	if closed {
+		return doc, accounting.Fail("PERIOD_CLOSED", "Kỳ kế toán đã khóa.")
 	}
 	d, c := new(big.Int), new(big.Int)
 	for _, line := range doc.Lines {

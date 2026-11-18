@@ -74,7 +74,6 @@ test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài k
     const response = await page.request.post(`/api/v1${path}`, { data, headers: { 'X-Dataset-Epoch': context.epoch, 'Idempotency-Key': crypto.randomUUID() } });
     expect(response.ok(), await response.text()).toBe(true);
   }
-  await command('/periods', { period: '2026-12', closed: false });
   await command('/policies', { regime: 'Chế độ kiểm thử', effectiveFrom: '2026-12-01', confirmed: true, rounding: 'half_up', vatMethod: 'deduction', vatRates: ['0', '8', '10'], inventoryMethod: 'fifo', quantityScale: 2, standardDays: '26', hoursPerDay: '8', personalDeduction: '100', dependentDeduction: '50', corporateTaxRate: '20', insurance: [{ name: 'Khoản BH thử', employeeRate: '10', employerRate: '20' }], pitBrackets: [{ upTo: '1000', rate: '5' }, { upTo: '', rate: '10' }], depreciationMethod: 'straight_line', residualMethod: 'last_period' });
   await command('/partners', { partners: [{ id: 'account-supplier', code: 'NCC-TK', name: 'Nhà cung cấp thử tài khoản', role: 'supplier', active: true }] });
   await command('/items', { id: 'account-goods', code: 'HH-TK', name: 'Hàng mua dùng ngay', unit: 'cái', tracked: true, active: true });
