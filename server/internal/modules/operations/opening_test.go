@@ -294,3 +294,62 @@ func TestOpeningRejectsHistoryAndMissingDetails(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestTrialBalanceHidesSixZeroColumnsAndKeepsActiveAccounts(t *testing.T) {
+	f := openFixture(t)
+	ctx := context.Background()
+	empty, err := f.ledger.Report(ctx, ledger.Filter{Period: "2026-10", Kind: "trial", PageSize: 200})
+	if err != nil || empty.Total != 0 || len(empty.Rows) != 0 || empty.OpeningDebit != "0" || empty.ClosingCredit != "0" {
+		t.Fatal(empty, err)
+	}
+	zeroLedger, err := f.ledger.Report(ctx, ledger.Filter{Period: "2026-10", Kind: "ledger", Account: "112", PageSize: 20})
+	if err != nil || zeroLedger.AccountBalance == nil || zeroLedger.AccountBalance.Code != "112" || zeroLedger.AccountBalance.ClosingDebit != "0" || zeroLedger.AccountBalance.ClosingCredit != "0" {
+		t.Fatal(zeroLedger, err)
+	}
+	in := openingInput()
+	b, err := f.ops.SaveOpening(ctx, f.cmd("trial-opening-save"), in)
+	state := decodeOpening(t, b, err)
+	if _, err = f.ops.PostOpening(ctx, f.cmd("trial-opening-post"), ledger.Post{ID: state.Document.ID, Version: state.Document.Version}); err != nil {
+		t.Fatal(err)
+	}
+	for index, lines := range [][]ledger.Line{
+		{{AccountID: "131", PartnerID: "customer", Debit: "500", Credit: "0"}, {AccountID: "511", Debit: "0", Credit: "500"}},
+		{{AccountID: "511", Debit: "500", Credit: "0"}, {AccountID: "131", PartnerID: "customer", Debit: "0", Credit: "500"}},
+	} {
+		doc := f.draft("settled-in-period-" + string(rune('a'+index)))
+		doc.Lines = lines
+		b, err = f.ledger.Save(ctx, f.cmd("save-settled-"+string(rune('a'+index))), doc)
+		saved := decodeDocument(t, b, err)
+		if _, err = f.ledger.Post(ctx, f.cmd("post-settled-"+string(rune('a'+index))), ledger.Post{ID: saved.ID, Version: saved.Version}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	october, err := f.ledger.Report(ctx, ledger.Filter{Period: "2026-10", Kind: "trial", PageSize: 200})
+	if err != nil || october.Total != 4 || len(october.Rows) != 4 || october.OpeningDebit != "9007199254740993" || october.Debit != "1000" || october.Credit != "1000" || october.ClosingDebit != "9007199254740993" {
+		t.Fatal(october, err)
+	}
+	codes := []string{october.Rows[0].Code, october.Rows[1].Code, october.Rows[2].Code, october.Rows[3].Code}
+	if codes[0] != "111" || codes[1] != "131" || codes[2] != "411" || codes[3] != "511" {
+		t.Fatal(codes)
+	}
+	if october.Rows[1].OpeningDebit != "0" || october.Rows[1].Debit != "500" || october.Rows[1].Credit != "500" || october.Rows[1].ClosingDebit != "0" || october.Rows[1].ClosingCredit != "0" {
+		t.Fatal(october.Rows[1])
+	}
+	if err = f.store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := sqlite.Open(ctx, f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.store = reopened
+	f.ledger.Store = reopened
+	t.Cleanup(func() { reopened.Close() })
+	november, err := f.ledger.Report(ctx, ledger.Filter{Period: "2026-11", Kind: "trial", PageSize: 200})
+	if err != nil || november.Total != 2 || len(november.Rows) != 2 || november.Rows[0].Code != "111" || november.Rows[1].Code != "411" || november.Debit != "0" || november.ClosingDebit != "9007199254740993" {
+		t.Fatal(november, err)
+	}
+	if err = sqlite.Check(ctx, f.store.Read); err != nil {
+		t.Fatal(err)
+	}
+}

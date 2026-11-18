@@ -10,6 +10,12 @@ Cập nhật: 18/11/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Cân đối phát sinh ẩn tài khoản có cả 6 cột bằng 0 — 0.18.2
+
+- Đã làm: trong `ledger.Report` (`server/internal/modules/ledger/reports.go`) cho `kind="trial"` và `nonZeroTrialRows` (`web/src/shared/accounting/ledger.ts`, `Reports.tsx`), chỉ đưa vào Bảng cân đối phát sinh các tài khoản có ít nhất một trong 6 cột khác `0` (`OpeningDebit`, `OpeningCredit`, `Debit`, `Credit`, `ClosingDebit`, `ClosingCredit`), ẩn các tài khoản có cả 6 cột bằng `0`.
+- Áp dụng thống nhất cho bảng trên màn hình, số đếm dòng/phân trang và xuất Excel/CSV/Bản in của `Cân đối phát sinh`; giữ nguyên tổng cân đối 6 cột của toàn bộ tập lọc và giữ nguyên `AccountBalance` bằng `0` khi xem Sổ cái riêng cho tài khoản chưa phát sinh. Không thay đổi schema SQLite hay dữ liệu đã ghi sổ.
+- Đã kiểm tra: `gofmt`, `go vet`, `go test -race` cho `ledger`/`operations`/`httpserver` (gồm `TestTrialBalanceHidesSixZeroColumnsAndKeepsActiveAccounts` kiểm tra tiền > `2^53`, dư đầu không phát sinh, phát sinh tất toán về `0` trong kỳ, sang kỳ sau tự ẩn khi 6 cột bằng `0`, `AccountBalance` của Sổ cái và reopen SQLite), `tsc --noEmit`, `tsc -b`, 75 unit test Node, `vite build`, kịch bản E2E trong `workspace.spec.ts` và `purchase-accounts.spec.ts`.
+
 ## Hiển thị mã và tên đối tượng, tài khoản trên bảng bút toán — 0.18.1
 
 - Đã làm: bổ sung `formatLinePartner` và `formatLineAccount` trong `web/src/shared/accounting/ledger.ts` để tra `partnerId`/`accountId` sang `mã · tên` từ danh mục hiện hành (ưu tiên giữ tên snapshot lịch sử `partnerName`/`accountName` trên dòng bút toán đã lưu; hiển thị `—` khi dòng không gắn đối tượng và nhãn `Đang tải…`/`Không tìm thấy…` thay vì in UUID nội bộ).

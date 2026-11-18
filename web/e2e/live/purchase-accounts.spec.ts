@@ -263,4 +263,8 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   await expect(linesRegion).toContainText('0318088925 · CÔNG TY CỔ PHẦN HARMONY WORLD');
   await expect(linesRegion).not.toContainText(createdPartner.id);
   await expect(linesRegion).not.toContainText(customAccountId);
+  await page.goto('/reports?tab=trial');
+  await expect(page.getByRole('cell', { name: '64271', exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '331', exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '113', exact: true })).toHaveCount(0);
 });

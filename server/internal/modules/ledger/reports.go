@@ -577,7 +577,9 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 		}
 		a := accounts[id]
 		row := Row{Key: id, Code: a.Code, Name: a.Name, Debit: amount(debits, id), Credit: amount(credits, id), OpeningDebit: od.String(), OpeningCredit: oc.String(), ClosingDebit: cd.String(), ClosingCredit: cc.String()}
-		trial = append(trial, row)
+		if row.OpeningDebit != "0" || row.OpeningCredit != "0" || row.Debit != "0" || row.Credit != "0" || row.ClosingDebit != "0" || row.ClosingCredit != "0" {
+			trial = append(trial, row)
+		}
 		if f.Account == id {
 			copy := row
 			report.AccountBalance = &copy

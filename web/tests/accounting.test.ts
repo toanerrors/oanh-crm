@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { formatMoney, isMoney, MAX_MONEY, isCalendarDate, normalizeSearch, compactMoney, parseMoneyInput } from '../src/shared/accounting/money.ts';
-import { accountBalance, filterDocuments, formatLineAccount, formatLinePartner, partnerBalances, periodDocuments, periodMovement, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
+import { accountBalance, filterDocuments, formatLineAccount, formatLinePartner, nonZeroTrialRows, partnerBalances, periodDocuments, periodMovement, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
 import { serializeCsv } from '../src/shared/accounting/csv.ts';
 import { initialWorkspace } from '../src/shared/data/demo.ts';
 import { saveDemoDraft, saveDemoPartners, workspaceOptions } from '../src/shared/data/workspace.ts';
@@ -165,4 +165,26 @@ test('hiển thị đối tượng và tài khoản trên dòng hạch toán dù
   );
   assert.deepEqual(formatLineAccount({ accountId: 'missing-account-uuid' }, accounts), { code: 'Không tìm thấy tài khoản', name: undefined, title: undefined });
   assert.deepEqual(formatLineAccount({ accountId: 'loading-account-uuid' }, undefined), { code: 'Đang tải…', name: undefined, title: undefined });
+});
+
+test('cân đối phát sinh ẩn dòng có cả 6 cột bằng 0, giữ dòng có số dư hoặc phát sinh', () => {
+  const septemberAll = trialBalance(initialWorkspace, '2026-09');
+  const septemberVisible = nonZeroTrialRows(septemberAll);
+  assert.ok(septemberAll.length > septemberVisible.length);
+  for (const zeroCode of ['111', '156', '211', '331', '632']) {
+    assert.ok(septemberAll.some(row => row.code === zeroCode));
+    assert.equal(septemberVisible.some(row => row.code === zeroCode), false, zeroCode);
+  }
+  assert.equal(septemberVisible.every(row => row.openingDebit || row.openingCredit || row.debit || row.credit || row.closingDebit || row.closingCredit), true);
+  for (const field of ['openingDebit', 'openingCredit', 'debit', 'credit', 'closingDebit', 'closingCredit'] as const) {
+    assert.equal(
+      septemberVisible.reduce((sum, row) => sum + row[field], 0n),
+      septemberAll.reduce((sum, row) => sum + row[field], 0n),
+    );
+  }
+  const settledOnly = nonZeroTrialRows([
+    { code: '112', openingDebit: 0n, openingCredit: 0n, debit: 0n, credit: 0n, closingDebit: 0n, closingCredit: 0n },
+    { code: '911', openingDebit: 0n, openingCredit: 0n, debit: 500n, credit: 500n, closingDebit: 0n, closingCredit: 0n },
+  ]);
+  assert.deepEqual(settledOnly.map(row => row.code), ['911']);
 });

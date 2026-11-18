@@ -1,7 +1,7 @@
 import { Alert, Button, Select, Table, Tabs } from 'antd';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
-import { partnerBalances, trialBalance } from '../../shared/accounting/ledger';
+import { nonZeroTrialRows, partnerBalances, trialBalance } from '../../shared/accounting/ledger';
 import { formatDate, formatMoney, normalizeSearch } from '../../shared/accounting/money';
 import { downloadCsv } from '../../shared/accounting/csv';
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
@@ -55,7 +55,7 @@ function BookReports() {
   if (!data) return <DataBoundary><></></DataBoundary>;
   const posted = data.documents.filter(item => item.status === 'posted' && item.date.slice(0, 7) <= period);
   const current = posted.filter(item => item.date.startsWith(`${period}-`));
-  const rows: ReportRow[] = tab === 'trial' ? trialBalance(data, period) : tab === 'debt' ? partnerBalances(data, period, debtType).map(item => ({ key: item.id, code: item.code, name: item.name, debit: item.balance > 0n ? item.balance : 0n, credit: item.balance < 0n ? -item.balance : 0n })).filter(item => item.debit || item.credit) : current.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)).flatMap(doc => doc.lines.map((line, index) => ({ key: `${doc.id}-${index}`, code: doc.reference, name: data.accounts.find(item => item.id === line.accountId)?.name ?? 'Tài khoản không tồn tại', account: line.accountId, date: doc.date, documentId: doc.id, description: line.description || doc.description, debit: BigInt(line.debit), credit: BigInt(line.credit) })));
+  const rows: ReportRow[] = tab === 'trial' ? nonZeroTrialRows(trialBalance(data, period)) : tab === 'debt' ? partnerBalances(data, period, debtType).map(item => ({ key: item.id, code: item.code, name: item.name, debit: item.balance > 0n ? item.balance : 0n, credit: item.balance < 0n ? -item.balance : 0n })).filter(item => item.debit || item.credit) : current.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)).flatMap(doc => doc.lines.map((line, index) => ({ key: `${doc.id}-${index}`, code: doc.reference, name: data.accounts.find(item => item.id === line.accountId)?.name ?? 'Tài khoản không tồn tại', account: line.accountId, date: doc.date, documentId: doc.id, description: line.description || doc.description, debit: BigInt(line.debit), credit: BigInt(line.credit) })));
   const filtered = !isDemo ? server.data?.rows.map(exactRow) ?? [] : rows.filter(row => (tab !== 'ledger' || account === 'all' || row.account === account) && normalizeSearch(`${row.code} ${row.name} ${row.description ?? ''}`).includes(normalizeSearch(search)));
   const debit = !isDemo ? BigInt(server.data?.debit ?? '0') : filtered.reduce((sum, row) => sum + row.debit, 0n);
   const credit = !isDemo ? BigInt(server.data?.credit ?? '0') : filtered.reduce((sum, row) => sum + row.credit, 0n);

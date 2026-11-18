@@ -227,6 +227,8 @@ test('đổi kỳ không giữ chứng từ kỳ cũ, sổ và công nợ truy �
   await page.getByRole('tab', { name: 'Cân đối phát sinh', exact: true }).click();
   await expect(page.getByText('Tổng toàn bộ tập lọc', { exact: true })).toBeVisible();
   await expect(page.getByText('1.814.000.000', { exact: true })).toHaveCount(2);
+  await expect(page.getByRole('cell', { name: '1121', exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '211', exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Sổ cái', exact: true }).click();
   await page.getByRole('combobox', { name: 'Chọn tài khoản sổ cái' }).click();
   await page.getByRole('combobox', { name: 'Chọn tài khoản sổ cái' }).fill('131');

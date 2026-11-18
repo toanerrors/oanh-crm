@@ -112,3 +112,7 @@ export function trialBalance(workspace: Workspace, period: string) {
     }), { key: account.id, code: account.code, name: account.name, debit, credit, openingDebit: 0n, openingCredit: 0n, closingDebit: 0n, closingCredit: 0n });
   });
 }
+
+export function nonZeroTrialRows<T extends { debit: bigint; credit: bigint; openingDebit?: bigint; openingCredit?: bigint; closingDebit?: bigint; closingCredit?: bigint }>(rows: T[]): T[] {
+  return rows.filter(row => (row.openingDebit ?? 0n) !== 0n || (row.openingCredit ?? 0n) !== 0n || row.debit !== 0n || row.credit !== 0n || (row.closingDebit ?? 0n) !== 0n || (row.closingCredit ?? 0n) !== 0n);
+}
