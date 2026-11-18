@@ -8,7 +8,7 @@ import { automationOptions, banksOptions } from '../../shared/data/operations';
 import type { Calculation, InvoiceList, OperationInput, PurchaseCostSource, TradeAmounts, Voucher } from '../../shared/data/operations';
 import type { AccountingDocument } from '../../shared/data/types';
 import { workspaceKey } from '../../shared/data/workspace';
-import { allocationInvoiceOptions, formatLineAccount, formatLinePartner, invoiceAvailableAmount } from '../../shared/accounting/ledger';
+import { allocationInvoiceOptions, formatLineAccount, formatLinePartner, hydrateVoucherDefaultDates, initialVoucherDateSync, invoiceAvailableAmount, normalizeVoucherInputDates, syncVoucherDependentDates } from '../../shared/accounting/ledger';
 import { businessToday, formatMoney, isMoney } from '../../shared/accounting/money';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
 import { Icon } from '../../shared/ui/Icon';
@@ -33,7 +33,7 @@ export function Component() {
   const [params] = useSearchParams();
   const routeInput = params.toString();
   const generatedSource = useMemo(() => crypto.randomUUID(), [id, routeInput]);
-  const { period, voucherDrafts, setVoucherDraft } = useWorkspace();
+  const { period, fromDate, toDate, voucherDrafts, setVoucherDraft } = useWorkspace();
   const location = useLocation();
   const draftKey = voucherDraftKey(id, params);
   const query = useQuery({ queryKey: [...workspaceKey(), 'voucher', id], queryFn: ({ signal }) => api<Voucher>(`/documents/${id}/voucher`, { signal }), enabled: Boolean(id) && !isDemo, staleTime: Infinity, retry: false });
@@ -41,13 +41,14 @@ export function Component() {
   if (isDemo) return <Alert type="info" title="Biểu mẫu nghiệp vụ dùng dữ liệu doanh nghiệp và backend." />;
   if (id && !query.data) return <Alert type={query.error ? 'error' : 'info'} title={query.error?.message ?? 'Đang tải chứng từ…'} action={<Button onClick={() => navigate('/documents')}>Về danh sách</Button>} />;
   const kind = voucherKind(params);
-  const date = businessToday().startsWith(period) ? businessToday() : `${period}-01`;
+  const today = businessToday();
+  const date = today >= fromDate && today <= toDate ? today : `${period}-01`;
   const monthEnd = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).toISOString().slice(0, 10);
   const retained = voucherDrafts[draftKey];
   const resumed = retained?.input;
   if (resumed && query.data?.document.status === 'posted' && resumed.draftVersion !== query.data.document.version) return <Alert type="warning" title="Nháp đã được ghi sổ từ một phiên khác" description="Nội dung đang nhập vẫn được giữ để xuất và đối chiếu với bản đã ghi sổ." action={<><Button onClick={() => exportInput(resumed)}>Xuất nội dung đang nhập</Button><Button onClick={() => setVoucherDraft(draftKey, null)}>Xem bản đã ghi sổ</Button></>} />;
   const stale = Boolean(resumed && query.data && resumed.draftVersion !== query.data.document.version);
-  const initial: OperationInput = structuredClone(resumed ?? query.data?.input ?? {
+  const rawInitial: OperationInput = structuredClone(resumed ?? query.data?.input ?? {
     kind, sourceId: generatedSource, date: kind === 'closing' ? monthEnd : date,
     description: kind === 'closing' ? `Kết chuyển lãi lỗ kỳ ${period}` : '',
     voucher: { documentDate: kind === 'closing' ? monthEnd : date }, tradeMode: params.get('service') === '1' ? 'service' : 'goods',
@@ -55,6 +56,8 @@ export function Component() {
     priceMode: 'exclusive', discount: { mode: 'none', allocation: 'manual' }, lines: [{ itemId: '', quantity: '1', unitPrice: '', vatRate: '', accountId: kind === 'sale' ? '511' : params.get('service') === '1' ? '642' : '156' }],
     treasuryLines: [{ counterAccount: '', description: '', amount: '' }],
   });
+  const initialDateSync = initialVoucherDateSync(rawInitial);
+  const initial: OperationInput = hydrateVoucherDefaultDates(rawInitial);
   const initialAllocate = retained?.allocate ?? (!id && (kind === 'receipt' || kind === 'payment') && params.get('settlement') === '1');
   if ((initial.kind === 'receipt' || initial.kind === 'payment') && !initial.treasuryLines?.length && !initial.allocations?.length && initial.counterAccount && initial.amount) {
     initial.treasuryLines = [{ counterAccount: initial.counterAccount, amount: initial.amount, description: initial.description, partnerId: initial.partnerId }];
@@ -62,7 +65,7 @@ export function Component() {
   if (initialAllocate && !initial.allocations?.length) {
     initial.allocations = [{ documentId: '', amount: '' }];
   }
-  return <VoucherForm key={id ? `${id}-${resumed?.draftVersion ?? query.data?.document.version}` : generatedSource} initial={initial} draftKey={draftKey} draftRoute={location.pathname + location.search} initialAllocate={initialAllocate} resuming={Boolean(resumed)} stale={stale} onReload={() => setVoucherDraft(draftKey, null)} initialDocument={query.data ? { ...query.data.document, version: resumed?.draftVersion ?? query.data.document.version } : undefined} initialCalculation={resumed ? undefined : query.data?.calculation} replacement={query.data?.replacement} reversal={query.data?.reversal} />;
+  return <VoucherForm key={id ? `${id}-${resumed?.draftVersion ?? query.data?.document.version}` : generatedSource} initial={initial} initialDateSync={initialDateSync} draftKey={draftKey} draftRoute={location.pathname + location.search} initialAllocate={initialAllocate} resuming={Boolean(resumed)} stale={stale} onReload={() => setVoucherDraft(draftKey, null)} initialDocument={query.data ? { ...query.data.document, version: resumed?.draftVersion ?? query.data.document.version } : undefined} initialCalculation={resumed ? undefined : query.data?.calculation} replacement={query.data?.replacement} reversal={query.data?.reversal} />;
 }
 
 function exportInput(input: OperationInput) {
@@ -70,7 +73,7 @@ function exportInput(input: OperationInput) {
   const link = document.createElement('a'); link.href = url; link.download = `nhap-${input.sourceId}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDocument, initialCalculation, resuming, stale, onReload, replacement, reversal }: { initial: OperationInput; draftKey: string; draftRoute: string; initialAllocate: boolean; initialDocument?: AccountingDocument; initialCalculation?: Calculation; replacement?: AccountingDocument; reversal?: AccountingDocument; resuming: boolean; stale: boolean; onReload: () => void }) {
+function VoucherForm({ initial, initialDateSync, draftKey, draftRoute, initialAllocate, initialDocument, initialCalculation, resuming, stale, onReload, replacement, reversal }: { initial: OperationInput; initialDateSync: ReturnType<typeof initialVoucherDateSync>; draftKey: string; draftRoute: string; initialAllocate: boolean; initialDocument?: AccountingDocument; initialCalculation?: Calculation; replacement?: AccountingDocument; reversal?: AccountingDocument; resuming: boolean; stale: boolean; onReload: () => void }) {
   const { data, voucherDrafts, setVoucherDraft, period, openDocument } = useWorkspace();
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
@@ -78,6 +81,7 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
   const allowNavigation = useRef(false);
   const submitting = useRef(false);
   const autoFilledPartner = useRef('');
+  const dateSync = useRef(initialDateSync);
   const client = useQueryClient();
   const [form] = Form.useForm<OperationInput>();
   const [saved, setSaved] = useState(initialDocument);
@@ -144,7 +148,8 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
   const calculate = useMutation({ retry: false, mutationFn: (input: OperationInput) => api<Calculation>('/operations/preview', { method: 'POST', body: JSON.stringify(input), headers: { 'X-Dataset-Epoch': apiScope().epoch } }), onSuccess: (result, requestedInput) => { try { if (JSON.stringify(input()) === JSON.stringify(requestedInput)) { setPreview({ input: requestedInput, result }); setRecalculated(true); if (!closing) setTab('preview'); } } catch { setPreview(null); setRecalculated(false); } }, onError: error => void message.error(error.message) });
   const save = useMutation({ retry: false, mutationFn: (input: OperationInput) => command<Voucher>('/voucher-drafts', input), onSuccess: async result => {
     client.setQueryData([...workspaceKey(), 'voucher', result.document.id], result);
-    setSaved(result.document); form.setFieldsValue(result.input); setDirty(false); setPreview(null); setRecalculated(false); setVoucherDraft(draftKey, null);
+    dateSync.current = initialVoucherDateSync(result.input);
+    setSaved(result.document); form.setFieldsValue(hydrateVoucherDefaultDates(result.input)); setDirty(false); setPreview(null); setRecalculated(false); setVoucherDraft(draftKey, null);
     void message.success('Đã lưu nháp. Sổ kế toán và tồn kho chưa thay đổi.');
     allowNavigation.current = true;
     navigate(`/vouchers/${result.document.id}`, { replace: true, state: { returnTo } });
@@ -152,6 +157,7 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
   }, onError: error => void message.error(error.message) });
   const execute = useMutation({ retry: false, mutationFn: (input: OperationInput) => command<Calculation>('/operations', input), onSuccess: async result => {
     client.setQueryData([...workspaceKey(), 'voucher', result.document.id], { input: preview!.input, document: result.document, calculation: result });
+    dateSync.current = initialVoucherDateSync(preview!.input);
     setSaved(result.document); setDirty(false); setRecalculated(false); setVoucherDraft(draftKey, null); setPreview({ input: preview!.input, result });
     allowNavigation.current = true;
     navigate(`/vouchers/${result.document.id}`, { replace: true, state: { returnTo } });
@@ -185,7 +191,7 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
   const total = tradeCalculation?.amounts.total ?? preview?.result.amounts.result ?? (transfer ? transferAmount : !trade && !closing ? localTotal : undefined);
 
   function input() {
-    const value: OperationInput = structuredClone(form.getFieldsValue(true));
+    const value: OperationInput = normalizeVoucherInputDates(form.getFieldsValue(true));
     value.draftId = saved?.id; value.draftVersion = saved?.version;
     delete value.expectedPolicyId; delete value.expectedRevision;
     if (!trade && !transfer && !closing) {
@@ -201,11 +207,20 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
   async function submit(action: 'save' | 'preview') {
     if (pending || submitting.current) return;
     submitting.current = true;
-    try { await form.validateFields(); const payload = input(); if (action === 'save') await save.mutateAsync(payload).catch(() => undefined); else await calculate.mutateAsync(payload).catch(() => undefined); }
+    try {
+      await form.validateFields();
+      const raw = form.getFieldsValue(true) as OperationInput;
+      if ((raw.kind === 'sale' || raw.kind === 'purchase') && Boolean(raw.invoiceNumber?.trim()) && !raw.invoiceDate && raw.date) {
+        form.setFieldValue('invoiceDate', raw.date);
+      }
+      const payload = input();
+      if (action === 'save') await save.mutateAsync(payload).catch(() => undefined);
+      else await calculate.mutateAsync(payload).catch(() => undefined);
+    }
     catch (error) {
       if (error && typeof error === 'object' && 'errorFields' in error) {
         const first = (error as { errorFields?: { name: (string | number)[] }[] }).errorFields?.[0];
-        if (first) { setTab('entries'); requestAnimationFrame(() => form.scrollToField(first.name, { focus: true, block: 'center' })); }
+        if (first) { setTab(['invoiceNumber', 'invoiceSeries', 'invoiceDate'].includes(String(first.name[0])) ? 'tax' : 'entries'); requestAnimationFrame(() => form.scrollToField(first.name, { focus: true, block: 'center' })); }
       } else if (error instanceof Error) void message.error(error.message);
     } finally { submitting.current = false; }
   }
@@ -232,6 +247,13 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
     modal.confirm({ title: initial.replacementOf ? 'Xác nhận sửa và thay thế phiếu?' : closing ? 'Kết chuyển và khóa kỳ kế toán?' : 'Ghi sổ chứng từ đã kiểm tra?', content: initial.replacementOf ? 'Phiếu cũ được đảo, phiếu đã sửa được ghi trong cùng giao dịch. Lịch sử và lý do thay thế được giữ đầy đủ.' : closing ? 'Server kiểm tra lại dữ liệu, kết chuyển và khóa kỳ trong cùng transaction.' : 'Server tính lại, kiểm tra kỳ và phiên bản. Chứng từ đã ghi sổ được giữ nguyên.', okText: 'Ghi sổ', cancelText: 'Kiểm tra lại', onOk: () => execute.mutateAsync({ ...preview.input, expectedPolicyId: preview.result.policyId, expectedRevision: preview.result.revision }).then(() => undefined) });
   }
   function changed() { setDirty(true); setPreview(null); setRecalculated(false); }
+  function handleValuesChange(changedValues: Partial<OperationInput>, allValues: OperationInput) {
+    const synced = syncVoucherDependentDates(changedValues, allValues, dateSync.current);
+    dateSync.current = synced.nextState;
+    if (synced.patch?.documentDate !== undefined) form.setFieldValue(['voucher', 'documentDate'], synced.patch.documentDate);
+    if (synced.patch?.invoiceDate !== undefined) form.setFieldValue('invoiceDate', synced.patch.invoiceDate);
+    changed();
+  }
   function changePaymentAccount(account: string | undefined) {
     form.setFieldsValue({ paymentAccount: account, bankAccountId: undefined });
     changed();
@@ -265,7 +287,7 @@ function VoucherForm({ initial, draftKey, draftRoute, initialAllocate, initialDo
       {stale && <Alert className={styles.info} type="warning" showIcon title="Nháp trên máy chủ đã có phiên bản mới. Nội dung đang nhập được giữ để đối chiếu; chưa thể ghi đè." action={<><Button onClick={() => exportInput(form.getFieldsValue(true))}>Xuất nội dung đang nhập</Button><Button onClick={() => modal.confirm({ title: 'Chuyển sang bản mới trên máy chủ?', content: 'Xuất nội dung đang nhập trước khi chuyển nếu cần giữ lại để đối chiếu.', okText: 'Dùng bản trên máy chủ', cancelText: 'Tiếp tục đối chiếu', onOk: onReload })}>Dùng bản trên máy chủ</Button></>} />}
       {auto.error && <Alert className={styles.info} type="error" title={auto.error.message} action={<Button onClick={() => void auto.refetch()}>Tải lại</Button>} />}
       {!policy && !auto.isPending && !readonly && <Alert className={styles.info} type="warning" title="Chưa có chính sách hiệu lực. Xác nhận chính sách trong Cài đặt trước khi lưu hoặc tính." />}
-      <Form<OperationInput> className={styles.form} form={form} initialValues={initial} layout="vertical" disabled={readonly || pending} onValuesChange={changed} onFinish={() => void submit('preview')}>
+      <Form<OperationInput> className={styles.form} form={form} initialValues={initial} layout="vertical" disabled={readonly || pending} onValuesChange={handleValuesChange} onFinish={() => void submit('preview')}>
         {initial.replacementOf && <><Form.Item name="replacementOf" hidden><Input /></Form.Item><Form.Item name="replacementReason" label="Lý do sửa phiếu" rules={[{ required: true, whitespace: true, max: 900 }]}><Input.TextArea aria-label="Lý do sửa phiếu" autoSize={{ minRows: 2, maxRows: 4 }} maxLength={900} /></Form.Item></>}
         <Form.Item name="kind" hidden><Input /></Form.Item><Form.Item name="tradeMode" hidden><Input /></Form.Item>
         {trade && <div className={styles.options}><Radio.Group value={immediateAccount ? 'now' : 'later'} onChange={event => changePaymentAccount(event.target.value === 'now' ? '111' : undefined)} options={[{ value: 'later', label: kind === 'sale' ? 'Chưa thu tiền' : 'Chưa thanh toán' }, { value: 'now', label: kind === 'sale' ? 'Thu tiền ngay' : 'Thanh toán ngay' }]} /><Form.Item name="paymentAccount"><Select aria-label="Tài khoản thanh toán ngay" onChange={changePaymentAccount} allowClear placeholder="Chọn tài khoản thanh toán ngay" options={moneyOptions} /></Form.Item>{immediateAccount && immediateAccount !== '111' && <Form.Item name="bankAccountId" rules={[{ required: true, message: 'Chọn tài khoản ngân hàng thanh toán' }]}><BankSelect accountId={immediateAccount} label="Tài khoản ngân hàng thanh toán" disabled={readonly || pending} onSelected={account => { form.setFieldValue('paymentAccount', account?.accountId); }} /></Form.Item>}<Form.Item name="priceMode"><Select aria-label="Đơn giá nhập" options={[{ value: 'exclusive', label: 'Đơn giá chưa gồm VAT' }, { value: 'inclusive', label: 'Đơn giá đã gồm VAT' }]} /></Form.Item></div>}

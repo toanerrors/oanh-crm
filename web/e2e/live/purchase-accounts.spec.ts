@@ -312,19 +312,52 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   await page.goto('/purchases/settlements');
   await expect(page.getByText('Đã thanh toán · Dư 340.000', { exact: true })).toBeVisible();
 
-  const augInput = {
-    kind: 'purchase',
-    sourceId: 'aug-purchase-e2e',
-    tradeMode: 'service',
-    priceMode: 'exclusive',
-    date: '2026-08-03',
-    partnerId: createdPartner.id,
-    description: 'Chi phí điện nước tháng 8',
-    voucher: { documentDate: '2026-08-03' },
-    lines: [{ itemId: 'rent-service-uuid', description: 'Chi phí điện nước', accountId: '642', quantity: '1', unitPrice: '1500000', vatRate: '8', deductible: true }],
-  };
-  const augPreview = await command('/operations/preview', augInput);
-  await command('/operations', { ...augInput, expectedPolicyId: augPreview.policyId, expectedRevision: augPreview.revision });
+  await page.goto('/vouchers/new?kind=purchase&service=1');
+  const accountingDateInput = page.getByLabel('Ngày hạch toán', { exact: true });
+  const documentDateInput = page.getByLabel('Ngày chứng từ', { exact: true });
+  await expect(accountingDateInput).toHaveValue('18/11/2026');
+  await expect(documentDateInput).toHaveValue('18/11/2026');
+  await accountingDateInput.click();
+  await accountingDateInput.fill('03/08/2026');
+  await accountingDateInput.press('Enter');
+  await expect(documentDateInput).toHaveValue('03/08/2026');
+
+  await page.getByRole('tab', { name: 'Thuế / hóa đơn', exact: true }).click();
+  const invoiceDateInput = page.getByLabel('Ngày hóa đơn', { exact: true });
+  await expect(invoiceDateInput).toHaveValue('03/08/2026');
+  await page.getByLabel('Số hóa đơn', { exact: true }).fill('0000803');
+  await page.getByLabel('Ký hiệu hóa đơn', { exact: true }).fill('1C26TAA');
+
+  await documentDateInput.click();
+  await documentDateInput.fill('02/08/2026');
+  await documentDateInput.press('Enter');
+  await accountingDateInput.click();
+  await accountingDateInput.fill('03/08/2026');
+  await accountingDateInput.press('Enter');
+  await accountingDateInput.click();
+  await accountingDateInput.fill('04/08/2026');
+  await accountingDateInput.press('Enter');
+  await expect(documentDateInput).toHaveValue('02/08/2026');
+  await expect(invoiceDateInput).toHaveValue('04/08/2026');
+
+  await page.getByRole('tab', { name: 'Hạch toán', exact: true }).click();
+  await choose(page, 'Mã nhà cung cấp', '0318088925');
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Chi phí điện nước tháng 8');
+  await choose(page, 'Hàng dịch vụ dòng 1', 'DV-THUE');
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('1500000');
+  await choose(page, 'VAT dòng 1', '8');
+  await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
+  await page.getByRole('button', { name: /Tính và xem trước/ }).click();
+  const augPostedResp = page.waitForResponse(response => response.url().endsWith('/api/v1/operations') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  const augPosted = await (await augPostedResp).json();
+  const augVoucher = await (await page.request.get(`/api/v1/documents/${augPosted.document.id}/voucher`)).json();
+  expect(augVoucher.input.date).toBe('2026-08-04');
+  expect(augVoucher.input.voucher.documentDate).toBe('2026-08-02');
+  expect(augVoucher.input.invoiceDate).toBe('2026-08-04');
+  expect(augVoucher.input.invoiceNumber).toBe('0000803');
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
 
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/purchases');

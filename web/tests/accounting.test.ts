@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { formatMoney, isMoney, MAX_MONEY, isCalendarDate, normalizeSearch, compactMoney, parseMoneyInput } from '../src/shared/accounting/money.ts';
-import { accountBalance, allocationInvoiceOptions, filterDocuments, formatLineAccount, formatLinePartner, invoiceAvailableAmount, nonZeroTrialRows, partnerBalances, periodDocuments, periodMovement, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
+import { accountBalance, allocationInvoiceOptions, filterDocuments, formatLineAccount, formatLinePartner, hydrateVoucherDefaultDates, initialVoucherDateSync, invoiceAvailableAmount, nonZeroTrialRows, normalizeVoucherInputDates, partnerBalances, periodDocuments, periodMovement, syncVoucherDependentDates, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
 import { accountingRangeSlug, activePeriodPreset, formatAccountingRange, monthDateRange, normalizeDateRange, periodPresetOptions, resolvePresetRange } from '../src/shared/accounting/period-range.ts';
 import { serializeCsv } from '../src/shared/accounting/csv.ts';
 import { initialWorkspace } from '../src/shared/data/demo.ts';
@@ -260,4 +260,62 @@ test('khoảng ngày kế toán tự lọc, đầu năm đến nay, năm nhuận
     assert.equal(row.closingDebit, octRow.closingDebit);
     assert.equal(row.closingCredit, octRow.closingCredit);
   }
+});
+
+test('ngày chứng từ và ngày hóa đơn mặc định theo ngày hạch toán nếu người dùng không tự đổi', () => {
+  const raw = { kind: 'purchase', date: '2026-11-18' };
+  const hydrated = hydrateVoucherDefaultDates(raw);
+  assert.equal(hydrated.voucher?.documentDate, '2026-11-18');
+  assert.equal(hydrated.invoiceDate, '2026-11-18');
+  assert.equal(hydrateVoucherDefaultDates({ kind: 'payment', date: '2026-11-18' }).invoiceDate, undefined);
+
+  let state = initialVoucherDateSync(raw);
+  assert.deepEqual(state, { documentDateCustom: false, invoiceDateCustom: false });
+
+  const step1 = syncVoucherDependentDates({ date: '2026-08-03' }, { kind: 'purchase', date: '2026-08-03' }, state);
+  state = step1.nextState;
+  assert.deepEqual(step1.patch, { documentDate: '2026-08-03', invoiceDate: '2026-08-03' });
+
+  const step2 = syncVoucherDependentDates({ invoiceDate: '2026-08-01' }, { kind: 'purchase', date: '2026-08-03', invoiceDate: '2026-08-01' }, state);
+  state = step2.nextState;
+  assert.equal(state.invoiceDateCustom, true);
+
+  const step3 = syncVoucherDependentDates({ date: '2026-08-10' }, { kind: 'purchase', date: '2026-08-10', invoiceDate: '2026-08-01' }, state);
+  state = step3.nextState;
+  assert.deepEqual(step3.patch, { documentDate: '2026-08-10' });
+
+  const step4 = syncVoucherDependentDates({ voucher: { documentDate: '2026-08-09' } }, { kind: 'purchase', date: '2026-08-10', voucher: { documentDate: '2026-08-09' } }, state);
+  state = step4.nextState;
+  assert.deepEqual(state, { documentDateCustom: true, invoiceDateCustom: true });
+
+  const step5 = syncVoucherDependentDates({ date: '2026-08-15' }, { kind: 'purchase', date: '2026-08-15' }, state);
+  assert.equal(step5.patch, undefined);
+
+  const withoutInvoice = normalizeVoucherInputDates({
+    kind: 'purchase',
+    date: '2026-08-03',
+    invoiceDate: '2026-08-03',
+    voucher: { documentDate: '2026-08-03' },
+  });
+  assert.equal(withoutInvoice.invoiceDate, undefined);
+  assert.equal(withoutInvoice.voucher?.documentDate, '2026-08-03');
+
+  const withInvoice = normalizeVoucherInputDates({
+    kind: 'purchase',
+    date: '2026-08-03',
+    invoiceNumber: '0000123',
+    invoiceSeries: '1C26TAA',
+    invoiceDate: '2026-08-03',
+    voucher: { documentDate: '2026-08-03' },
+  });
+  assert.equal(withInvoice.invoiceDate, '2026-08-03');
+  assert.equal(withInvoice.invoiceNumber, '0000123');
+
+  const fallbackInvoiceDate = normalizeVoucherInputDates({
+    kind: 'sale',
+    date: '2026-08-03',
+    invoiceNumber: '0000124',
+  });
+  assert.equal(fallbackInvoiceDate.invoiceDate, '2026-08-03');
+  assert.equal(fallbackInvoiceDate.voucher?.documentDate, '2026-08-03');
 });

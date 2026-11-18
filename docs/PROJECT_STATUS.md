@@ -10,6 +10,11 @@ Cập nhật: 18/11/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Tự động đồng bộ ngày chứng từ và ngày hóa đơn theo ngày hạch toán — 0.18.6
+
+- Đã làm: bổ sung `hydrateVoucherDefaultDates`, `initialVoucherDateSync`, `syncVoucherDependentDates` và `normalizeVoucherInputDates` trong `web/src/shared/accounting/ledger.ts`, áp dụng cho `VoucherForm.tsx` và `Automation.tsx`. Khi mở phiếu mới hoặc mở lại phiếu chưa có ngày hóa đơn, cả `Ngày chứng từ` (`voucher.documentDate`) và `Ngày hóa đơn` (`invoiceDate`) đều mặc định bằng `Ngày hạch toán` (`date`) và tự động cập nhật theo khi người dùng đổi `Ngày hạch toán`. Nếu người dùng chủ động sửa riêng `Ngày chứng từ` hoặc `Ngày hóa đơn` khác với `Ngày hạch toán`, hệ thống giữ nguyên giá trị người dùng đã chọn. Khi chứng từ mua/bán không nhập `Số hóa đơn`/`Ký hiệu hóa đơn`, payload gửi API tự lược bỏ `invoiceDate` để không sinh dữ liệu hóa đơn rỗng.
+- Đã kiểm tra: `tsc --noEmit`, `tsc -b`, 78 unit test Node (`web/tests/accounting.test.ts`), `vite build` và kịch bản E2E live trong `purchase-accounts.spec.ts` (đổi `Ngày hạch toán` trên tab `Hạch toán` tự cập nhật `Ngày chứng từ` và `Ngày hóa đơn` trên tab `Thuế / hóa đơn`, sửa riêng `Ngày chứng từ` được giữ nguyên khi tiếp tục đổi `Ngày hạch toán`, ghi sổ lưu đúng cả 3 ngày).
+
 ## Tự lọc khoảng ngày kế toán và xem từ đầu năm đến nay — 0.18.5
 
 - Đã làm: bổ sung `From`/`To` và `ResolveRange()` vào `ledger.Filter` (`server/internal/modules/ledger/reports.go`), hỗ trợ cắt sổ chính xác theo khoảng nửa mở `[from, toExclusive)` cho `Report` (`Nhật ký chung`, `Sổ cái`, `Cân đối phát sinh`, `Chi tiết công nợ`), `Documents` và `moneySummary`, đồng thời cập nhật `httpserver/reports.go`, `httpserver/export.go` và `api/openapi.yaml` (giữ tương thích ngược 100% khi chỉ truyền `period=YYYY-MM`).

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { WarehousesButton } from '../vouchers/Warehouses';
 import { Alert, App, AutoComplete, Button, Form, Input, InputNumber, Modal, Select, Switch, Table, Tabs, Tag } from 'antd';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { api, apiScope, command, isDemo } from '../../shared/api/client';
 import { amountLabels, automationOptions, executeOperation } from '../../shared/data/operations';
 import type { Asset, Calculation, Employee, Item, OperationInput } from '../../shared/data/operations';
 import { workspaceKey } from '../../shared/data/workspace';
-import { formatLineAccount, formatLinePartner } from '../../shared/accounting/ledger';
+import { formatLineAccount, formatLinePartner, initialVoucherDateSync, normalizeVoucherInputDates, syncVoucherDependentDates } from '../../shared/accounting/ledger';
 import { businessToday, formatMoney, formatQuantity } from '../../shared/accounting/money';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
 import { Icon } from '../../shared/ui/Icon';
@@ -38,7 +38,7 @@ export function ItemsPage() {
 }
 
 function AutomationPage({ itemsOnly = false }: { itemsOnly?: boolean }) {
-  const { data, period, openDocument } = useWorkspace();
+  const { data, period, fromDate, toDate, openDocument } = useWorkspace();
   const scope = apiScope();
   const client = useQueryClient();
   const { message, modal } = App.useApp();
@@ -53,11 +53,14 @@ function AutomationPage({ itemsOnly = false }: { itemsOnly?: boolean }) {
   const [itemKind, setItemKind] = useState<ItemKind | 'all'>('all');
   const [itemSearch, setItemSearch] = useState('');
   const [preview, setPreview] = useState<{ input: OperationInput; result: Calculation } | null>(null);
+  const today = businessToday();
+  const defaultDate = today >= fromDate && today <= toDate ? today : `${period}-01`;
+  const dateSync = useRef(initialVoucherDateSync({ date: defaultDate, invoiceDate: defaultDate }));
   const query = useQuery({ ...automationOptions(), enabled: !isDemo && scope.permissions !== 'viewer' });
   const kind = (Form.useWatch('kind', form) as OperationInput['kind'] | undefined) ?? (params.get('kind') as OperationInput['kind'] | null) ?? 'sale';
   const date = Form.useWatch('date', form) as string | undefined;
   const policy = query.data?.policies.find(item => item.effectiveFrom <= (date ?? `${period}-01`));
-  const calculate = useMutation({ retry: false, mutationFn: (input: OperationInput) => api<Calculation>('/operations/preview', { method: 'POST', body: JSON.stringify(input), headers: { 'X-Dataset-Epoch': scope.epoch } }), onSuccess: (result, input) => { if (JSON.stringify(form.getFieldsValue(true)) === JSON.stringify(input)) setPreview({ input, result }); }, onError: error => void message.error(error.message) });
+  const calculate = useMutation({ retry: false, mutationFn: (input: OperationInput) => api<Calculation>('/operations/preview', { method: 'POST', body: JSON.stringify(input), headers: { 'X-Dataset-Epoch': scope.epoch } }), onSuccess: (result, input) => { if (JSON.stringify(normalizeVoucherInputDates(form.getFieldsValue(true))) === JSON.stringify(input)) setPreview({ input, result }); }, onError: error => void message.error(error.message) });
   const execute = useMutation({ retry: false, mutationFn: executeOperation, onSuccess: async result => {
     setPreview(null); form.setFieldValue('sourceId', ''); form.setFieldValue('allocations', []);
     void message.success(`Đã ghi nhận ${result.document.reference}. Chứng từ và biến động phân hệ đã cùng commit.`);
@@ -83,7 +86,7 @@ function AutomationPage({ itemsOnly = false }: { itemsOnly?: boolean }) {
     {!itemsOnly && !query.isPending && !auto?.policies.length && <Alert type="warning" showIcon title="Chưa có chính sách nghiệp vụ" description={<Link to="/settings">Mở Cài đặt để xác nhận thuế suất, giá kho, lương và phân bổ trước khi tính.</Link>} style={{ marginBottom: 20 }} />}
     <section className={styles.panel}>{!itemsOnly && <Tabs className={styles.adminTabs} activeKey={tab} onChange={setTab} items={[{ key: 'operation', label: 'Lập nghiệp vụ' }, { key: 'items', label: 'Hàng hóa & dịch vụ' }, ...(scope.permissions === 'owner' ? [{ key: 'employees', label: 'Nhân viên' }] : []), { key: 'assets', label: 'Tài sản & chi phí trả trước' }]} />}
     <div className={styles.adminContent}>
-      {tab === 'operation' && <Form<OperationInput> form={form} layout="vertical" disabled={execute.isPending} initialValues={{ originalDocumentId: params.get('original') ?? undefined, moneyAccount: params.get('account') === '1121' ? '1121' : '111', partnerId: params.get('partner') ?? undefined, amount: params.get('amount') ?? undefined, allocations: params.get('invoice') ? [{ documentId: params.get('invoice'), amount: params.get('amount') ?? '' }] : undefined, kind: initialKind && initialKind in kinds ? initialKind : 'sale', date: businessToday().startsWith(period) ? businessToday() : `${period}-01`, lines: [{ itemId: '', quantity: '1', unitPrice: '', vatRate: '' }], nonDeductible: '0', exemptIncome: '0', carriedLoss: '0', taxFrom: `${period}-01`, allowance: '0', nonTaxableAllowance: '0', overtimeHours: '0', overtimeMultiplier: '1', asset: { id: crypto.randomUUID(), kind: 'fixed', residual: '0', months: 12, startPeriod: period } }} onValuesChange={changes => { setPreview(null); if (changes.kind) form.setFieldsValue({ partnerId: undefined, allocations: undefined, counterAccount: undefined, destinationAccount: undefined }); }} onFinish={() => calculate.mutate(structuredClone(form.getFieldsValue(true)))} scrollToFirstError={{ focus: true }}>
+      {tab === 'operation' && <Form<OperationInput> form={form} layout="vertical" disabled={execute.isPending} initialValues={{ originalDocumentId: params.get('original') ?? undefined, moneyAccount: params.get('account') === '1121' ? '1121' : '111', partnerId: params.get('partner') ?? undefined, amount: params.get('amount') ?? undefined, allocations: params.get('invoice') ? [{ documentId: params.get('invoice'), amount: params.get('amount') ?? '' }] : undefined, kind: initialKind && initialKind in kinds ? initialKind : 'sale', date: defaultDate, invoiceDate: defaultDate, voucher: { documentDate: defaultDate }, lines: [{ itemId: '', quantity: '1', unitPrice: '', vatRate: '' }], nonDeductible: '0', exemptIncome: '0', carriedLoss: '0', taxFrom: `${period}-01`, allowance: '0', nonTaxableAllowance: '0', overtimeHours: '0', overtimeMultiplier: '1', asset: { id: crypto.randomUUID(), kind: 'fixed', residual: '0', months: 12, startPeriod: period } }} onValuesChange={(changes, allValues) => { setPreview(null); const synced = syncVoucherDependentDates(changes, allValues, dateSync.current); dateSync.current = synced.nextState; if (synced.patch?.documentDate !== undefined) form.setFieldValue(['voucher', 'documentDate'], synced.patch.documentDate); if (synced.patch?.invoiceDate !== undefined) form.setFieldValue('invoiceDate', synced.patch.invoiceDate); if (changes.kind) { const nextDate = form.getFieldValue('date') as string; form.setFieldsValue({ partnerId: undefined, allocations: undefined, counterAccount: undefined, destinationAccount: undefined, ...(changes.kind === 'sale' || changes.kind === 'purchase' ? { invoiceDate: dateSync.current.invoiceDateCustom ? form.getFieldValue('invoiceDate') : nextDate } : {}) }); } }} onFinish={() => calculate.mutate(normalizeVoucherInputDates(form.getFieldsValue(true)))} scrollToFirstError={{ focus: true }}>
         <div className={styles.formGrid}><Form.Item name="kind" label="Nghiệp vụ" rules={[{ required: true }]}><Select options={Object.entries(kinds).filter(([key]) => key !== 'closing' || scope.permissions === 'owner').map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item name="date" label="Ngày kế toán" rules={[{ required: true }]}><DateInput /></Form.Item><Form.Item name="sourceId" label="Mã nguồn / ký hiệu-số chứng từ gốc" rules={[{ required: true, message: 'Nhập mã nguồn để chống ghi trùng nghiệp vụ.' }, { pattern: /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/, message: 'Mã nguồn tối đa 100 ký tự, không có khoảng trắng hoặc dấu tiếng Việt.' }]}><Input placeholder="Mã sự kiện / hóa đơn gốc" /></Form.Item><Form.Item name="description" label="Diễn giải" rules={[{ required: true, whitespace: true }]}><AutoComplete options={suggestionOptions(data?.documents.map(item => item.description) ?? [])} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn diễn giải đã dùng" maxLength={500} /></AutoComplete></Form.Item></div>
         {(kind === 'sale' || kind === 'purchase' || kind === 'asset') && <Form.Item name="partnerId" label="Khách hàng / nhà cung cấp" rules={[{ required: true }]}><PartnerSelect label="Khách hàng / nhà cung cấp" role={kind === 'sale' ? 'customer' : kind === 'purchase' ? 'supplier' : 'all'} defaultRole={kind === 'sale' ? 'customer' : 'supplier'} onSelected={() => setPreview(null)} /></Form.Item>}
         {kind === 'treasury_reversal' && <><Form.Item name="originalDocumentId" label="ID phiếu thu/chi/chuyển tiền gốc" rules={[{ required: true }]}><Input /></Form.Item><Alert showIcon type="warning" title="Đảo toàn bộ phiếu tiền theo ngày đã chọn; diễn giải phải nêu lý do" description="Server giữ liên kết chứng từ gốc và trả lại phần công nợ đã phân bổ kể từ ngày đảo." /></>}

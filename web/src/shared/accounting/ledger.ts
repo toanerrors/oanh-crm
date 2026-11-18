@@ -180,3 +180,85 @@ export function allocationInvoiceOptions(
   }
   return result;
 }
+
+export interface VoucherDateSyncState {
+  documentDateCustom: boolean;
+  invoiceDateCustom: boolean;
+}
+
+export function initialVoucherDateSync(input: { date: string; invoiceDate?: string; voucher?: { documentDate?: string } }): VoucherDateSyncState {
+  return {
+    documentDateCustom: Boolean(input.voucher?.documentDate && input.voucher.documentDate !== input.date),
+    invoiceDateCustom: Boolean(input.invoiceDate && input.invoiceDate !== input.date),
+  };
+}
+
+export function hydrateVoucherDefaultDates<T extends { kind: string; date: string; invoiceDate?: string; voucher?: { documentDate?: string } }>(
+  input: T,
+): T & { invoiceDate?: string; voucher: NonNullable<T['voucher']> & { documentDate: string } } {
+  const trade = input.kind === 'sale' || input.kind === 'purchase';
+  return {
+    ...input,
+    voucher: {
+      ...(input.voucher as NonNullable<T['voucher']>),
+      documentDate: input.voucher?.documentDate || input.date,
+    },
+    ...(trade ? { invoiceDate: input.invoiceDate || input.date } : {}),
+  };
+}
+
+export function syncVoucherDependentDates(
+  changedValues: { date?: string; invoiceDate?: string; voucher?: { documentDate?: string } },
+  allValues: { kind?: string; date?: string; invoiceDate?: string; voucher?: { documentDate?: string } },
+  state: VoucherDateSyncState,
+): { nextState: VoucherDateSyncState; patch?: { documentDate?: string; invoiceDate?: string } } {
+  const nextState = { ...state };
+  if (changedValues.voucher && 'documentDate' in changedValues.voucher) {
+    const docDate = changedValues.voucher.documentDate;
+    nextState.documentDateCustom = Boolean(docDate && docDate !== allValues.date);
+  }
+  if ('invoiceDate' in changedValues) {
+    const invDate = changedValues.invoiceDate;
+    nextState.invoiceDateCustom = invDate === '' || Boolean(invDate && invDate !== allValues.date);
+  }
+  if (typeof changedValues.date === 'string' && isCalendarDate(changedValues.date)) {
+    const nextDate = changedValues.date;
+    const patch: { documentDate?: string; invoiceDate?: string } = {};
+    if (!nextState.documentDateCustom) patch.documentDate = nextDate;
+    if ((allValues.kind === 'sale' || allValues.kind === 'purchase') && !nextState.invoiceDateCustom) {
+      patch.invoiceDate = nextDate;
+    }
+    return { nextState, patch: Object.keys(patch).length ? patch : undefined };
+  }
+  return { nextState };
+}
+
+export function normalizeVoucherInputDates<T extends {
+  kind: string;
+  date: string;
+  invoiceNumber?: string;
+  invoiceSeries?: string;
+  invoiceDate?: string;
+  voucher?: { documentDate?: string };
+}>(input: T): T & { invoiceDate?: string; voucher?: { documentDate?: string } } {
+  const next = structuredClone(input);
+  if (isCalendarDate(next.date) && !next.voucher?.documentDate) {
+    next.voucher = { ...next.voucher, documentDate: next.date };
+  }
+  if (next.kind === 'sale' || next.kind === 'purchase') {
+    const hasInvoiceNumber = Boolean(next.invoiceNumber?.trim());
+    const hasInvoiceSeries = Boolean(next.invoiceSeries?.trim());
+    if (!hasInvoiceNumber && !hasInvoiceSeries) {
+      delete next.invoiceNumber;
+      delete next.invoiceSeries;
+      delete next.invoiceDate;
+    } else if (hasInvoiceNumber && !next.invoiceDate && isCalendarDate(next.date)) {
+      next.invoiceDate = next.date;
+    }
+  } else {
+    delete next.invoiceNumber;
+    delete next.invoiceSeries;
+    delete next.invoiceDate;
+  }
+  return next;
+}
