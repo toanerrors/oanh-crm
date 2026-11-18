@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { formatMoney, isMoney, MAX_MONEY, isCalendarDate, normalizeSearch, compactMoney, parseMoneyInput } from '../src/shared/accounting/money.ts';
-import { accountBalance, filterDocuments, formatLineAccount, formatLinePartner, nonZeroTrialRows, partnerBalances, periodDocuments, periodMovement, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
+import { accountBalance, allocationInvoiceOptions, filterDocuments, formatLineAccount, formatLinePartner, invoiceAvailableAmount, nonZeroTrialRows, partnerBalances, periodDocuments, periodMovement, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
 import { serializeCsv } from '../src/shared/accounting/csv.ts';
 import { initialWorkspace } from '../src/shared/data/demo.ts';
 import { saveDemoDraft, saveDemoPartners, workspaceOptions } from '../src/shared/data/workspace.ts';
@@ -187,4 +187,31 @@ test('cân đối phát sinh ẩn dòng có cả 6 cột bằng 0, giữ dòng c
     { code: '911', openingDebit: 0n, openingCredit: 0n, debit: 500n, credit: 500n, closingDebit: 0n, closingCredit: 0n },
   ]);
   assert.deepEqual(settledOnly.map(row => row.code), ['911']);
+});
+
+test('phân bổ công nợ hiển thị số chứng từ, tính đúng số tiền tự điền kể cả trên 2^53 và lọc dòng trùng', () => {
+  const invoices = [
+    { documentId: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', reference: 'MH-2026-000004', amount: '2160000', remaining: '2160000' },
+    { documentId: 'INV-LARGE', reference: 'MH-2026-000005', invoiceSeries: '1C26TAA', invoiceNumber: '000088', amount: '9007199254740993', remaining: '9007199254740993' },
+    { documentId: 'INV-PAID', reference: 'MH-2026-000006', amount: '500000', remaining: '0' },
+  ];
+  assert.equal(invoiceAvailableAmount(invoices[0]), '2160000');
+  assert.equal(invoiceAvailableAmount(invoices[1]), '9007199254740993');
+  assert.equal(
+    invoiceAvailableAmount(invoices[2], [{ documentId: 'INV-PAID', amount: '500000' }], true),
+    '500000',
+  );
+  const firstRowOptions = allocationInvoiceOptions(invoices, [{ documentId: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', amount: '2160000' }, { documentId: '', amount: '' }], 0);
+  assert.deepEqual(firstRowOptions, [
+    { value: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', label: 'MH-2026-000004 · Còn 2.160.000 VND' },
+    { value: 'INV-LARGE', label: 'MH-2026-000005 · HĐ 1C26TAA 000088 · Còn 9.007.199.254.740.993 VND' },
+  ]);
+  const secondRowOptions = allocationInvoiceOptions(invoices, [{ documentId: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', amount: '2160000' }, { documentId: '', amount: '' }], 1);
+  assert.deepEqual(secondRowOptions, [
+    { value: 'INV-LARGE', label: 'MH-2026-000005 · HĐ 1C26TAA 000088 · Còn 9.007.199.254.740.993 VND' },
+  ]);
+  const loadingFallback = allocationInvoiceOptions(undefined, [{ documentId: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', amount: '2160000' }], 0, {
+    documents: [{ id: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', reference: 'MH-2026-000004' }],
+  });
+  assert.deepEqual(loadingFallback, [{ value: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', label: 'MH-2026-000004' }]);
 });

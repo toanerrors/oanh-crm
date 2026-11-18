@@ -1,5 +1,5 @@
 import type { Account, AccountingDocument, JournalLine, Workspace } from '../data/types.ts';
-import { isCalendarDate, isMoney, MAX_MONEY, normalizeSearch } from './money.ts';
+import { formatMoney, isCalendarDate, isMoney, MAX_MONEY, normalizeSearch } from './money.ts';
 
 export function totals(lines: JournalLine[]): { debit: bigint; credit: bigint } {
   return lines.reduce((sum, line) => ({ debit: sum.debit + BigInt(line.debit), credit: sum.credit + BigInt(line.credit) }), { debit: 0n, credit: 0n });
@@ -115,4 +115,65 @@ export function trialBalance(workspace: Workspace, period: string) {
 
 export function nonZeroTrialRows<T extends { debit: bigint; credit: bigint; openingDebit?: bigint; openingCredit?: bigint; closingDebit?: bigint; closingCredit?: bigint }>(rows: T[]): T[] {
   return rows.filter(row => (row.openingDebit ?? 0n) !== 0n || (row.openingCredit ?? 0n) !== 0n || row.debit !== 0n || row.credit !== 0n || (row.closingDebit ?? 0n) !== 0n || (row.closingCredit ?? 0n) !== 0n);
+}
+
+export interface AllocationCandidate {
+  documentId: string;
+  reference: string;
+  invoiceNumber?: string;
+  invoiceSeries?: string;
+  amount: string;
+  remaining: string;
+  unallocated?: boolean;
+}
+
+export function invoiceAvailableAmount(
+  invoice: Pick<AllocationCandidate, 'documentId' | 'remaining'>,
+  initialAllocations?: { documentId: string; amount: string }[],
+  editingPosted = false,
+): string {
+  const base = isMoney(invoice.remaining) ? BigInt(invoice.remaining) : 0n;
+  if (!editingPosted) return base.toString();
+  const previous = initialAllocations?.find(item => item.documentId === invoice.documentId)?.amount;
+  return (base + (isMoney(previous) ? BigInt(previous) : 0n)).toString();
+}
+
+export function allocationInvoiceOptions(
+  invoices: AllocationCandidate[] | undefined,
+  currentRows: { documentId?: string; amount?: string }[] | undefined,
+  rowIndex: number,
+  options?: {
+    initialAllocations?: { documentId: string; amount: string }[];
+    documents?: Pick<AccountingDocument, 'id' | 'reference'>[];
+    editingPosted?: boolean;
+    readonly?: boolean;
+  },
+): { value: string; label: string }[] {
+  const otherSelected = new Set(
+    (currentRows ?? [])
+      .map((row, index) => (index !== rowIndex ? row?.documentId : undefined))
+      .filter((id): id is string => Boolean(id)),
+  );
+  const currentId = currentRows?.[rowIndex]?.documentId || undefined;
+  const initialAllocations = options?.initialAllocations;
+  const editingPosted = Boolean(options?.editingPosted);
+  const readonly = Boolean(options?.readonly);
+  const result = (invoices ?? [])
+    .filter(item => {
+      if (otherSelected.has(item.documentId)) return false;
+      if (item.documentId === currentId || initialAllocations?.some(a => a.documentId === item.documentId)) return true;
+      const available = invoiceAvailableAmount(item, initialAllocations, editingPosted);
+      return !item.unallocated && available !== '0';
+    })
+    .map(item => {
+      const available = invoiceAvailableAmount(item, initialAllocations, editingPosted);
+      const invoiceNo = item.invoiceNumber ? ` · HĐ ${item.invoiceSeries ? `${item.invoiceSeries} ` : ''}${item.invoiceNumber}` : '';
+      const suffix = readonly ? `Gốc ${formatMoney(item.amount)} VND` : `Còn ${formatMoney(available)} VND`;
+      return { value: item.documentId, label: `${item.reference}${invoiceNo} · ${suffix}` };
+    });
+  if (currentId && !result.some(item => item.value === currentId)) {
+    const doc = options?.documents?.find(item => item.id === currentId);
+    if (doc) result.unshift({ value: doc.id, label: doc.reference });
+  }
+  return result;
 }

@@ -10,6 +10,12 @@ Cập nhật: 18/11/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Tự điền số tiền còn lại và hiển thị số chứng từ khi phân bổ công nợ — 0.18.3
+
+- Đã làm: đổi ô chọn chứng từ công nợ nguồn trong `VoucherForm.tsx` từ `AutoComplete` (lộ ID nội bộ `documentId` sau khi chọn) sang `Select` dùng `allocationInvoiceOptions` và `invoiceAvailableAmount` (`web/src/shared/accounting/ledger.ts`), khởi tạo sẵn 1 dòng khi mở chế độ thu/trả công nợ theo chứng từ và loại trừ chứng từ đã chọn ở dòng khác trên cùng phiếu.
+- Khi chọn chứng từ công nợ nguồn (trong `VoucherForm.tsx` và `TreasuryFields.tsx`) hoặc chứng từ chi phí mua hàng (`purchaseCosts`), tự động điền ngay số tiền còn lại chính xác (`remaining`, giữ dạng chuỗi/BigInt, cộng lại số cũ khi sửa phiếu đã ghi sổ) vào ô `Số tiền phân bổ` và cập nhật ngay `Tổng tiền` / `Tổng tiền thanh toán`; người dùng vẫn sửa được số tiền nếu thanh toán một phần. Chuẩn hóa thông báo lỗi tiếng Việt trên các cột `Form.List`, loại bỏ thông báo kỹ thuật `0,amount`.
+- Đã kiểm tra: `tsc --noEmit`, `tsc -b`, 76 unit test Node, `vite build` và kịch bản E2E live trong `purchase-accounts.spec.ts` (chọn chứng từ công nợ hiển thị `MH-... · Còn 2.160.000 VND`, tự điền `2.160.000`, sửa trả một phần `1.000.000` và ghi sổ còn lại `1.160.000`).
+
 ## Cân đối phát sinh ẩn tài khoản có cả 6 cột bằng 0 — 0.18.2
 
 - Đã làm: trong `ledger.Report` (`server/internal/modules/ledger/reports.go`) cho `kind="trial"` và `nonZeroTrialRows` (`web/src/shared/accounting/ledger.ts`, `Reports.tsx`), chỉ đưa vào Bảng cân đối phát sinh các tài khoản có ít nhất một trong 6 cột khác `0` (`OpeningDebit`, `OpeningCredit`, `Debit`, `Credit`, `ClosingDebit`, `ClosingCredit`), ẩn các tài khoản có cả 6 cột bằng `0`.

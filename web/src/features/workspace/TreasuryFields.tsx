@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../../shared/api/client';
 import { workspaceKey } from '../../shared/data/workspace';
 import type { InvoiceList, OperationInput } from '../../shared/data/operations';
-import { formatMoney } from '../../shared/accounting/money';
+import { formatMoney, isMoney } from '../../shared/accounting/money';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
 import { searchOptions } from '../../shared/ui/search';
@@ -35,8 +35,8 @@ export function TreasuryFields({ kind }: { kind: OperationInput['kind'] }) {
       {(invoices.data?.total ?? 0) > 100 && <Alert type="info" title="Hiển thị 100 chứng từ gần nhất của đối tượng. Có thể nhập ID chứng từ từ màn hình Công nợ theo chứng từ." />}
       <Form.List name="allocations" rules={[{ validator: async (_, value: unknown[]) => { if (!value?.length) throw new Error('Thêm ít nhất một chứng từ để phân bổ.'); } }]}>{(fields, { add, remove }, { errors }) => <>
         {fields.map(field => <div className={styles.formGrid} key={field.key}>
-          <Form.Item name={[field.name, 'documentId']} label="Chứng từ công nợ / ID nguồn" rules={[{ required: true }]}><AutoComplete showSearch={searchOptions} options={invoices.data?.invoices.filter(item => item.remaining !== '0' && !item.unallocated).map(item => ({ value: item.documentId, label: `${item.reference} · ${item.invoiceNumber || 'Chưa có số hóa đơn'} · Còn ${formatMoney(item.remaining)} VND` }))}><Input placeholder="Chọn chứng từ hoặc nhập ID nguồn" /></AutoComplete></Form.Item>
-          <Form.Item name={[field.name, 'amount']} label="Số phân bổ (VND)" rules={[{ required: true }]}><MoneyInput label={`Số phân bổ ${field.name + 1}`} /></Form.Item>
+          <Form.Item name={[field.name, 'documentId']} label="Chứng từ công nợ / ID nguồn" rules={[{ required: true, message: 'Chọn chứng từ công nợ' }]}><AutoComplete showSearch={searchOptions} options={invoices.data?.invoices.filter(item => item.remaining !== '0' && !item.unallocated).map(item => ({ value: item.documentId, label: `${item.reference} · ${item.invoiceNumber || 'Chưa có số hóa đơn'} · Còn ${formatMoney(item.remaining)} VND` }))} onSelect={(selectedDocId: string) => { const invoice = invoices.data?.invoices.find(item => item.documentId === selectedDocId); if (!invoice || !isMoney(invoice.remaining) || invoice.remaining === '0') return; form.setFields([{ name: ['allocations', field.name, 'amount'], value: invoice.remaining, errors: [] }]); const rows = [...((form.getFieldValue('allocations') as OperationInput['allocations']) ?? [])]; rows[field.name] = { documentId: selectedDocId, amount: invoice.remaining }; if (rows.length > 0 && rows.every(row => isMoney(row?.amount) && row.amount !== '0')) form.setFields([{ name: 'amount', value: rows.reduce((sum, row) => sum + BigInt(row.amount), 0n).toString(), errors: [] }]); }}><Input placeholder="Chọn chứng từ hoặc nhập ID nguồn" /></AutoComplete></Form.Item>
+          <Form.Item name={[field.name, 'amount']} label="Số phân bổ (VND)" rules={[{ validator: async (_, value: string) => { if (!value) throw new Error('Nhập số tiền phân bổ'); if (!isMoney(value) || value === '0') throw new Error('Nhập số nguyên dương'); } }]}><MoneyInput label={`Số phân bổ ${field.name + 1}`} /></Form.Item>
           <Button danger onClick={() => remove(field.name)}>Xóa phân bổ {field.name + 1}</Button>
         </div>)}
         <Form.ErrorList errors={errors} /><Button type="dashed" onClick={() => add({ amount: '' })}>Thêm chứng từ thanh toán</Button>
