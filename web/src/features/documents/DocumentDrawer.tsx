@@ -10,7 +10,7 @@ import { documentTypes } from '../../shared/data/types';
 import type { AccountingDocument, JournalLine } from '../../shared/data/types';
 import { canPairJournalLines, journalEntryRows, journalEntrySides } from '../../shared/accounting/journal-entry';
 import type { JournalSide } from '../../shared/accounting/journal-entry';
-import { formatLineAccount, formatLinePartner, totals } from '../../shared/accounting/ledger';
+import { formatLineAccount, formatLinePartner, formatLineProject, totals } from '../../shared/accounting/ledger';
 import { formatDate, formatMoney, isMoney } from '../../shared/accounting/money';
 import { Icon } from '../../shared/ui/Icon';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
@@ -18,6 +18,7 @@ import { StatusTag } from '../../shared/ui/Page';
 import { searchOptions, suggestionOptions } from '../../shared/ui/search';
 import { DateInput } from '../../shared/ui/DateInput';
 import { PartnerSelect } from '../vouchers/PartnerSelect';
+import { ProjectSelect } from '../vouchers/ProjectSelect';
 import styles from '../../app/App.module.css';
 import { api, apiScope, command, isDemo } from '../../shared/api/client';
 
@@ -88,13 +89,14 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
         const moneyRule = { validator: async (_: unknown, value: unknown) => { if (!isMoney(value) || value === '0') throw new Error('Nhập số tiền nguyên dương hợp lệ'); } };
         const addLine = (side: JournalSide) => { setSides(current => [...current, side]); add({ accountId: '', description: '', debit: '0', credit: '0' }); };
         const removeLines = (indices: number[]) => { setSides(current => current.filter((_, index) => !indices.includes(index))); remove(indices); };
-        const share = (row: EntryRow, field: 'description' | 'amount', value: string | undefined) => {
+        const share = (row: EntryRow, field: 'description' | 'amount' | 'projectId', value: string | undefined) => {
           if (!row.debit || !row.credit) return;
           form.setFieldValue(['lines', row.credit.name, field === 'amount' ? 'credit' : field], value);
           setDraft({ ...initial, ...form.getFieldsValue(true) });
         };
         const accountCell = (field: Field, label: string) => <Form.Item name={[field.name, 'accountId']} rules={[{ required: true, message: `Chọn ${label}` }]}><Select aria-label={label} showSearch={searchOptions} options={accountOptions} placeholder="Chọn tài khoản" /></Form.Item>;
         const partnerCell = (field: Field, label: string) => <Form.Item name={[field.name, 'partnerId']}><PartnerSelect label={label} placeholder="Chọn đối tượng" onSelected={() => setDraft({ ...initial, ...form.getFieldsValue(true) })} /></Form.Item>;
+        const projectCell = (field: Field, label: string, onChange?: (id?: string) => void) => <Form.Item name={[field.name, 'projectId']}><ProjectSelect label={label} onChange={onChange} onSelected={() => setDraft({ ...initial, ...form.getFieldsValue(true) })} /></Form.Item>;
         const columns = (side: JournalSide) => {
           const title = side === 'debit' ? 'Nợ' : 'Có';
           return [
@@ -104,17 +106,19 @@ function DraftForm({ initial }: { initial: AccountingDocument }) {
         };
         return <>
           <div className={styles.editTable}>
-            {paired ? <Table<EntryRow> pagination={false} size="small" rowKey="key" dataSource={journalEntryRows(fields, sides)} scroll={{ x: 1200 }} columns={[
+            {paired ? <Table<EntryRow> pagination={false} size="small" rowKey="key" dataSource={journalEntryRows(fields, sides)} scroll={{ x: 1380 }} columns={[
               { title: '#', width: 40, render: (_, row) => row.key + 1 },
               ...columns('debit'), ...columns('credit'),
+              { title: 'Công trình', width: 205, render: (_, row) => row.debit && projectCell(row.debit, `Công trình dòng ${row.key + 1}`, id => { form.setFieldValue(['lines', row.debit!.name, 'projectId'], id); share(row, 'projectId', id); }) },
               { title: 'Diễn giải', width: 215, render: (_, row) => row.debit && <Form.Item name={[row.debit.name, 'description']}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false} onChange={value => share(row, 'description', value)}><Input aria-label={`Diễn giải dòng ${row.key + 1}`} placeholder="Dùng diễn giải chứng từ nếu để trống" /></AutoComplete></Form.Item> },
               { title: 'Số tiền', width: 185, render: (_, row) => row.debit && <Form.Item name={[row.debit.name, 'debit']} rules={[moneyRule]}><MoneyInput label={`Số tiền dòng ${row.key + 1}`} onChange={value => share(row, 'amount', value)} /></Form.Item> },
               { width: 40, render: (_, row) => row.debit && row.credit && <Button type="text" danger aria-label={`Xóa dòng hạch toán ${row.key + 1}`} icon={<Icon name="trash" size={16} />} onClick={() => removeLines([row.debit!.name, row.credit!.name])} /> },
-            ]} /> : <Table<Field> pagination={false} size="small" rowKey="key" dataSource={fields} scroll={{ x: 920 }} columns={[
+            ]} /> : <Table<Field> pagination={false} size="small" rowKey="key" dataSource={fields} scroll={{ x: 1120 }} columns={[
               { title: '#', width: 40, render: (_, field) => field.name + 1 },
               { title: 'Bên', width: 65, render: (_, field) => sides[field.name] === 'debit' ? 'Nợ' : 'Có' },
               { title: 'Tài khoản', width: 210, render: (_, field) => accountCell(field, `Tài khoản dòng ${field.name + 1}`) },
               { title: 'Đối tượng', width: 210, render: (_, field) => partnerCell(field, `Đối tượng dòng ${field.name + 1}`) },
+              { title: 'Công trình', width: 205, render: (_, field) => projectCell(field, `Công trình dòng ${field.name + 1}`) },
               { title: 'Diễn giải', width: 230, render: (_, field) => <Form.Item name={[field.name, 'description']}><AutoComplete options={descriptions} showSearch={searchOptions} defaultActiveFirstOption={false}><Input aria-label={`Diễn giải dòng ${field.name + 1}`} placeholder="Dùng diễn giải chứng từ nếu để trống" /></AutoComplete></Form.Item> },
               { title: 'Số tiền', width: 185, render: (_, field) => <Form.Item name={[field.name, sides[field.name]]} rules={[moneyRule]}><MoneyInput label={`Số tiền dòng ${field.name + 1}`} /></Form.Item> },
               { width: 40, render: (_, field) => <Button type="text" danger aria-label={`Xóa dòng hạch toán ${field.name + 1}`} icon={<Icon name="trash" size={16} />} onClick={() => removeLines([field.name])} /> },
@@ -171,12 +175,13 @@ export function DocumentDetail() {
         { key: 'version', label: 'Phiên bản nháp / nguồn', children: document.version },
         { key: 'description', label: 'Diễn giải', children: document.description },
       ]} />
-      <Table dataSource={document.lines.map((line, index) => ({ ...line, key: index }))} pagination={false} scroll={{ x: 650 }} columns={[
+      <Table dataSource={document.lines.map((line, index) => ({ ...line, key: index }))} pagination={false} scroll={{ x: 760 }} columns={[
         { title: 'Tài khoản', dataIndex: 'accountId', render: (_, line) => { const account = formatLineAccount(line, data.accounts); return <><strong>{account.code}</strong><small className={styles.cellSub}>{account.name}</small></>; } },
         { title: 'Đối tượng', dataIndex: 'partnerId', render: (_, line) => { const partner = formatLinePartner(line, data.partners); return <span title={partner.title}>{partner.text}</span>; } },
+        { title: 'Công trình', dataIndex: 'projectId', render: (_, line) => { const proj = formatLineProject(line, data.projects); return <span title={proj.title}>{proj.text}</span>; } },
         { title: 'Nợ', dataIndex: 'debit', align: 'right', render: (value: string) => formatMoney(value) },
         { title: 'Có', dataIndex: 'credit', align: 'right', render: (value: string) => formatMoney(value) },
-      ]} summary={() => <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng cộng</strong></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><strong>{total && formatMoney(total.debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={3} align="right"><strong>{total && formatMoney(total.credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />
+      ]} summary={() => <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={3}><strong>Tổng cộng</strong></Table.Summary.Cell><Table.Summary.Cell index={3} align="right"><strong>{total && formatMoney(total.debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={4} align="right"><strong>{total && formatMoney(total.credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />
       <p className={styles.muted}>{isDemo ? 'Nguồn: bộ chứng từ giả lập' : `Nguồn: ${document.sourceType ?? 'chứng từ'} / ${document.sourceId ?? document.id}`} · Phiên bản dữ liệu {data.revision}. {document.status === 'draft' ? 'Chứng từ nháp chưa tác động đến sổ.' : isDemo ? 'Trạng thái ghi sổ thuộc dữ liệu mẫu, chưa phải giao dịch thực tế.' : 'Chứng từ đã ghi sổ được giữ nguyên; sửa sai bằng chứng từ có liên kết.'}</p>
       <div className={styles.headingActions}>{!isDemo && canWrite && document.policyId && ['receipt', 'payment', 'transfer'].includes(document.sourceType ?? '') && !document.reversalOf && <Button onClick={() => { openDocument(null); navigate(`/automation?kind=treasury_reversal&original=${encodeURIComponent(document.id)}`); }}>Đảo phiếu tiền</Button>}{!isDemo && canWrite && document.status === 'posted' && document.policyId && !document.reversalOf && <CalculationDetails id={document.id} />}{!isDemo && (document.voucher || document.status === 'posted' && ['receipt', 'payment', 'transfer', 'sale', 'purchase', 'closing'].includes(document.sourceType ?? '') && document.policyId) && <Button onClick={() => { openDocument(null); navigate(`/vouchers/${document.id}`); }}>{document.status === 'posted' && canWrite && ['receipt', 'payment', 'transfer'].includes(document.sourceType ?? '') && !document.reversalOf ? 'Mở để sửa / thay thế phiếu' : 'Mở biểu mẫu đầy đủ'}</Button>}{document.status === 'draft' && !document.voucher && canWrite && <><Button onClick={() => editDraft(document)}>Sửa bản nháp</Button>{!isDemo && <Button type="primary" loading={posting} onClick={() => modal.confirm({ title: 'Ghi sổ chứng từ?', content: 'Server sẽ kiểm tra Nợ/Có, quyền, kỳ, phiên bản nháp và nguồn nghiệp vụ trước khi commit.', okText: 'Ghi sổ', cancelText: 'Kiểm tra lại', onOk: post })}>Ghi sổ</Button>}</>}{!isDemo && canWrite && document.status === 'posted' && !document.policyId && !document.reversalOf && <><Button onClick={() => editDraft(document)}>Sửa chứng từ</Button><Button onClick={reverse}>Lập chứng từ đảo</Button></>}</div>
       {!isDemo && <section style={{ marginTop: 30 }}><h3>Chứng từ đính kèm</h3>{files.data?.map(file => <p key={file.id}><a href={`/api/v1/attachments/${file.id}`} download>{file.name}</a> <small>{file.size} byte</small></p>)}{canWrite && <Upload showUploadList={false} beforeUpload={async file => { try { const body = new FormData(); body.append('file', file); await api(`/documents/${document.id}/attachments`, { method: 'POST', body, headers: { 'X-Dataset-Epoch': apiScope().epoch, 'Idempotency-Key': crypto.randomUUID() } }); await client.invalidateQueries({ queryKey: [...workspaceKey(), 'attachments', detailId] }); void message.success('Đã lưu file đính kèm.'); } catch (error) { void message.error((error as Error).message); } return Upload.LIST_IGNORE; }}><Button>Thêm file đính kèm (tối đa 10 MB)</Button></Upload>}</section>}

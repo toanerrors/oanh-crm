@@ -16,6 +16,7 @@ type PurchaseCostSource struct {
 	Line        int    `json:"line"`
 	Description string `json:"description"`
 	AccountID   string `json:"accountId"`
+	ProjectID   string `json:"projectId,omitempty"`
 	Amount      string `json:"amount"`
 	Remaining   string `json:"remaining"`
 }
@@ -76,7 +77,7 @@ func costSources(ctx context.Context, q ledger.Queryer, asOf string) ([]Purchase
 			if account == "" {
 				account = "642"
 			}
-			sources = append(sources, PurchaseCostSource{DocumentID: id, Reference: reference, Date: date, Line: i, Description: line.Description, AccountID: account, Amount: accounting.Text(amount)})
+			sources = append(sources, PurchaseCostSource{DocumentID: id, Reference: reference, Date: date, Line: i, Description: line.Description, AccountID: account, ProjectID: line.ProjectID, Amount: accounting.Text(amount)})
 		}
 	}
 	err = rows.Err()
@@ -164,7 +165,7 @@ func purchaseCosts(ctx context.Context, tx *sql.Tx, in Input, policy Policy, dis
 		if e != nil {
 			return nil, nil, e
 		}
-		lines = append(lines, ledger.Line{AccountID: source.AccountID, Description: "Phân bổ chi phí " + source.Reference, Debit: "0", Credit: cost.Amount})
+		lines = append(lines, ledger.Line{AccountID: source.AccountID, ProjectID: source.ProjectID, Description: "Phân bổ chi phí " + source.Reference, Debit: "0", Credit: cost.Amount})
 	}
 
 	if in.CostAllocation != "" && in.CostAllocation != "manual" {

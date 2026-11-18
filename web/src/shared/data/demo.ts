@@ -31,6 +31,10 @@ export const initialWorkspace: Workspace = {
     { id: 'p5', code: 'NCC002', name: 'Công ty CP Công nghệ Sao Mai', role: 'supplier', taxCode: '0316540005', address: '102 Võ Văn Tần, Quận 3, TP. Hồ Chí Minh', email: 'saomai@example.com', phone: '0901234005', active: true },
     { id: 'p6', code: 'KH004', name: 'Công ty TNHH Dịch vụ Đại Việt', role: 'customer', taxCode: '0316540006', address: '25 Phan Đăng Lưu, Quận Phú Nhuận, TP. Hồ Chí Minh', email: 'daiviet@example.com', phone: '0901234006', active: true },
   ],
+  projects: [
+    { id: 'ct1', code: 'CT001', name: 'Dự án không gian văn phòng Minh Anh', description: 'Thiết kế & thi công trọn gói', active: true },
+    { id: 'ct2', code: 'CT002', name: 'Dự án nội thất An Phát', description: 'Cung cấp vật tư và triển khai', active: true },
+  ],
   documents: [
     entry('opening', 'NV-DAU', '2026-01-01', 'journal', 'Bộ số mẫu: góp vốn bằng tiền gửi', '980000000', '1121', '411'),
     entry('may-sales', 'BH-05001', '2026-05-20', 'sale', 'Dịch vụ tư vấn tháng 5', '285000000', '131', '511', 'p1'),

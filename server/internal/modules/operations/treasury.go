@@ -72,9 +72,12 @@ func (s *Service) treasury(ctx context.Context, tx *sql.Tx, in Input, doc *ledge
 				return e
 			}
 			child := in
-			child.Amount, child.CounterAccount, child.PartnerID, child.Description, child.TreasuryLines = row.Amount, row.CounterAccount, row.PartnerID, row.Description, nil
+			child.Amount, child.CounterAccount, child.PartnerID, child.ProjectID, child.Description, child.TreasuryLines = row.Amount, row.CounterAccount, row.PartnerID, row.ProjectID, row.Description, nil
 			if child.PartnerID == "" {
 				child.PartnerID = in.PartnerID
+			}
+			if child.ProjectID == "" {
+				child.ProjectID = in.ProjectID
 			}
 			if child.Description == "" {
 				child.Description = in.Description
@@ -148,11 +151,17 @@ func (s *Service) treasury(ctx context.Context, tx *sql.Tx, in Input, doc *ledge
 				return accounting.Fail("SUBLEDGER_REQUIRED", "Thu/trả công nợ cần chọn chứng từ nguồn; chuyển tiền, kho và tài sản cần dùng nghiệp vụ tương ứng.")
 			}
 		}
+		if in.ProjectID != "" {
+			var projectActive bool
+			if e := tx.QueryRowContext(ctx, "SELECT active FROM projects WHERE id=?", in.ProjectID).Scan(&projectActive); e != nil || !projectActive {
+				return accounting.Fail("INVALID_PROJECT", "Công trình không tồn tại hoặc đã ngừng sử dụng.")
+			}
+		}
 		if in.Kind == "receipt" {
 			addLine(doc, in.MoneyAccount, "", in.Description, amount, 0)
-			addLine(doc, counter, in.PartnerID, in.Description, 0, amount)
+			addLineProject(doc, counter, in.PartnerID, in.ProjectID, in.Description, 0, amount)
 		} else {
-			addLine(doc, counter, in.PartnerID, in.Description, amount, 0)
+			addLineProject(doc, counter, in.PartnerID, in.ProjectID, in.Description, amount, 0)
 			addLine(doc, in.MoneyAccount, "", in.Description, 0, amount)
 		}
 	}

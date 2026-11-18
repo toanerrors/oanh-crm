@@ -185,7 +185,11 @@ var activeAuditTables = func() []auditTable {
 		if items[i].name == "partners" {
 			items[i].columns = "id code name role email phone active tax_code address"
 		}
+		if items[i].name == "document_lines" {
+			items[i].columns = "document_id position account_id partner_id partner_name account_name description debit credit project_id project_name"
+		}
 	}
+	items = append(items, auditTable{"projects", "id", "id code name description active"})
 	return items
 }()
 
@@ -266,6 +270,9 @@ func validateAuditChange(change AuditChange) error {
 			allowedSets := [][]string{strings.Fields(spec.columns)}
 			if spec.name == "partners" {
 				allowedSets = append(allowedSets, strings.Fields("id code name role email phone active"))
+			}
+			if spec.name == "document_lines" {
+				allowedSets = append(allowedSets, strings.Fields("document_id position account_id partner_id partner_name account_name description debit credit"))
 			}
 			for _, raw := range []json.RawMessage{change.Before, change.After} {
 				if len(raw) == 0 {

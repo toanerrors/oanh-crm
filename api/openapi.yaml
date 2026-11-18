@@ -769,12 +769,17 @@ paths:
           - trial
           - debt
           - income
+          - project
       - &id004
         name: account
         in: query
         required: false
         schema: &id002
           type: string
+      - name: project
+        in: query
+        required: false
+        schema: *id002
       - &id005
         name: status
         in: query
@@ -1160,6 +1165,42 @@ paths:
                     $ref: '#/components/schemas/Partner'
               required:
               - partners
+  /projects:
+    post:
+      summary: Lưu danh mục công trình
+      operationId: post_projects
+      description: 'Quyền: owner, accountant.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất thao tác.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      - *id014
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projects:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Project'
+              required:
+              - projects
   /accounts:
     post:
       summary: Lưu tài khoản
@@ -2135,7 +2176,7 @@ paths:
       operationId: get_catalog_export
       parameters:
       - {name: period, in: query, required: true, schema: {type: string, pattern: '^\d{4}-\d{2}$'}}
-      - {name: catalog, in: query, required: true, schema: {type: string, enum: [accounts, partners]}}
+      - {name: catalog, in: query, required: true, schema: {type: string, enum: [accounts, partners, projects]}}
       - {name: role, in: query, schema: {type: string, enum: [all, customer, supplier]}}
       - {name: q, in: query, schema: {type: string, maxLength: 300}}
       - {name: revision, in: query, schema: {type: integer, minimum: 0}}
@@ -2625,6 +2666,23 @@ components:
       - name
       - role
       - active
+    Project:
+      type: object
+      properties:
+        hasReferences:
+          type: boolean
+          readOnly: true
+          default: false
+        id: *id002
+        code: *id002
+        name: *id002
+        description: *id002
+        active: *id016
+      required:
+      - id
+      - code
+      - name
+      - active
     Account:
       type: object
       properties:
@@ -2851,6 +2909,7 @@ components:
       properties:
         costPercent: {$ref: '#/components/schemas/Decimal'}
         warehouseId: {type: string, description: Kho nhập/xuất; bỏ trống tương thích kho mặc định}
+        projectId: {type: string, description: Công trình tập hợp doanh thu hoặc chi phí trên từng dòng}
         discountRate: {$ref: '#/components/schemas/Decimal'}
         discountAmount: {$ref: '#/components/schemas/Money'}
         purchaseCost: {$ref: '#/components/schemas/Money'}
@@ -3242,6 +3301,10 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/Partner'
+          projects:
+            type: array
+            items:
+              $ref: '#/components/schemas/Project'
           periods:
             type: array
             items:

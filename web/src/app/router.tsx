@@ -24,6 +24,7 @@ export const router = createBrowserRouter([{
         { path: 'settlements', lazy: screens.settlements },
         { path: 'partners', lazy: screens.catalog },
         { path: 'items', lazy: screens.items },
+        { path: 'projects', lazy: screens.catalog },
       ] : []),
     ] })),
     { path: 'settlements', lazy: screens.settlements },

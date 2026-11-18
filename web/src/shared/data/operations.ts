@@ -29,7 +29,7 @@ export interface OperationInput {
   costAllocation?: 'manual' | 'quantity' | 'value' | 'percent'; isPurchaseCost?: boolean; purchaseCosts?: { documentId: string; line: number; amount: string }[];
   draftId?: string; draftVersion?: number; voucher?: VoucherInfo;
   tradeMode?: 'goods' | 'service'; paymentAccount?: string;
-  treasuryLines?: { counterAccount: string; partnerId?: string; description: string; amount: string }[];
+  treasuryLines?: { counterAccount: string; partnerId?: string; projectId?: string; description: string; amount: string }[];
   originalDocumentId?: string;
   replacementOf?: string;
   replacementReason?: string;
@@ -39,8 +39,8 @@ export interface OperationInput {
   expectedPolicyId?: string; expectedRevision?: number;
   kind: 'sale' | 'purchase' | 'receipt' | 'payment' | 'transfer' | 'treasury_reversal' | 'payroll' | 'asset' | 'depreciation' | 'costing' | 'closing' | 'corporate_tax';
   taxFrom?: string; nonDeductible?: string; exemptIncome?: string; carriedLoss?: string;
-  sourceId: string; date: string; description: string; partnerId?: string; priceMode?: 'exclusive' | 'inclusive';
-  lines?: { costPercent?: string; warehouseId?: string; discountRate?: string; discountAmount?: string; purchaseCost?: string; description?: string; accountId?: string; itemId: string; quantity: string; unitPrice: string; vatRate: string; deductible?: boolean }[];
+  sourceId: string; date: string; description: string; partnerId?: string; projectId?: string; priceMode?: 'exclusive' | 'inclusive';
+  lines?: { costPercent?: string; warehouseId?: string; projectId?: string; discountRate?: string; discountAmount?: string; purchaseCost?: string; description?: string; accountId?: string; itemId: string; quantity: string; unitPrice: string; vatRate: string; deductible?: boolean }[];
   employeeId?: string; workedDays?: string; allowance?: string; nonTaxableAllowance?: string; overtimeHours?: string; overtimeMultiplier?: string;
   asset?: Asset; assetId?: string; amount?: string;
 }

@@ -239,8 +239,36 @@ func (s *Service) costing(ctx context.Context, tx *sql.Tx, in Input, doc *ledger
 	if balance.Cmp(big.NewInt(amount)) < 0 {
 		return accounting.Fail("INSUFFICIENT_COST", "Giá thành kết chuyển vượt chi phí dở dang đã ghi nhận.")
 	}
-	addLine(doc, "632", "", "Giá thành dịch vụ hoàn thành", amount, 0)
-	addLine(doc, "154", "", "Kết chuyển chi phí dở dang", 0, amount)
+	if in.ProjectID != "" {
+		var projectActive bool
+		if err = tx.QueryRowContext(ctx, "SELECT active FROM projects WHERE id=?", in.ProjectID).Scan(&projectActive); err != nil || !projectActive {
+			return accounting.Fail("INVALID_PROJECT", "Công trình không tồn tại hoặc đã ngừng sử dụng.")
+		}
+		pRows, e := tx.QueryContext(ctx, "SELECT l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE d.status='posted' AND d.date<=? AND l.account_id='154' AND l.project_id=?", in.Date, in.ProjectID)
+		if e != nil {
+			return e
+		}
+		projectBalance := new(big.Int)
+		for pRows.Next() {
+			var d, c int64
+			if e = pRows.Scan(&d, &c); e != nil {
+				pRows.Close()
+				return e
+			}
+			projectBalance.Add(projectBalance, big.NewInt(d))
+			projectBalance.Sub(projectBalance, big.NewInt(c))
+		}
+		e = pRows.Err()
+		pRows.Close()
+		if e != nil {
+			return e
+		}
+		if projectBalance.Cmp(big.NewInt(amount)) < 0 {
+			return accounting.Fail("INSUFFICIENT_COST", "Giá thành kết chuyển vượt chi phí dở dang của công trình đã chọn.")
+		}
+	}
+	addLineProject(doc, "632", "", in.ProjectID, "Giá thành dịch vụ hoàn thành", amount, 0)
+	addLineProject(doc, "154", "", in.ProjectID, "Kết chuyển chi phí dở dang", 0, amount)
 	result.Amounts["amount"] = in.Amount
 	return nil
 }

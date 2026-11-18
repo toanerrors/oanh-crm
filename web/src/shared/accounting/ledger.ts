@@ -17,6 +17,18 @@ export function formatLinePartner(line: Pick<JournalLine, 'partnerId' | 'partner
   return { text: partners ? 'Không tìm thấy đối tượng' : 'Đang tải…' };
 }
 
+export function formatLineProject(line: Pick<JournalLine, 'projectId' | 'projectName'>, projects?: Workspace['projects']): { text: string; title?: string } {
+  if (!line.projectId && !line.projectName) return { text: '—' };
+  const project = line.projectId ? projects?.find(item => item.id === line.projectId) : undefined;
+  if (project) {
+    const name = line.projectName || project.name;
+    const text = project.code ? `${project.code} · ${name}` : name;
+    return { text, title: text };
+  }
+  if (line.projectName) return { text: line.projectName, title: line.projectName };
+  return { text: projects ? 'Không tìm thấy công trình' : 'Đang tải…' };
+}
+
 export function formatLineAccount(line: Pick<JournalLine, 'accountId' | 'accountName'>, accounts?: Account[]): { code: string; name?: string; title?: string } {
   const account = accounts?.find(item => item.id === line.accountId);
   if (account) {
@@ -44,6 +56,9 @@ export function validateDraft(document: AccountingDocument, workspace: Workspace
     }
     if ((account?.requiresPartner || line.partnerId) && !workspace.partners.some(partner => partner.id === line.partnerId && partner.active)) {
       errors.push(`Dòng ${index + 1}: chọn đối tượng đang sử dụng.`);
+    }
+    if (line.projectId && !(workspace.projects ?? []).some(project => project.id === line.projectId && project.active)) {
+      errors.push(`Dòng ${index + 1}: chọn công trình đang sử dụng.`);
     }
   });
   if (document.partnerId && !workspace.partners.some(partner => partner.id === document.partnerId && partner.active)) errors.push('Đối tượng chứng từ không hợp lệ.');
@@ -86,6 +101,30 @@ export function partnerBalances(workspace: Workspace, period: string, group: 're
     ...partner,
     balance: lines.filter(line => line.partnerId === partner.id).reduce((sum, line) => sum + BigInt(line.debit) - BigInt(line.credit), 0n),
   }));
+}
+
+export function projectSummaryRows(workspace: Workspace, period: string, from?: string, to?: string) {
+  const start = from ?? `${period}-01`;
+  const end = to ?? `${period}-31`;
+  const groups = new Map(workspace.accounts.map(account => [account.id, account.group] as const));
+  const posted = workspace.documents.filter(item => item.status === 'posted' && item.date >= start && item.date <= end && !['opening', 'opening_adjustment', 'opening_adjustment_reversal', 'closing', 'closing_reversal'].includes(item.sourceType ?? ''));
+  return (workspace.projects ?? []).map(project => {
+    let revenue = 0n;
+    let expense = 0n;
+    let wip = 0n;
+    for (const doc of posted) {
+      for (const line of doc.lines) {
+        if (line.projectId !== project.id) continue;
+        const group = groups.get(line.accountId);
+        if (group === 'revenue') revenue += BigInt(line.credit) - BigInt(line.debit);
+        if (group === 'expense') expense += BigInt(line.debit) - BigInt(line.credit);
+        if (group === 'wip') wip += BigInt(line.debit) - BigInt(line.credit);
+      }
+    }
+    const totalCost = expense + wip;
+    const profit = revenue - totalCost;
+    return { key: project.id, code: project.code, name: project.name, active: project.active, revenue, expense, wip, totalCost, profit, debit: 0n, credit: 0n };
+  }).filter(row => row.active || row.revenue !== 0n || row.expense !== 0n || row.wip !== 0n);
 }
 
 export function trialBalance(workspace: Workspace, period: string, from?: string, to?: string) {

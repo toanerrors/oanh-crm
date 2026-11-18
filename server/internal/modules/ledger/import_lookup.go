@@ -17,13 +17,15 @@ func (s *Service) ResolveImportCodeTx(ctx context.Context, tx *sql.Tx, kind, cod
 		query = "SELECT id FROM accounts WHERE code=? AND active=1"
 	case "partner":
 		query = "SELECT id FROM partners WHERE code=? COLLATE NOCASE AND active=1"
+	case "project":
+		query = "SELECT id FROM projects WHERE code=? COLLATE NOCASE AND active=1"
 	default:
 		return "", accounting.Fail("VALIDATION", "Loại mã tham chiếu không hợp lệ.")
 	}
 	var id string
 	err := tx.QueryRowContext(ctx, query, code).Scan(&id)
 	if err == sql.ErrNoRows {
-		return "", accounting.Fail("INVALID_REFERENCE", "Mã tài khoản hoặc đối tượng không tồn tại/đã ngừng sử dụng.")
+		return "", accounting.Fail("INVALID_REFERENCE", "Mã tài khoản, đối tượng hoặc công trình không tồn tại/đã ngừng sử dụng.")
 	}
 	return id, err
 }
@@ -35,6 +37,8 @@ func (s *Service) ImportCatalogIDTx(ctx context.Context, tx *sql.Tx, kind, code 
 		query = "SELECT id FROM accounts WHERE code=?"
 	case "partners":
 		query = "SELECT id FROM partners WHERE code=? COLLATE NOCASE"
+	case "projects":
+		query = "SELECT id FROM projects WHERE code=? COLLATE NOCASE"
 	default:
 		return "", accounting.Fail("VALIDATION", "Loại danh mục không hợp lệ.")
 	}
@@ -83,6 +87,12 @@ func (s *Service) ImportCatalogOptionalTx(ctx context.Context, tx *sql.Tx, kind,
 			return nil, err
 		}
 		values["taxCode"], values["address"], values["email"], values["phone"] = taxCode, address, email, phone
+	case "projects":
+		var description string
+		if err := tx.QueryRowContext(ctx, "SELECT description,active FROM projects WHERE id=?", id).Scan(&description, &active); err != nil {
+			return nil, err
+		}
+		values["description"] = description
 	default:
 		return nil, accounting.Fail("VALIDATION", "Loại danh mục không hợp lệ.")
 	}

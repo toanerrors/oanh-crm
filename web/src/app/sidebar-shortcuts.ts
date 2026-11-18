@@ -28,7 +28,7 @@ export function sidebarShortcuts(navigation: SidebarItem[], role: string, demo: 
     for (const tab of tabs.filter(tab => tab.key !== 'reports')) {
       if (demo && ['closing', 'settlements', 'items'].includes(tab.key)) continue;
       if (!demo && !canWrite && tab.key === 'items') continue;
-      add(tab.key, tab.label, ['partners', 'items'].includes(tab.key) ? 'Danh mục' : 'Nghiệp vụ', tab.to);
+      add(tab.key, tab.label, ['partners', 'items', 'projects'].includes(tab.key) ? 'Danh mục' : 'Nghiệp vụ', tab.to);
     }
     if (module.path === '/documents' && canWrite) add('new', 'Chứng từ nghiệp vụ khác', 'Nghiệp vụ', undefined, 'plus', 'journal');
     if (!demo && canWrite) {
@@ -59,9 +59,12 @@ export function sidebarShortcuts(navigation: SidebarItem[], role: string, demo: 
     }
     if (tabs.length || module.path === '/reports') {
       const path = tabs.find(tab => tab.key === 'reports')?.to ?? '/reports';
-      for (const [tab, label] of [['journal', 'Nhật ký chung'], ['ledger', 'Sổ cái'], ['trial', 'Cân đối phát sinh'], ...(!demo ? [['financial', 'Báo cáo tài chính']] : [])]) add(`report-${tab}`, label, 'Báo cáo', `${path}?tab=${tab}`, 'chart');
+      for (const [tab, label] of [['journal', 'Nhật ký chung'], ['ledger', 'Sổ cái'], ['trial', 'Cân đối phát sinh'], ['project', 'Doanh thu & chi phí công trình'], ...(!demo ? [['financial', 'Báo cáo tài chính']] : [])]) add(`report-${tab}`, label, 'Báo cáo', `${path}?tab=${tab}`, 'chart');
     }
-    if (module.path === '/catalog') add('partners', 'Danh mục đối tượng & tài khoản', 'Danh mục', '/catalog');
+    if (module.path === '/catalog') {
+      add('partners', 'Danh mục đối tượng & tài khoản', 'Danh mục', '/catalog');
+      add('projects', 'Danh mục công trình', 'Danh mục', '/catalog?tab=projects');
+    }
   }
   return result;
 }

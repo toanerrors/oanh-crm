@@ -16,7 +16,7 @@ func (s *Service) excelReferenceTx(ctx context.Context, tx *sql.Tx, kind, value 
 	if value == "" {
 		return "", nil
 	}
-	if kind == "account" || kind == "partner" {
+	if kind == "account" || kind == "partner" || kind == "project" {
 		return s.Ledger.ResolveImportCodeTx(ctx, tx, kind, value)
 	}
 	query := ""
@@ -38,7 +38,7 @@ func (s *Service) excelReferenceTx(ctx context.Context, tx *sql.Tx, kind, value 
 	return id, err
 }
 func (s *Service) excelCatalogIDTx(ctx context.Context, tx *sql.Tx, kind, value string) (string, error) {
-	if kind == "partners" || kind == "accounts" {
+	if kind == "partners" || kind == "projects" || kind == "accounts" {
 		return s.Ledger.ImportCatalogIDTx(ctx, tx, kind, value)
 	}
 	query := ""
@@ -88,7 +88,7 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 		}
 		if id != "" && config.Mode == "update" {
 			prior := map[string]string{}
-			if config.Kind == "partners" || config.Kind == "accounts" {
+			if config.Kind == "partners" || config.Kind == "projects" || config.Kind == "accounts" {
 				prior, err = s.Ledger.ImportCatalogOptionalTx(ctx, tx, config.Kind, id)
 			} else {
 				query := map[string]string{"items": "SELECT active FROM items WHERE id=?", "warehouses": "SELECT active FROM warehouses WHERE id=?", "banks": "SELECT active FROM bank_accounts WHERE id=?", "employees": "SELECT active FROM employees WHERE id=?"}[config.Kind]
@@ -112,6 +112,8 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 		switch config.Kind {
 		case "partners":
 			_, err = s.Ledger.SavePartnersTx(ctx, tx, []ledger.Partner{{ID: id, Code: code, Name: values["name"], Role: values["role"], TaxCode: values["taxCode"], Address: values["address"], Email: values["email"], Phone: values["phone"], Active: active}})
+		case "projects":
+			_, err = s.Ledger.SaveProjectsTx(ctx, tx, []ledger.Project{{ID: id, Code: code, Name: values["name"], Description: values["description"], Active: active}})
 		case "accounts":
 			account := ledger.Account{ID: id, Code: code, Name: values["name"], Group: values["group"], RequiresPartner: values["requiresPartner"] == "true", Active: active}
 			if _, mapped := config.Mapping["parentCode"]; mapped {
@@ -164,6 +166,10 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 	if config.Kind == "journal-pairs" || config.Kind == "journal-lines" {
 		doc := ledger.Document{ID: excelID(batch.ID, config.Kind, values["sourceId"]), SourceID: values["sourceId"], SourceType: "journal", Type: "journal", Date: values["date"], Description: values["description"], PartnerID: partner, Lines: []ledger.Line{}}
 		for _, row := range record.Values {
+			project, e := s.excelReferenceTx(ctx, tx, "project", row["projectCode"])
+			if e != nil {
+				return nil, e
+			}
 			if config.Kind == "journal-pairs" {
 				debit, e := s.excelReferenceTx(ctx, tx, "account", row["debitAccount"])
 				if e != nil {
@@ -181,7 +187,7 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 				if e != nil {
 					return nil, e
 				}
-				doc.Lines = append(doc.Lines, ledger.Line{AccountID: debit, PartnerID: dp, Description: row["lineDescription"], Debit: row["amount"], Credit: "0"}, ledger.Line{AccountID: credit, PartnerID: cp, Description: row["lineDescription"], Debit: "0", Credit: row["amount"]})
+				doc.Lines = append(doc.Lines, ledger.Line{AccountID: debit, PartnerID: dp, ProjectID: project, Description: row["lineDescription"], Debit: row["amount"], Credit: "0"}, ledger.Line{AccountID: credit, PartnerID: cp, ProjectID: project, Description: row["lineDescription"], Debit: "0", Credit: row["amount"]})
 			} else {
 				account, e := s.excelReferenceTx(ctx, tx, "account", row["accountCode"])
 				if e != nil {
@@ -191,7 +197,7 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 				if e != nil {
 					return nil, e
 				}
-				doc.Lines = append(doc.Lines, ledger.Line{AccountID: account, PartnerID: lp, Description: row["lineDescription"], Debit: row["debit"], Credit: row["credit"]})
+				doc.Lines = append(doc.Lines, ledger.Line{AccountID: account, PartnerID: lp, ProjectID: project, Description: row["lineDescription"], Debit: row["debit"], Credit: row["credit"]})
 			}
 		}
 		doc, err = s.Ledger.SaveTx(ctx, tx, doc)
@@ -276,7 +282,11 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 			if e != nil {
 				return nil, e
 			}
-			in.TreasuryLines = append(in.TreasuryLines, TreasuryLine{CounterAccount: account, PartnerID: lp, Description: row["lineDescription"], Amount: row["amount"]})
+			project, e := s.excelReferenceTx(ctx, tx, "project", row["projectCode"])
+			if e != nil {
+				return nil, e
+			}
+			in.TreasuryLines = append(in.TreasuryLines, TreasuryLine{CounterAccount: account, PartnerID: lp, ProjectID: project, Description: row["lineDescription"], Amount: row["amount"]})
 		}
 		in.Amount = accounting.Text(total)
 	case "transfer":
@@ -294,11 +304,15 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 			if e != nil {
 				return nil, e
 			}
+			project, e := s.excelReferenceTx(ctx, tx, "project", row["projectCode"])
+			if e != nil {
+				return nil, e
+			}
 			account, e := s.excelReferenceTx(ctx, tx, "account", row["accountCode"])
 			if e != nil {
 				return nil, e
 			}
-			line := TradeLine{ItemID: item, WarehouseID: warehouse, AccountID: account, Description: row["lineDescription"], Quantity: row["quantity"], UnitPrice: row["unitPrice"], VATRate: row["vatRate"], DiscountRate: row["discountRate"], DiscountAmount: row["discountAmount"], PurchaseCost: row["purchaseCostAmount"], CostPercent: row["costPercent"]}
+			line := TradeLine{ItemID: item, WarehouseID: warehouse, ProjectID: project, AccountID: account, Description: row["lineDescription"], Quantity: row["quantity"], UnitPrice: row["unitPrice"], VATRate: row["vatRate"], DiscountRate: row["discountRate"], DiscountAmount: row["discountAmount"], PurchaseCost: row["purchaseCostAmount"], CostPercent: row["costPercent"]}
 			if row["deductible"] != "" {
 				value := row["deductible"] == "true"
 				line.Deductible = &value

@@ -151,7 +151,8 @@ Snapshot gồm audit_details/audit_changes và audit_recovery_versions, không c
 
 Trước release dừng container, sao chép toàn bộ volume và kiểm chứng bản sao schema7. Binary trước0.12.0 không đọc schema8. Không hạ schema hoặc tự chép đè volume. Restore dữ liệu vẫn qua vùng staging, đối soát và đổi dataset_epoch; khôi phục một thao tác trong nhật ký là nghiệp vụ riêng, không thay dataset và không xóa lịch sử.
 
-## Schema 9–11 (0.17.0, 0.18.0, 0.18.7)
+## Schema 9–12 (0.17.0, 0.18.0, 0.18.7, 0.18.8)
 
 - Schema 9 (`editable.sql`) và schema 10 (`open_periods.sql`) cập nhật trigger ghi sổ/mở kỳ, giữ nguyên dữ liệu lịch sử.
-- Schema 11 (`partner_details.sql`, `0.18.7`) thêm `tax_code` và `address` vào `partners` với giá trị mặc định `''`, cập nhật trigger audit của `partners` sang 9 cột và vẫn đọc/khôi phục tương thích các snapshot audit `partners` 7 cột từ schema 8–10. Backup/Stage hỗ trợ đầy đủ các gói từ schema 1 đến 11, chỉ nâng schema trên vùng staging trước khi đổi con trỏ.
+- Schema 11 (`partner_details.sql`, `0.18.7`) thêm `tax_code` và `address` vào `partners` với giá trị mặc định `''`, cập nhật trigger audit của `partners` sang 9 cột và vẫn đọc/khôi phục tương thích các snapshot audit `partners` 7 cột từ schema 8–10.
+- Schema 12 (`projects.sql`, `0.18.8`) thêm danh mục `projects` và chiều `project_id`/`project_name` trên `document_lines`, cập nhật trigger audit của `document_lines` sang 11 cột (vẫn tương thích ngược với các snapshot 9 cột trước schema 12). Backup/Stage hỗ trợ đầy đủ các gói từ schema 1 đến 12, chỉ nâng schema trên vùng staging trước khi đổi con trỏ.

@@ -241,6 +241,7 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   expect(createdPartner.id).toMatch(/^[0-9a-f-]{36}$/);
   expect(createdPartner.taxCode).toBe('0318088925');
   expect(createdPartner.address).toBe('12 Nguyễn Huệ, Quận 1, TP.HCM');
+  await expect(partnerDialog).toHaveCount(0);
   await expect(page.getByLabel('Địa chỉ', { exact: true })).toHaveValue('12 Nguyễn Huệ, Quận 1, TP.HCM');
   await page.getByRole('tab', { name: 'Thuế / hóa đơn', exact: true }).click();
   await expect(page.getByLabel('Mã số thuế', { exact: true })).toHaveValue('0318088925');
@@ -414,10 +415,69 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   await expect(row642.locator('td').nth(4)).toHaveText('2.000.000');
   await expect(row642.locator('td').nth(6)).toHaveText('3.500.000');
 
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/vouchers/new?kind=purchase&service=1');
+  await choose(page, 'Mã nhà cung cấp', '0318088925');
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Chi phí nhân công công trình Nhà máy A');
+  await choose(page, 'Hàng dịch vụ dòng 1', 'DV-THUE');
+  const projectSaved = page.waitForResponse(response => response.url().endsWith('/api/v1/projects') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Công trình dòng 1: thêm công trình', exact: true }).click();
+  const projectDialog = page.getByRole('dialog', { name: 'Thêm công trình', exact: true });
+  await projectDialog.getByLabel('Mã công trình', { exact: true }).fill('CT-LD01');
+  await projectDialog.getByLabel('Tên công trình', { exact: true }).fill('Cho thuê lao động Nhà máy A');
+  await projectDialog.getByLabel('Mô tả / ghi chú', { exact: true }).fill('Hợp đồng nhân sự Q4');
+  await projectDialog.getByLabel('Tên công trình', { exact: true }).press('Control+s');
+  const savedProjects = await (await projectSaved).json();
+  const createdProject = savedProjects.find((item: { code: string }) => item.code === 'CT-LD01');
+  expect(createdProject.id).toMatch(/^[0-9a-f-]{36}$/);
+  await expect(projectDialog).toHaveCount(0);
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('120000000');
+  await choose(page, 'VAT dòng 1', '8');
+  await page.getByRole('button', { name: /Tính và xem trước/ }).click();
+  await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await expect(page.getByText('Đã ghi sổ', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+
+  await command('/partners', { partners: [{ id: 'cust-oanh', code: '0316066542', name: 'Nguyễn Thị Kim Oanh', role: 'customer', taxCode: '0316066542', address: 'TP.HCM', email: '', phone: '', active: true }] });
+  await command('/items', { id: 'labor-service-uuid', code: 'DOX', name: 'cho thuê lao động', unit: 'tháng', tracked: false, active: true });
+  await page.goto('/vouchers/new?kind=sale&service=1');
+  await choose(page, 'Mã khách hàng', '0316066542');
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Doanh thu cho thuê lao động T11');
+  await choose(page, 'Hàng dịch vụ dòng 1', 'DOX');
+  await choose(page, 'Công trình dòng 1', 'CT-LD01');
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('200000000');
+  await choose(page, 'VAT dòng 1', '8');
+  await page.getByRole('button', { name: /Tính và xem trước/ }).click();
+  const salePreview = page.locator('section').filter({ has: page.getByRole('heading', { name: /Bút toán server tính/ }) }).last();
+  await expect(salePreview).toContainText('CT-LD01 · Cho thuê lao động Nhà máy A');
+  await expect(salePreview).not.toContainText(createdProject.id);
+  await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await expect(page.getByText('Đã ghi sổ', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+
+  await page.goto('/sales/reports?tab=project');
+  const projectRow = page.locator('tbody tr').filter({ hasText: 'CT-LD01' });
+  await expect(projectRow.locator('td').nth(2)).toHaveText('200.000.000');
+  await expect(projectRow.locator('td').nth(3)).toHaveText('120.000.000');
+  await expect(projectRow.locator('td').nth(4)).toHaveText('0');
+  await expect(projectRow.locator('td').nth(5)).toHaveText('120.000.000');
+  await expect(projectRow.locator('td').nth(6)).toHaveText('80.000.000');
+  await page.getByRole('button', { name: 'CT-LD01', exact: true }).click();
+  await expect(page.getByRole('button', { name: '← Tất cả công trình', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'BH-2026-000001', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'MH-2026-000004', exact: true })).toBeVisible();
+  await expect(page.locator('tbody')).toContainText('cho thuê lao động');
+  await expect(page.locator('tbody')).toContainText('THUÊ NHÀ');
+  await page.getByRole('button', { name: '← Tất cả công trình', exact: true }).click();
+
+  await page.goto('/sales/projects');
+  await expect(page.getByRole('button', { name: 'CT-LD01', exact: true })).toBeVisible();
+
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await fromInput.press('Escape');
-  await fromInput.blur();
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/sales/reports?tab=project');
   const overflowing = await page.evaluate(() => {
     if (document.documentElement.scrollWidth <= window.innerWidth) return [];
     return [...document.querySelectorAll('*')]

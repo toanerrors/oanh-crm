@@ -85,6 +85,7 @@ type VoucherInfo struct {
 type TreasuryLine struct {
 	CounterAccount string `json:"counterAccount"`
 	PartnerID      string `json:"partnerId,omitempty"`
+	ProjectID      string `json:"projectId,omitempty"`
 	Description    string `json:"description"`
 	Amount         string `json:"amount"`
 }
@@ -110,6 +111,7 @@ type LineAmounts struct {
 type TradeLine struct {
 	CostPercent    string `json:"costPercent,omitempty"`
 	WarehouseID    string `json:"warehouseId,omitempty"`
+	ProjectID      string `json:"projectId,omitempty"`
 	DiscountRate   string `json:"discountRate,omitempty"`
 	DiscountAmount string `json:"discountAmount,omitempty"`
 	PurchaseCost   string `json:"purchaseCost,omitempty"`
@@ -160,6 +162,7 @@ type Input struct {
 	Date                     string         `json:"date"`
 	Description              string         `json:"description"`
 	PartnerID                string         `json:"partnerId"`
+	ProjectID                string         `json:"projectId,omitempty"`
 	PriceMode                string         `json:"priceMode"`
 	Lines                    []TradeLine    `json:"lines"`
 	EmployeeID               string         `json:"employeeId"`

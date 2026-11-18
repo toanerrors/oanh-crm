@@ -13,11 +13,11 @@ import (
 
 func (s *Server) filter(w http.ResponseWriter, r *http.Request) (ledger.Filter, bool) {
 	q := r.URL.Query()
-	f := ledger.Filter{Period: q.Get("period"), From: q.Get("from"), To: q.Get("to"), Source: q.Get("source"), BankAccount: q.Get("bank"), Kind: q.Get("kind"), Account: q.Get("account"), Status: q.Get("status"), Type: q.Get("type"), Query: q.Get("q"), Sort: q.Get("sort"), Desc: q.Get("direction") != "asc", Page: 1, PageSize: 10}
+	f := ledger.Filter{Period: q.Get("period"), From: q.Get("from"), To: q.Get("to"), Source: q.Get("source"), BankAccount: q.Get("bank"), Kind: q.Get("kind"), Account: q.Get("account"), Project: q.Get("project"), Status: q.Get("status"), Type: q.Get("type"), Query: q.Get("q"), Sort: q.Get("sort"), Desc: q.Get("direction") != "asc", Page: 1, PageSize: 10}
 	if f.Period == "" && accounting.Date(f.To) {
 		f.Period = f.To[:7]
 	}
-	if _, _, _, _, _, e := f.ResolveRange(); e != nil || !accounting.Period(f.Period) || len(f.Query) > 300 || f.Source != "" && f.Source != "closing" || f.BankAccount != "" && !accounting.ID(f.BankAccount) {
+	if _, _, _, _, _, e := f.ResolveRange(); e != nil || !accounting.Period(f.Period) || len(f.Query) > 300 || f.Source != "" && f.Source != "closing" || f.BankAccount != "" && !accounting.ID(f.BankAccount) || f.Project != "" && f.Project != "all" && !accounting.ID(f.Project) {
 		s.failure(w, r, accounting.Fail("BAD_REQUEST", "Kỳ hoặc bộ lọc không hợp lệ."))
 		return f, false
 	}
@@ -43,7 +43,7 @@ func (s *Server) filter(w http.ResponseWriter, r *http.Request) (ledger.Filter, 
 		}
 		f.Revision = &revision
 	}
-	if f.Kind != "" && !strings.Contains("|journal|ledger|trial|debt|income|", "|"+f.Kind+"|") {
+	if f.Kind != "" && !strings.Contains("|journal|ledger|trial|debt|income|project|", "|"+f.Kind+"|") {
 		s.failure(w, r, accounting.Fail("BAD_REQUEST", "Loại sổ không hợp lệ."))
 		return f, false
 	}
@@ -151,14 +151,27 @@ func (s *Server) exportReport(w http.ResponseWriter, r *http.Request) {
 		s.failure(w, r, accounting.Fail("EXPORT_LIMIT", "Tập xuất quá lớn: CSV tối đa 100.000 dòng, Excel/bản in tối đa 10.000 dòng. Hãy thu hẹp bộ lọc."))
 		return
 	}
-	rows := [][]string{}
-	for _, row := range result.Rows {
-		rows = append(rows, []string{row.Code, row.Date, row.Name, row.Description, row.Account, row.OpeningDebit, row.OpeningCredit, row.Debit, row.Credit, row.ClosingDebit, row.ClosingCredit})
-	}
 	_, _, _, label, slug, _ := f.ResolveRange()
 	result.Context.Period = label
-	table := spreadsheet.ExportTable{Name: "Sổ kế toán", Headers: []string{"Mã", "Ngày", "Tên", "Diễn giải", "Tài khoản", "Dư đầu Nợ", "Dư đầu Có", "Phát sinh Nợ", "Phát sinh Có", "Dư cuối Nợ", "Dư cuối Có"}, Rows: rows, MoneyColumns: map[int]bool{5: true, 6: true, 7: true, 8: true, 9: true, 10: true}, Total: []string{"Tổng toàn bộ tập lọc", "", "", "", "", result.OpeningDebit, result.OpeningCredit, result.Debit, result.Credit, result.ClosingDebit, result.ClosingCredit}}
-	titles := map[string]string{"journal": "Nhật ký chung", "ledger": "Sổ cái", "trial": "Cân đối phát sinh", "debt": "Chi tiết công nợ", "income": "Doanh thu và chi phí"}
+	rows := [][]string{}
+	var table spreadsheet.ExportTable
+	if f.Kind == "project" && (f.Project == "" || f.Project == "all") {
+		for _, row := range result.Rows {
+			rows = append(rows, []string{row.Code, row.Name, row.Revenue, row.Expense, row.WIP, row.TotalCost, row.Profit})
+		}
+		table = spreadsheet.ExportTable{Name: "Công trình", Headers: []string{"Mã công trình", "Tên công trình", "Doanh thu thuần", "Chi phí (6xx)", "Dở dang 154 (+/-)", "Tổng chi phí tập hợp", "Chênh lệch (DT − CP)"}, Rows: rows, MoneyColumns: map[int]bool{2: true, 3: true, 4: true, 5: true, 6: true}, Total: []string{"Tổng toàn bộ tập lọc", "", result.Revenue, result.Expense, result.WIP, result.TotalCost, result.Profit}}
+	} else if f.Kind == "project" {
+		for _, row := range result.Rows {
+			rows = append(rows, []string{row.Code, row.Date, row.Name, row.Description, row.Account, row.ProjectName, row.Debit, row.Credit})
+		}
+		table = spreadsheet.ExportTable{Name: "Chi tiết công trình", Headers: []string{"Số chứng từ", "Ngày", "Tên tài khoản", "Diễn giải", "Tài khoản", "Công trình", "Phát sinh Nợ", "Phát sinh Có"}, Rows: rows, MoneyColumns: map[int]bool{6: true, 7: true}, Total: []string{"Tổng toàn bộ tập lọc", "", "", "", "", "", result.Debit, result.Credit}}
+	} else {
+		for _, row := range result.Rows {
+			rows = append(rows, []string{row.Code, row.Date, row.Name, row.Description, row.Account, row.OpeningDebit, row.OpeningCredit, row.Debit, row.Credit, row.ClosingDebit, row.ClosingCredit})
+		}
+		table = spreadsheet.ExportTable{Name: "Sổ kế toán", Headers: []string{"Mã", "Ngày", "Tên", "Diễn giải", "Tài khoản", "Dư đầu Nợ", "Dư đầu Có", "Phát sinh Nợ", "Phát sinh Có", "Dư cuối Nợ", "Dư cuối Có"}, Rows: rows, MoneyColumns: map[int]bool{5: true, 6: true, 7: true, 8: true, 9: true, 10: true}, Total: []string{"Tổng toàn bộ tập lọc", "", "", "", "", result.OpeningDebit, result.OpeningCredit, result.Debit, result.Credit, result.ClosingDebit, result.ClosingCredit}}
+	}
+	titles := map[string]string{"journal": "Nhật ký chung", "ledger": "Sổ cái", "trial": "Cân đối phát sinh", "debt": "Chi tiết công nợ", "income": "Doanh thu và chi phí", "project": "Doanh thu và chi phí công trình"}
 	title := titles[f.Kind]
 	if title == "" {
 		title = "Sổ kế toán"

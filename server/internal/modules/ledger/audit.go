@@ -14,7 +14,7 @@ import (
 
 var AuditTitles = map[string]string{
 	"setup": "Khởi tạo doanh nghiệp", "document.save": "Lưu nháp chứng từ", "document.post": "Ghi sổ chứng từ", "document.reverse": "Đảo chứng từ", "document.import": "Nhập chứng từ CSV", "voucher.save": "Lưu nháp nghiệp vụ",
-	"partner.save": "Cập nhật khách hàng / nhà cung cấp", "admin.account.save": "Cập nhật tài khoản kế toán", "admin.account.reference": "Nạp hệ thống tài khoản", "bank.save": "Cập nhật tài khoản ngân hàng", "warehouse.save": "Cập nhật kho", "item.save": "Cập nhật hàng hóa / dịch vụ", "admin.employee.save": "Cập nhật nhân viên", "admin.policy.save": "Thêm phiên bản chính sách", "admin.period.save": "Mở / khóa kỳ kế toán", "admin.period.reopen": "Mở lại kỳ kế toán", "financial.save": "Lưu bản nháp báo cáo tài chính", "attachment.add": "Đính kèm chứng từ", "admin.audit.restore": "Khôi phục thao tác trước đó",
+	"partner.save": "Cập nhật khách hàng / nhà cung cấp", "project.save": "Cập nhật công trình", "admin.account.save": "Cập nhật tài khoản kế toán", "admin.account.reference": "Nạp hệ thống tài khoản", "bank.save": "Cập nhật tài khoản ngân hàng", "warehouse.save": "Cập nhật kho", "item.save": "Cập nhật hàng hóa / dịch vụ", "admin.employee.save": "Cập nhật nhân viên", "admin.policy.save": "Thêm phiên bản chính sách", "admin.period.save": "Mở / khóa kỳ kế toán", "admin.period.reopen": "Mở lại kỳ kế toán", "financial.save": "Lưu bản nháp báo cáo tài chính", "attachment.add": "Đính kèm chứng từ", "admin.audit.restore": "Khôi phục thao tác trước đó",
 	"admin.opening.save": "Lưu nháp số dư đầu kỳ", "admin.opening.post": "Xác nhận số dư đầu kỳ", "admin.opening.discard": "Bỏ nháp số dư đầu kỳ", "admin.opening.adjustment.save": "Lưu nháp điều chỉnh số dư", "admin.opening.adjustment.confirm": "Xác nhận điều chỉnh số dư", "admin.opening.adjustment.discard": "Bỏ nháp điều chỉnh số dư", "admin.user.save": "Cập nhật người dùng / quyền truy cập", "excel.stage": "Đọc tệp nhập Excel", "excel.discard": "Bỏ tệp nhập Excel",
 	"operation.receipt": "Ghi nhận thu tiền", "operation.payment": "Ghi nhận chi tiền", "operation.transfer": "Chuyển tiền nội bộ", "operation.sale": "Ghi nhận bán hàng", "operation.purchase": "Ghi nhận mua hàng", "operation.closing": "Kết chuyển kết quả kinh doanh", "operation.payroll": "Tính và ghi nhận tiền lương", "operation.asset": "Ghi tăng tài sản / chi phí trả trước", "operation.depreciation": "Khấu hao / phân bổ", "operation.costing": "Tập hợp giá thành", "operation.corporate_tax": "Tính thuế thu nhập doanh nghiệp",
 }
@@ -37,7 +37,7 @@ func auditMetadata(ctx context.Context, tx *sql.Tx, id int64, action string) (sq
 		return m, err
 	}
 	var table, raw string
-	err := tx.QueryRowContext(ctx, `SELECT table_name,COALESCE(after_state,before_state) FROM audit_changes WHERE audit_id=? AND before_state IS NOT after_state ORDER BY CASE table_name WHEN 'documents' THEN 0 WHEN 'partners' THEN 1 WHEN 'accounts' THEN 2 WHEN 'bank_accounts' THEN 3 WHEN 'financial_reports' THEN 4 WHEN 'items' THEN 5 WHEN 'warehouses' THEN 6 WHEN 'employees' THEN 7 WHEN 'users' THEN 8 ELSE 10 END,row_key LIMIT 1`, id).Scan(&table, &raw)
+	err := tx.QueryRowContext(ctx, `SELECT table_name,COALESCE(after_state,before_state) FROM audit_changes WHERE audit_id=? AND before_state IS NOT after_state ORDER BY CASE table_name WHEN 'documents' THEN 0 WHEN 'partners' THEN 1 WHEN 'projects' THEN 2 WHEN 'accounts' THEN 3 WHEN 'bank_accounts' THEN 4 WHEN 'financial_reports' THEN 5 WHEN 'items' THEN 6 WHEN 'warehouses' THEN 7 WHEN 'employees' THEN 8 WHEN 'users' THEN 9 ELSE 10 END,row_key LIMIT 1`, id).Scan(&table, &raw)
 	if err != nil && err != sql.ErrNoRows {
 		return m, err
 	}
@@ -200,7 +200,7 @@ func (s *Service) AuditDetail(ctx context.Context, id int64, page, pageSize int)
 	if err != nil {
 		return e, err
 	}
-	if column, ok := map[string]string{"documents": "id", "partners": "id", "accounts": "id", "bank_accounts": "id", "warehouses": "id", "items": "id", "employees": "id", "financial_reports": "id", "users": "id", "periods": "period", "opening_balances": "document_id", "opening_adjustments": "document_id", "excel_imports": "id"}[e.EntityType]; ok && e.EntityID != "" {
+	if column, ok := map[string]string{"documents": "id", "partners": "id", "projects": "id", "accounts": "id", "bank_accounts": "id", "warehouses": "id", "items": "id", "employees": "id", "financial_reports": "id", "users": "id", "periods": "period", "opening_balances": "document_id", "opening_adjustments": "document_id", "excel_imports": "id"}[e.EntityType]; ok && e.EntityID != "" {
 		if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM "+e.EntityType+" WHERE "+column+"=?)", e.EntityID).Scan(&e.TargetExists); err != nil {
 			return e, err
 		}

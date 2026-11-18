@@ -10,6 +10,7 @@ import { useWorkspace } from '../../app/WorkspaceProvider';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
 import { searchOptions } from '../../shared/ui/search';
 import { PartnerSelect } from '../vouchers/PartnerSelect';
+import { ProjectSelect } from '../vouchers/ProjectSelect';
 import styles from '../../app/App.module.css';
 
 export function TreasuryFields({ kind }: { kind: OperationInput['kind'] }) {
@@ -29,6 +30,7 @@ export function TreasuryFields({ kind }: { kind: OperationInput['kind'] }) {
       <Form.Item name="amount" label="Số tiền thu/chi (VND)" rules={[{ required: true }]}><MoneyInput label="Số tiền thu/chi" /></Form.Item>
       {kind !== 'transfer' && !allocate && <Form.Item name="counterAccount" label="Tài khoản đối ứng" rules={[{ required: true }]} preserve={false}><Select showSearch={searchOptions} options={data?.accounts.filter(item => item.active && !['cash', 'inventory', 'asset', 'receivable', 'payable'].includes(item.group)).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))} /></Form.Item>}
       {kind !== 'transfer' && <Form.Item name="partnerId" label={kind === 'receipt' ? 'Khách hàng / đối tượng nộp' : 'Nhà cung cấp / đối tượng nhận'} rules={[{ required: allocate }]} preserve={false}><PartnerSelect label={kind === 'receipt' ? 'Khách hàng / đối tượng nộp' : 'Nhà cung cấp / đối tượng nhận'} role={allocate ? kind === 'receipt' ? 'customer' : 'supplier' : 'all'} defaultRole={kind === 'receipt' ? 'customer' : 'supplier'} onSelected={() => form.setFieldValue('allocations', [])} /></Form.Item>}
+      {kind !== 'transfer' && !allocate && <Form.Item name="projectId" label="Công trình" preserve={false}><ProjectSelect label="Công trình thu chi" /></Form.Item>}
     </div>
     {allocate && kind !== 'transfer' && <>
       {invoices.error && <Alert type="error" title={invoices.error.message} action={<Button onClick={() => void invoices.refetch()}>Thử lại</Button>} />}

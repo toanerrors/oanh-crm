@@ -50,6 +50,9 @@ var openPeriodsSchema string
 //go:embed partner_details.sql
 var partnerDetailsSchema string
 
+//go:embed projects.sql
+var projectsSchema string
+
 func schemaHash(version int) string {
 	if version == 1 {
 		return Hash([]byte(schema))
@@ -81,7 +84,10 @@ func schemaHash(version int) string {
 	if version == 10 {
 		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema + auditSchema + editableSchema + openPeriodsSchema))
 	}
-	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema + auditSchema + editableSchema + openPeriodsSchema + partnerDetailsSchema))
+	if version == 11 {
+		return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema + auditSchema + editableSchema + openPeriodsSchema + partnerDetailsSchema))
+	}
+	return Hash([]byte(schema + vouchersSchema + accounting.ReferenceChartHash() + financialSchema + openingSchema + importsSchema + accountHierarchySchema + openingAdjustmentsSchema + auditSchema + editableSchema + openPeriodsSchema + partnerDetailsSchema + projectsSchema))
 }
 
 func migrationChecksum(version int, source string) string {
@@ -234,7 +240,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 	if err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&maximum); err != nil {
 		return err
 	}
-	if maximum > 11 {
+	if maximum > 12 {
 		return fmt.Errorf("database schema is newer than this application")
 	}
 	if maximum > 0 {
@@ -242,7 +248,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema, auditSchema, editableSchema, openPeriodsSchema, partnerDetailsSchema} {
+	for index, source := range []string{schema, vouchersSchema, financialSchema, openingSchema, importsSchema, accountHierarchySchema, openingAdjustmentsSchema, auditSchema, editableSchema, openPeriodsSchema, partnerDetailsSchema, projectsSchema} {
 		version := index + 1
 		if version <= maximum {
 			continue

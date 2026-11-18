@@ -77,6 +77,12 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 				return accounting.Fail("INVALID_ACCOUNT", "Tài khoản hàng tiền không phù hợp loại nghiệp vụ.")
 			}
 		}
+		if line.ProjectID != "" {
+			var projectActive bool
+			if e := tx.QueryRowContext(ctx, "SELECT active FROM projects WHERE id=?", line.ProjectID).Scan(&projectActive); e != nil || !projectActive {
+				return accounting.Fail("INVALID_PROJECT", "Công trình không tồn tại hoặc đã ngừng sử dụng.")
+			}
+		}
 		quantity, err := accounting.Quantity(line.Quantity, p.QuantityScale)
 		if err != nil {
 			return err
@@ -106,7 +112,7 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 				account = "511"
 			}
 			addLine(doc, "131", in.PartnerID, description, gross, 0)
-			addLine(doc, account, "", description, 0, base)
+			addLineProject(doc, account, "", line.ProjectID, description, 0, base)
 			addLine(doc, "33311", "", "Thuế GTGT đầu ra", 0, tax)
 			if item.Tracked {
 				cost, e := s.stock(ctx, tx, doc, item.ID, quantity, 0, p, index, false, line.WarehouseID)
@@ -116,7 +122,7 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 				if sumCost, e = accounting.Add(sumCost, cost); e != nil {
 					return e
 				}
-				addLine(doc, "632", "", "Giá vốn: "+item.Name, cost, 0)
+				addLineProject(doc, "632", "", line.ProjectID, "Giá vốn: "+item.Name, cost, 0)
 				addLine(doc, "156", "", "Xuất kho: "+item.Name, 0, cost)
 			}
 		} else {
@@ -149,7 +155,7 @@ func (s *Service) trade(ctx context.Context, tx *sql.Tx, in Input, p Policy, doc
 					return err
 				}
 			}
-			addLine(doc, account, "", description, purchaseCost, 0)
+			addLineProject(doc, account, "", line.ProjectID, description, purchaseCost, 0)
 			if eligible {
 				addLine(doc, "1331", "", "Thuế GTGT đầu vào", tax, 0)
 				inputTax, err = accounting.Add(inputTax, tax)

@@ -35,7 +35,7 @@ func filterMetadata(f ledger.Filter) [][]string {
 	if from, to, _, label, _, err := f.ResolveRange(); err == nil && strings.Contains(label, " – ") {
 		rows = append(rows, []string{"Khoảng ngày", from + " – " + to})
 	}
-	for _, row := range [][]string{{"Tìm kiếm", f.Query}, {"Tài khoản", f.Account}, {"Tài khoản ngân hàng", f.BankAccount}, {"Loại chứng từ", f.Type}, {"Trạng thái", f.Status}, {"Nguồn", f.Source}} {
+	for _, row := range [][]string{{"Tìm kiếm", f.Query}, {"Tài khoản", f.Account}, {"Công trình", f.Project}, {"Tài khoản ngân hàng", f.BankAccount}, {"Loại chứng từ", f.Type}, {"Trạng thái", f.Status}, {"Nguồn", f.Source}} {
 		if row[1] != "" && row[1] != "all" {
 			rows = append(rows, row)
 		}
@@ -149,7 +149,7 @@ func (s *Server) exportCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind, role := r.URL.Query().Get("catalog"), r.URL.Query().Get("role")
-	if kind != "accounts" && kind != "partners" || role != "" && role != "all" && role != "customer" && role != "supplier" {
+	if kind != "accounts" && kind != "partners" && kind != "projects" || role != "" && role != "all" && role != "customer" && role != "supplier" {
 		s.failure(w, r, accounting.Fail("BAD_REQUEST", "Danh mục hoặc vai trò không hợp lệ."))
 		return
 	}
@@ -188,6 +188,13 @@ func (s *Server) exportCatalog(w http.ResponseWriter, r *http.Request) {
 				requires = "Có"
 			}
 			table.Rows = append(table.Rows, []string{account.Code, account.Name, parent, requires, active(account.Active)})
+		}
+	} else if kind == "projects" {
+		title = "Danh mục công trình"
+		table.Name = "Công trình"
+		table.Headers = []string{"Mã công trình", "Tên công trình", "Mô tả", "Trạng thái"}
+		for _, project := range ledger.CatalogProjects(workspace.Projects, f.Query) {
+			table.Rows = append(table.Rows, []string{project.Code, project.Name, project.Description, active(project.Active)})
 		}
 	} else {
 		roles := map[string]string{"customer": "Khách hàng", "supplier": "Nhà cung cấp", "both": "Khách hàng và nhà cung cấp"}

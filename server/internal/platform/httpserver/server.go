@@ -87,6 +87,7 @@ func New(store *sqlite.Store, assets string, secure bool) *Server {
 	m.HandleFunc("POST /api/v1/documents/{id}/post", s.postDocument)
 	m.HandleFunc("POST /api/v1/documents/{id}/reverse", s.reverseDocument)
 	m.HandleFunc("POST /api/v1/partners", s.partners)
+	m.HandleFunc("POST /api/v1/projects", s.projects)
 	m.HandleFunc("POST /api/v1/accounts", s.accounts)
 	m.HandleFunc("GET /api/v1/accounts/reference", s.referenceChart)
 	m.HandleFunc("POST /api/v1/accounts/reference", s.applyReferenceChart)
@@ -392,6 +393,20 @@ func (s *Server) partners(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b, e := s.Ledger.SavePartners(r.Context(), s.command(r, u), input.Partners)
+	s.result(w, r, b, e)
+}
+func (s *Server) projects(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, false)
+	if !ok {
+		return
+	}
+	var input struct {
+		Projects []ledger.Project `json:"projects"`
+	}
+	if !s.decode(w, r, &input) {
+		return
+	}
+	b, e := s.Ledger.SaveProjects(r.Context(), s.command(r, u), input.Projects)
 	s.result(w, r, b, e)
 }
 func (s *Server) accounts(w http.ResponseWriter, r *http.Request) {

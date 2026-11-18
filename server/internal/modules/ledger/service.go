@@ -230,7 +230,8 @@ func (s *Service) saveTx(ctx context.Context, tx *sql.Tx, doc Document, historic
 		debit.Add(debit, big.NewInt(d))
 		credit.Add(credit, big.NewInt(c))
 		var required, active bool
-		accountName, partnerName := line.AccountName, line.PartnerName
+		allowInactive := historical || doc.SourceType == "reversal" || doc.SourceType == "treasury_reversal"
+		accountName, partnerName, projectName := line.AccountName, line.PartnerName, line.ProjectName
 		if e = tx.QueryRowContext(ctx, "SELECT name,requires_partner,active FROM accounts WHERE id=?", line.AccountID).Scan(&line.AccountName, &required, &active); e != nil || !active && !historical {
 			return doc, accounting.Fail("INVALID_ACCOUNT", "Tài khoản không tồn tại hoặc ngừng sử dụng.")
 		}
@@ -241,6 +242,16 @@ func (s *Service) saveTx(ctx context.Context, tx *sql.Tx, doc Document, historic
 			if e = tx.QueryRowContext(ctx, "SELECT name,active FROM partners WHERE id=?", line.PartnerID).Scan(&line.PartnerName, &active); e != nil || !active && !historical {
 				return doc, accounting.Fail("INVALID_PARTNER", "Đối tượng dòng không còn hiệu lực.")
 			}
+		}
+		if line.ProjectID != "" {
+			if e = tx.QueryRowContext(ctx, "SELECT name,active FROM projects WHERE id=?", line.ProjectID).Scan(&line.ProjectName, &active); e != nil || !active && !allowInactive {
+				return doc, accounting.Fail("INVALID_PROJECT", "Công trình dòng không tồn tại hoặc đã ngừng sử dụng.")
+			}
+			if allowInactive && projectName != "" {
+				line.ProjectName = projectName
+			}
+		} else {
+			line.ProjectName = ""
 		}
 		if historical {
 			line.AccountName, line.PartnerName = accountName, partnerName
@@ -266,7 +277,7 @@ func (s *Service) saveTx(ctx context.Context, tx *sql.Tx, doc Document, historic
 	for i, line := range doc.Lines {
 		d, _ := accounting.Money(line.Debit)
 		c, _ := accounting.Money(line.Credit)
-		if _, err = tx.ExecContext(ctx, "INSERT INTO document_lines VALUES(?,?,?,?,?,?,?,?,?)", doc.ID, i, line.AccountID, nullable(line.PartnerID), line.PartnerName, line.AccountName, line.Description, d, c); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO document_lines(document_id,position,account_id,partner_id,partner_name,account_name,description,debit,credit,project_id,project_name) VALUES(?,?,?,?,?,?,?,?,?,?,?)", doc.ID, i, line.AccountID, nullable(line.PartnerID), line.PartnerName, line.AccountName, line.Description, d, c, nullable(line.ProjectID), line.ProjectName); err != nil {
 			return doc, err
 		}
 	}
@@ -313,6 +324,11 @@ func (s *Service) postTx(ctx context.Context, tx *sql.Tx, input Post, historical
 		if !historical && (required || line.PartnerID != "") {
 			if err = tx.QueryRowContext(ctx, "SELECT active FROM partners WHERE id=?", line.PartnerID).Scan(&active); err != nil || !active && !historical {
 				return doc, accounting.Fail("INVALID_PARTNER", "Đối tượng dòng không còn hiệu lực.")
+			}
+		}
+		if !historical && doc.SourceType != "reversal" && doc.SourceType != "treasury_reversal" && line.ProjectID != "" {
+			if err = tx.QueryRowContext(ctx, "SELECT active FROM projects WHERE id=?", line.ProjectID).Scan(&active); err != nil || !active {
+				return doc, accounting.Fail("INVALID_PROJECT", "Công trình dòng không còn hiệu lực.")
 			}
 		}
 	}

@@ -39,6 +39,7 @@ func ExcelSchemas(role string) []ExcelSchema {
 	name := f("name", "Tên", "text", true)
 	schemas := []ExcelSchema{
 		{Key: "partners", Label: "Khách hàng, nhà cung cấp", Group: "Danh mục", Fields: []ExcelField{code, name, f("role", "Vai trò", "choice", true, "customer", "supplier", "both"), f("taxCode", "Mã số thuế", "identifier", false), f("address", "Địa chỉ", "text", false), f("email", "Email", "text", false), f("phone", "Điện thoại", "identifier", false), active}},
+		{Key: "projects", Label: "Công trình", Group: "Danh mục", Fields: []ExcelField{code, name, f("description", "Mô tả, ghi chú", "text", false), active}},
 		{Key: "accounts", Label: "Tài khoản kế toán", Group: "Danh mục", Owner: true, Fields: []ExcelField{code, name, f("parentCode", "Mã tài khoản cha", "code", false), f("group", "Nhóm tài khoản", "choice", true, "cash", "receivable", "payable", "revenue", "expense", "inventory", "capital", "asset", "tax", "liability", "wip"), f("requiresPartner", "Yêu cầu đối tượng", "bool", true), active}},
 		{Key: "items", Label: "Hàng hóa, dịch vụ", Group: "Danh mục", Fields: []ExcelField{code, name, f("unit", "Đơn vị tính", "text", true), f("tracked", "Theo dõi tồn kho", "bool", true), active}},
 		{Key: "warehouses", Label: "Kho", Group: "Danh mục", Fields: []ExcelField{code, name, active}},
@@ -59,14 +60,14 @@ func ExcelSchemas(role string) []ExcelSchema {
 		}
 		schemas = append(schemas, ExcelSchema{Key: key, Label: label, Group: "Chứng từ", Fields: all})
 	}
-	add("journal-pairs", "Chứng từ khác · cặp Nợ/Có", []ExcelField{f("debitAccount", "TK Nợ", "code", true), f("debitPartner", "Đối tượng Nợ", "code", false), f("creditAccount", "TK Có", "code", true), f("creditPartner", "Đối tượng Có", "code", false), f("amount", "Số tiền", "money", true), f("lineDescription", "Diễn giải dòng", "text", false)})
-	add("journal-lines", "Chứng từ khác · nhiều dòng Nợ/Có", []ExcelField{f("accountCode", "Tài khoản", "code", true), f("linePartnerCode", "Đối tượng hạch toán", "code", false), excelDefault("debit", "Số tiền Nợ", "money", "0"), excelDefault("credit", "Số tiền Có", "money", "0"), f("lineDescription", "Diễn giải dòng", "text", false)})
-	treasury := []ExcelField{f("moneyAccount", "Tài khoản tiền", "code", true), f("bankNumber", "Số tài khoản ngân hàng", "identifier", false), f("counterAccount", "Tài khoản đối ứng", "code", false), f("linePartnerCode", "Đối tượng hạch toán", "code", false), f("amount", "Số tiền", "money", true), f("lineDescription", "Diễn giải dòng", "text", false)}
+	add("journal-pairs", "Chứng từ khác · cặp Nợ/Có", []ExcelField{f("debitAccount", "TK Nợ", "code", true), f("debitPartner", "Đối tượng Nợ", "code", false), f("creditAccount", "TK Có", "code", true), f("creditPartner", "Đối tượng Có", "code", false), f("projectCode", "Mã công trình", "code", false), f("amount", "Số tiền", "money", true), f("lineDescription", "Diễn giải dòng", "text", false)})
+	add("journal-lines", "Chứng từ khác · nhiều dòng Nợ/Có", []ExcelField{f("accountCode", "Tài khoản", "code", true), f("linePartnerCode", "Đối tượng hạch toán", "code", false), f("projectCode", "Mã công trình", "code", false), excelDefault("debit", "Số tiền Nợ", "money", "0"), excelDefault("credit", "Số tiền Có", "money", "0"), f("lineDescription", "Diễn giải dòng", "text", false)})
+	treasury := []ExcelField{f("moneyAccount", "Tài khoản tiền", "code", true), f("bankNumber", "Số tài khoản ngân hàng", "identifier", false), f("counterAccount", "Tài khoản đối ứng", "code", false), f("linePartnerCode", "Đối tượng hạch toán", "code", false), f("projectCode", "Mã công trình", "code", false), f("amount", "Số tiền", "money", true), f("lineDescription", "Diễn giải dòng", "text", false)}
 	treasury = append(treasury, f("invoiceSourceId", "Mã nguồn công nợ hoặc số chứng từ gốc", "code", false), f("allocationAmount", "Số tiền phân bổ công nợ", "money", false))
 	add("receipt", "Phiếu thu, thu tiền gửi", treasury)
 	add("payment", "Phiếu chi, chi tiền gửi", treasury)
 	add("transfer", "Chuyển tiền nội bộ", []ExcelField{f("moneyAccount", "Tài khoản chuyển", "code", true), f("bankNumber", "Số tài khoản chuyển", "identifier", false), f("destinationAccount", "Tài khoản nhận", "code", true), f("destinationBankNumber", "Số tài khoản nhận", "identifier", false), f("amount", "Số tiền", "money", true)})
-	trade := []ExcelField{f("tradeMode", "Loại mua bán", "choice", true, "goods", "service"), f("priceMode", "Cách tính giá", "choice", true, "exclusive", "inclusive"), f("itemCode", "Mã hàng hóa, dịch vụ", "code", true), f("warehouseCode", "Mã kho", "code", false), f("quantity", "Số lượng", "decimal", true), f("unitPrice", "Đơn giá", "decimal", true), f("vatRate", "Thuế suất GTGT (%)", "decimal", true), f("lineDescription", "Diễn giải dòng", "text", false), f("accountCode", "Tài khoản dòng", "code", false), f("invoiceNumber", "Số hóa đơn", "identifier", false), f("invoiceSeries", "Ký hiệu hóa đơn", "text", false), f("invoiceDate", "Ngày hóa đơn", "date", false), f("dueDate", "Hạn thanh toán", "date", false), f("paymentAccount", "Tài khoản thanh toán ngay", "code", false), f("bankNumber", "Số tài khoản thanh toán", "identifier", false), f("discountRate", "Tỷ lệ chiết khấu dòng (%)", "decimal", false), f("discountAmount", "Tiền chiết khấu dòng", "money", false), f("discountMode", "Chiết khấu hóa đơn", "choice", false, "none", "line", "percent", "total"), f("invoiceDiscountRate", "Tỷ lệ CK hóa đơn (%)", "decimal", false), f("invoiceDiscountAmount", "Tiền CK hóa đơn", "money", false), f("discountAllocation", "Phân bổ CK hóa đơn", "choice", false, "value", "quantity", "manual")}
+	trade := []ExcelField{f("tradeMode", "Loại mua bán", "choice", true, "goods", "service"), f("priceMode", "Cách tính giá", "choice", true, "exclusive", "inclusive"), f("itemCode", "Mã hàng hóa, dịch vụ", "code", true), f("warehouseCode", "Mã kho", "code", false), f("projectCode", "Mã công trình", "code", false), f("quantity", "Số lượng", "decimal", true), f("unitPrice", "Đơn giá", "decimal", true), f("vatRate", "Thuế suất GTGT (%)", "decimal", true), f("lineDescription", "Diễn giải dòng", "text", false), f("accountCode", "Tài khoản dòng", "code", false), f("invoiceNumber", "Số hóa đơn", "identifier", false), f("invoiceSeries", "Ký hiệu hóa đơn", "text", false), f("invoiceDate", "Ngày hóa đơn", "date", false), f("dueDate", "Hạn thanh toán", "date", false), f("paymentAccount", "Tài khoản thanh toán ngay", "code", false), f("bankNumber", "Số tài khoản thanh toán", "identifier", false), f("discountRate", "Tỷ lệ chiết khấu dòng (%)", "decimal", false), f("discountAmount", "Tiền chiết khấu dòng", "money", false), f("discountMode", "Chiết khấu hóa đơn", "choice", false, "none", "line", "percent", "total"), f("invoiceDiscountRate", "Tỷ lệ CK hóa đơn (%)", "decimal", false), f("invoiceDiscountAmount", "Tiền CK hóa đơn", "money", false), f("discountAllocation", "Phân bổ CK hóa đơn", "choice", false, "value", "quantity", "manual")}
 	sale := append([]ExcelField{}, trade...)
 	add("sale", "Chứng từ bán hàng, dịch vụ", sale)
 	purchase := append([]ExcelField{}, trade...)
@@ -87,6 +88,12 @@ func ExcelSchemas(role string) []ExcelSchema {
 			if schema.Key == "partners" && (field.Key == "taxCode" || field.Key == "address") {
 				field.Basic = true
 			}
+			if schema.Key == "projects" && field.Key == "description" {
+				field.Basic = true
+			}
+			if (schema.Key == "sale" || schema.Key == "purchase") && field.Key == "projectCode" {
+				field.Basic = true
+			}
 			if (schema.Key == "receipt" || schema.Key == "payment") && (field.Key == "counterAccount" || field.Key == "bankNumber") {
 				field.Basic = true
 			}
@@ -97,6 +104,8 @@ func ExcelSchemas(role string) []ExcelSchema {
 			switch field.Key {
 			case "taxCode":
 				field.Aliases = append(field.Aliases, "MST", "Mã số thuế đối tượng")
+			case "projectCode":
+				field.Aliases = append(field.Aliases, "Công trình", "Mã công trình")
 			case "sourceId":
 				field.Aliases = append(field.Aliases, "Số chứng từ", "Mã nguồn", "sourceId")
 			case "date":
@@ -104,10 +113,10 @@ func ExcelSchemas(role string) []ExcelSchema {
 			case "partnerCode":
 				field.Aliases = append(field.Aliases, "Mã khách hàng", "Mã nhà cung cấp", "Đối tượng")
 			case "code":
-				field.Aliases = append(field.Aliases, "Mã đối tượng")
+				field.Aliases = append(field.Aliases, "Mã đối tượng", "Mã công trình")
 				field.Aliases = append(field.Aliases, "Mã khách hàng", "Mã nhà cung cấp", "Mã hàng", "Mã kho", "Mã nhân viên", "Mã tài khoản")
 			case "name":
-				field.Aliases = append(field.Aliases, "Tên đối tượng")
+				field.Aliases = append(field.Aliases, "Tên đối tượng", "Tên công trình")
 				field.Aliases = append(field.Aliases, "Tên khách hàng", "Tên nhà cung cấp", "Tên hàng", "Tên kho", "Tên nhân viên", "Tên tài khoản")
 			}
 		}

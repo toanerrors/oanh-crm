@@ -538,8 +538,11 @@ func (s *Service) run(ctx context.Context, tx *sql.Tx, input Input) (Result, err
 	return r, err
 }
 func addLine(doc *ledger.Document, account, partner, description string, debit, credit int64) {
+	addLineProject(doc, account, partner, "", description, debit, credit)
+}
+func addLineProject(doc *ledger.Document, account, partner, project, description string, debit, credit int64) {
 	if debit == 0 && credit == 0 {
 		return
 	}
-	doc.Lines = append(doc.Lines, ledger.Line{AccountID: account, PartnerID: partner, Description: description, Debit: accounting.Text(debit), Credit: accounting.Text(credit)})
+	doc.Lines = append(doc.Lines, ledger.Line{AccountID: account, PartnerID: partner, ProjectID: project, Description: description, Debit: accounting.Text(debit), Credit: accounting.Text(credit)})
 }

@@ -30,7 +30,7 @@ func ReadDocument(ctx context.Context, q Queryer, id string) (Document, error) {
 	d.ReversalOf = reversal.String
 	d.PolicyID = policy.String
 	d.Lines = []Line{}
-	rows, err := q.QueryContext(ctx, "SELECT account_id,COALESCE(partner_id,''),description,debit,credit,partner_name,account_name FROM document_lines WHERE document_id=? ORDER BY position", id)
+	rows, err := q.QueryContext(ctx, "SELECT account_id,COALESCE(partner_id,''),COALESCE(project_id,''),description,debit,credit,partner_name,project_name,account_name FROM document_lines WHERE document_id=? ORDER BY position", id)
 	if err != nil {
 		return d, err
 	}
@@ -38,7 +38,7 @@ func ReadDocument(ctx context.Context, q Queryer, id string) (Document, error) {
 	for rows.Next() {
 		var line Line
 		var debit, credit int64
-		if err = rows.Scan(&line.AccountID, &line.PartnerID, &line.Description, &debit, &credit, &line.PartnerName, &line.AccountName); err != nil {
+		if err = rows.Scan(&line.AccountID, &line.PartnerID, &line.ProjectID, &line.Description, &debit, &credit, &line.PartnerName, &line.ProjectName, &line.AccountName); err != nil {
 			return d, err
 		}
 		line.Debit = accounting.Text(debit)
@@ -53,7 +53,7 @@ func ReadContext(ctx context.Context, q Queryer) (Context, error) {
 	return c, err
 }
 func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Workspace, error) {
-	w := Workspace{Actor: actor, Permissions: role, Mode: "live", Documents: []Document{}, Accounts: []Account{}, Partners: []Partner{}, Periods: []Period{}}
+	w := Workspace{Actor: actor, Permissions: role, Mode: "live", Documents: []Document{}, Accounts: []Account{}, Partners: []Partner{}, Projects: []Project{}, Periods: []Period{}}
 	tx, err := s.Store.Read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return w, err
@@ -96,6 +96,23 @@ func (s *Service) Snapshot(ctx context.Context, actor, role, period string) (Wor
 			return w, err
 		}
 		w.Partners = append(w.Partners, p)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return w, err
+	}
+	rows, err = tx.QueryContext(ctx, "SELECT p.id,p.code,p.name,p.description,p.active,r.id IS NOT NULL FROM projects p LEFT JOIN (SELECT DISTINCT project_id AS id FROM document_lines WHERE project_id IS NOT NULL) r ON r.id=p.id ORDER BY p.code")
+	if err != nil {
+		return w, err
+	}
+	for rows.Next() {
+		var p Project
+		if err = rows.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &p.Active, &p.HasReferences); err != nil {
+			rows.Close()
+			return w, err
+		}
+		w.Projects = append(w.Projects, p)
 	}
 	err = rows.Err()
 	rows.Close()
@@ -191,6 +208,49 @@ func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Par
 		}
 	}
 	return partners, nil
+}
+func (s *Service) SaveProjects(ctx context.Context, cmd Command, projects []Project) (json.RawMessage, error) {
+	return s.Write(ctx, cmd, "project.save", projects, func(tx *sql.Tx) (any, error) {
+		return s.SaveProjectsTx(ctx, tx, projects)
+	})
+}
+func (s *Service) SaveProjectsTx(ctx context.Context, tx *sql.Tx, projects []Project) (any, error) {
+	if len(projects) == 0 || len(projects) > 100 {
+		return nil, accounting.Fail("VALIDATION", "Mỗi lần ghi từ 1 đến 100 công trình.")
+	}
+	for index, p := range projects {
+		p.Code = strings.ToUpper(strings.TrimSpace(p.Code))
+		p.Name = strings.TrimSpace(p.Name)
+		p.Description = strings.TrimSpace(p.Description)
+		projects[index] = p
+		if !accounting.ID(p.ID) || !accounting.ID(p.Code) || p.Name == "" || len(p.Name) > 300 || len(p.Description) > 500 {
+			return nil, accounting.Fail("VALIDATION", "Thông tin công trình không hợp lệ.")
+		}
+		projects[index].HasReferences = false
+		var existingCode string
+		err := tx.QueryRowContext(ctx, "SELECT code FROM projects WHERE id=?", p.ID).Scan(&existingCode)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+		if err == nil {
+			var count int
+			if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM document_lines WHERE project_id=?", p.ID).Scan(&count); err != nil {
+				return nil, err
+			}
+			projects[index].HasReferences = count > 0
+		}
+		var duplicate int
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM projects WHERE code=? AND id<>?", p.Code, p.ID).Scan(&duplicate); err != nil {
+			return nil, err
+		}
+		if duplicate > 0 {
+			return nil, accounting.Fail("DUPLICATE_CODE", "Mã công trình bị trùng.")
+		}
+		if _, err = tx.ExecContext(ctx, "INSERT INTO projects(id,code,name,description,active) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET code=excluded.code,name=excluded.name,description=excluded.description,active=excluded.active", p.ID, p.Code, p.Name, p.Description, p.Active); err != nil {
+			return nil, err
+		}
+	}
+	return projects, nil
 }
 func (s *Service) SaveAccount(ctx context.Context, cmd Command, a Account) (json.RawMessage, error) {
 	return s.Write(ctx, cmd, "admin.account.save", a, func(tx *sql.Tx) (any, error) {

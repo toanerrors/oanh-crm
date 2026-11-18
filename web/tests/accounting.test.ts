@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { formatMoney, isMoney, MAX_MONEY, isCalendarDate, normalizeSearch, compactMoney, parseMoneyInput } from '../src/shared/accounting/money.ts';
-import { accountBalance, allocationInvoiceOptions, filterDocuments, formatLineAccount, formatLinePartner, hydrateVoucherDefaultDates, initialVoucherDateSync, invoiceAvailableAmount, nonZeroTrialRows, normalizeVoucherInputDates, partnerBalances, periodDocuments, periodMovement, syncVoucherDependentDates, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
+import { accountBalance, allocationInvoiceOptions, filterDocuments, formatLineAccount, formatLinePartner, formatLineProject, hydrateVoucherDefaultDates, initialVoucherDateSync, invoiceAvailableAmount, nonZeroTrialRows, normalizeVoucherInputDates, partnerBalances, periodDocuments, periodMovement, projectSummaryRows, syncVoucherDependentDates, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
 import { accountingRangeSlug, activePeriodPreset, formatAccountingRange, monthDateRange, normalizeDateRange, periodPresetOptions, resolvePresetRange } from '../src/shared/accounting/period-range.ts';
 import { serializeCsv } from '../src/shared/accounting/csv.ts';
 import { initialWorkspace } from '../src/shared/data/demo.ts';
@@ -318,4 +318,50 @@ test('ngày chứng từ và ngày hóa đơn mặc định theo ngày hạch to
   });
   assert.equal(fallbackInvoiceDate.invoiceDate, '2026-08-03');
   assert.equal(fallbackInvoiceDate.voucher?.documentDate, '2026-08-03');
+});
+
+test('tổng hợp doanh thu, chi phí và dở dang theo từng công trình giữ chính xác BigInt trên 2^53', () => {
+  const projects = [
+    { id: 'ct-1', code: 'CT001', name: 'Công trình A', description: '', active: true },
+    { id: 'ct-old', code: 'CT000', name: 'Công trình cũ không phát sinh', description: '', active: false },
+  ];
+  assert.equal(formatLineProject({ projectId: 'ct-1' }, projects).text, 'CT001 · Công trình A');
+  assert.equal(formatLineProject({ projectId: 'ct-1', projectName: 'Tên snapshot cũ' }, projects).text, 'CT001 · Tên snapshot cũ');
+  assert.equal(formatLineProject({}, projects).text, '—');
+
+  const ws = {
+    ...initialWorkspace,
+    accounts: [...initialWorkspace.accounts, { id: '154', code: '154', name: 'Chi phí dở dang', group: 'wip' as const }],
+    projects,
+    documents: [
+      {
+        id: 'sale-ct1', reference: 'BH-1', type: 'sale' as const, date: '2026-11-10', description: 'Doanh thu CT1', status: 'posted' as const, version: 1,
+        lines: [
+          { accountId: '131', partnerId: 'p1', description: 'Phải thu', debit: '9007199264741000', credit: '0' },
+          { accountId: '511', projectId: 'ct-1', description: 'Doanh thu', debit: '0', credit: '9007199264741000' },
+        ],
+      },
+      {
+        id: 'wip-ct1', reference: 'MH-1', type: 'purchase' as const, date: '2026-11-11', description: 'Tập hợp 154', status: 'posted' as const, version: 1,
+        lines: [
+          { accountId: '154', projectId: 'ct-1', description: 'Dở dang', debit: '5000000', credit: '0' },
+          { accountId: '331', partnerId: 'p3', description: 'Phải trả', debit: '0', credit: '5000000' },
+        ],
+      },
+      {
+        id: 'costing-ct1', reference: 'GT-1', type: 'journal' as const, sourceType: 'costing', date: '2026-11-15', description: 'Kết chuyển 154 -> 632', status: 'posted' as const, version: 1,
+        lines: [
+          { accountId: '632', projectId: 'ct-1', description: 'Giá vốn', debit: '3000000', credit: '0' },
+          { accountId: '154', projectId: 'ct-1', description: 'Kết chuyển', debit: '0', credit: '3000000' },
+        ],
+      },
+    ],
+  };
+  const summary = projectSummaryRows(ws, '2026-11', '2026-11-01', '2026-11-30');
+  assert.equal(summary.length, 1);
+  assert.equal(summary[0].revenue, 9007199264741000n);
+  assert.equal(summary[0].expense, 3000000n);
+  assert.equal(summary[0].wip, 2000000n);
+  assert.equal(summary[0].totalCost, 5000000n);
+  assert.equal(summary[0].profit, 9007199259741000n);
 });

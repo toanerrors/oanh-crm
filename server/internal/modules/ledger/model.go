@@ -3,10 +3,12 @@ package ledger
 type Line struct {
 	AccountID   string `json:"accountId"`
 	PartnerID   string `json:"partnerId,omitempty"`
+	ProjectID   string `json:"projectId,omitempty"`
 	Description string `json:"description"`
 	Debit       string `json:"debit"`
 	Credit      string `json:"credit"`
 	PartnerName string `json:"partnerName,omitempty"`
+	ProjectName string `json:"projectName,omitempty"`
 	AccountName string `json:"accountName,omitempty"`
 }
 type Document struct {
@@ -48,6 +50,14 @@ type Partner struct {
 	Phone         string `json:"phone"`
 	Active        bool   `json:"active"`
 }
+type Project struct {
+	HasReferences bool   `json:"hasReferences,omitempty"`
+	ID            string `json:"id"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Active        bool   `json:"active"`
+}
 type Period struct {
 	Period string `json:"period"`
 	Closed bool   `json:"closed"`
@@ -72,6 +82,7 @@ type Workspace struct {
 	Documents   []Document `json:"documents"`
 	Accounts    []Account  `json:"accounts"`
 	Partners    []Partner  `json:"partners"`
+	Projects    []Project  `json:"projects"`
 	Periods     []Period   `json:"periods"`
 }
 type Command struct {

@@ -21,6 +21,7 @@ export function moduleTabs(pathname: string) {
       { key: 'settlements', label: 'Công nợ theo chứng từ', to: `${module.path}/settlements` },
       { key: 'partners', label: module.tradeKind === 'sale' ? 'Khách hàng' : 'Nhà cung cấp', to: `${module.path}/partners` },
       { key: 'items', label: 'Hàng hóa, dịch vụ', to: `${module.path}/items` },
+      { key: 'projects', label: 'Công trình', to: `${module.path}/projects` },
     ] : []),
     { key: 'reports', label: 'Báo cáo', to: `${module.path}/reports` },
   ];

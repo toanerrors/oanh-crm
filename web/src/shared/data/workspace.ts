@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import { validateDraft } from '../accounting/ledger.ts';
 import { demoScope, initialWorkspace } from './demo.ts';
-import type { AccountingDocument, Partner, Workspace } from './types.ts';
+import type { AccountingDocument, Partner, Project, Workspace } from './types.ts';
 import { api, apiScope, command, isDemo } from '../api/client.ts';
 
 let workspace = structuredClone(initialWorkspace);
@@ -76,5 +76,35 @@ export async function saveDemoPartners(partners: Partner[]): Promise<Partner[]> 
     codes.add(code);
   }
   workspace = { ...workspace, revision: workspace.revision + 1, partners: [...workspace.partners.filter(item => !ids.has(item.id)), ...structuredClone(normalized)] };
+  return structuredClone(normalized);
+}
+
+export async function saveDemoProjects(projects: Project[]): Promise<Project[]> {
+  const normalized = projects.map(item => ({
+    ...item,
+    code: item.code.trim().toUpperCase(),
+    name: item.name.trim().normalize('NFC'),
+    description: (item.description ?? '').trim().normalize('NFC'),
+  }));
+  if (!isDemo) {
+    const saved = await command<Project[]>('/projects', { projects: normalized });
+    return saved.map((item, index) => ({
+      ...item,
+      code: normalized[index]?.code ?? item.code,
+      name: normalized[index]?.name ?? item.name,
+      description: normalized[index]?.description ?? item.description ?? '',
+    }));
+  }
+  const currentProjects = workspace.projects ?? [];
+  const ids = new Set<string>();
+  const codes = new Set<string>();
+  for (const project of normalized) {
+    const code = project.code;
+    if (!code || !project.name) throw new Error('Mã và tên công trình không được để trống.');
+    if (ids.has(project.id) || codes.has(code) || currentProjects.some(item => item.code.toUpperCase() === code && item.id !== project.id)) throw new Error(`Mã công trình ${code} bị trùng.`);
+    ids.add(project.id);
+    codes.add(code);
+  }
+  workspace = { ...workspace, revision: workspace.revision + 1, projects: [...currentProjects.filter(item => !ids.has(item.id)), ...structuredClone(normalized)] };
   return structuredClone(normalized);
 }

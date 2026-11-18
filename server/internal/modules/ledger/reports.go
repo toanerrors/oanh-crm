@@ -43,6 +43,13 @@ type Row struct {
 	DocumentID    string `json:"documentId,omitempty"`
 	Description   string `json:"description,omitempty"`
 	Account       string `json:"account,omitempty"`
+	ProjectID     string `json:"projectId,omitempty"`
+	ProjectName   string `json:"projectName,omitempty"`
+	Revenue       string `json:"revenue,omitempty"`
+	Expense       string `json:"expense,omitempty"`
+	WIP           string `json:"wip,omitempty"`
+	TotalCost     string `json:"totalCost,omitempty"`
+	Profit        string `json:"profit,omitempty"`
 	Debit         string `json:"debit"`
 	Credit        string `json:"credit"`
 	OpeningDebit  string `json:"openingDebit"`
@@ -60,13 +67,19 @@ type Report struct {
 	OpeningCredit  string `json:"openingCredit"`
 	ClosingDebit   string `json:"closingDebit"`
 	ClosingCredit  string `json:"closingCredit"`
+	Revenue        string `json:"revenue,omitempty"`
+	Expense        string `json:"expense,omitempty"`
+	WIP            string `json:"wip,omitempty"`
+	TotalCost      string `json:"totalCost,omitempty"`
+	Profit         string `json:"profit,omitempty"`
 	AccountBalance *Row   `json:"accountBalance,omitempty"`
+	ProjectSummary *Row   `json:"projectSummary,omitempty"`
 }
 type Filter struct {
-	Period, From, To, Kind, Account, Status, Type, Query, Sort, Source, BankAccount string
-	Page, PageSize                                                                  int
-	Desc                                                                            bool
-	Revision                                                                        *int64
+	Period, From, To, Kind, Account, Project, Status, Type, Query, Sort, Source, BankAccount string
+	Page, PageSize                                                                           int
+	Desc                                                                                     bool
+	Revision                                                                                 *int64
 }
 
 func (f Filter) ResolveRange() (from, to, toExclusive, label, slug string, err error) {
@@ -381,9 +394,13 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 			return result, e
 		}
 		matchesAccount := f.Account == "" || f.Account == "all"
+		matchesProject := f.Project == "" || f.Project == "all"
 		for _, l := range d.Lines {
 			if slices.Contains(strings.Split(f.Account, ","), l.AccountID) {
 				matchesAccount = true
+			}
+			if l.ProjectID == f.Project {
+				matchesProject = true
 			}
 		}
 		if f.BankAccount != "" && !bankDocuments[d.ID] {
@@ -392,7 +409,7 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 		if f.Source != "" && d.SourceType != f.Source {
 			continue
 		}
-		if !matchesAccount || f.Type != "" && f.Type != "all" && d.Type != f.Type {
+		if !matchesAccount || !matchesProject || f.Type != "" && f.Type != "all" && d.Type != f.Type {
 			continue
 		}
 		result.Counts["all"]++
@@ -402,7 +419,7 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 		}
 		names := ""
 		for _, l := range d.Lines {
-			names += " " + l.PartnerName
+			names += " " + l.PartnerName + " " + l.ProjectName
 		}
 		if !strings.Contains(search(d.Reference+" "+d.Description+names), query) {
 			continue
@@ -532,18 +549,54 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 	if err != nil {
 		return report, err
 	}
-	opening, closing, debits, credits := map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}
-	rows, err = tx.QueryContext(ctx, "SELECT d.id,d.reference,d.date,d.description,l.position,l.account_id,COALESCE(l.partner_id,''),l.partner_name,l.account_name,l.description,l.debit,l.credit,d.source_type FROM documents d JOIN document_lines l ON l.document_id=d.id WHERE d.status='posted' AND d.date<? ORDER BY d.date,d.posted_order,l.position", toExclusive)
+	projects := map[string]Project{}
+	projectOrder := []Project{}
+	rows, err = tx.QueryContext(ctx, "SELECT id,code,name,description,active FROM projects ORDER BY code")
 	if err != nil {
 		return report, err
 	}
 	for rows.Next() {
-		var id, reference, date, description, account, partner, partnerName, accountName, lineDescription, source string
-		var index int
-		var d, c int64
-		if err = rows.Scan(&id, &reference, &date, &description, &index, &account, &partner, &partnerName, &accountName, &lineDescription, &d, &c, &source); err != nil {
+		var p Project
+		if err = rows.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &p.Active); err != nil {
 			rows.Close()
 			return report, err
+		}
+		projects[p.ID] = p
+		projectOrder = append(projectOrder, p)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return report, err
+	}
+	if f.Project != "" && f.Project != "all" {
+		if _, ok := projects[f.Project]; !ok {
+			return report, accounting.Fail("INVALID_PROJECT", "Không tìm thấy công trình.")
+		}
+	}
+	opening, closing, debits, credits := map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}
+	projRev, projExp, projWIP := map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}
+	rows, err = tx.QueryContext(ctx, "SELECT d.id,d.reference,d.date,d.description,l.position,l.account_id,COALESCE(l.partner_id,''),l.partner_name,COALESCE(l.project_id,''),l.project_name,l.account_name,l.description,l.debit,l.credit,d.source_type FROM documents d JOIN document_lines l ON l.document_id=d.id WHERE d.status='posted' AND d.date<? ORDER BY d.date,d.posted_order,l.position", toExclusive)
+	if err != nil {
+		return report, err
+	}
+	for rows.Next() {
+		var id, reference, date, description, account, partner, partnerName, projectID, projectName, accountName, lineDescription, source string
+		var index int
+		var d, c int64
+		if err = rows.Scan(&id, &reference, &date, &description, &index, &account, &partner, &partnerName, &projectID, &projectName, &accountName, &lineDescription, &d, &c, &source); err != nil {
+			rows.Close()
+			return report, err
+		}
+		projectLabel := projectName
+		if projectID != "" {
+			if pr, ok := projects[projectID]; ok {
+				name := projectName
+				if name == "" {
+					name = pr.Name
+				}
+				projectLabel = pr.Code + " · " + name
+			}
 		}
 		key := account
 		if accounts[account].RequiresPartner {
@@ -565,13 +618,37 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 			if f.Kind == "ledger" && f.Account != "" && f.Account != "all" && account != f.Account {
 				continue
 			}
+			if f.Project != "" && f.Project != "all" && projectID != f.Project {
+				continue
+			}
 			if lineDescription == "" {
 				lineDescription = description
 			}
-			report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, Debit: accounting.Text(d), Credit: accounting.Text(c)})
+			report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, ProjectID: projectID, ProjectName: projectLabel, Debit: accounting.Text(d), Credit: accounting.Text(c)})
+		}
+		if f.Kind == "project" && projectID != "" && source != "closing" && source != "closing_reversal" {
+			grp := accounts[account].Group
+			if grp == "revenue" {
+				add(projRev, projectID, c)
+				add(projRev, projectID, -d)
+			}
+			if grp == "expense" {
+				add(projExp, projectID, d)
+				add(projExp, projectID, -c)
+			}
+			if grp == "wip" {
+				add(projWIP, projectID, d)
+				add(projWIP, projectID, -c)
+			}
+			if f.Project != "" && f.Project != "all" && projectID == f.Project && (grp == "revenue" || grp == "expense" || grp == "wip") {
+				if lineDescription == "" {
+					lineDescription = description
+				}
+				report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, ProjectID: projectID, ProjectName: projectLabel, Debit: accounting.Text(d), Credit: accounting.Text(c)})
+			}
 		}
 		if f.Kind == "income" && !IsOpening(source) && source != "closing" && source != "closing_reversal" && (accounts[account].Group == "revenue" || accounts[account].Group == "expense") {
-			report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, Debit: accounting.Text(d), Credit: accounting.Text(c)})
+			report.Rows = append(report.Rows, Row{Key: fmt.Sprintf("%s-%d", id, index), Code: reference, Name: accountName, Date: date, DocumentID: id, Description: lineDescription, Account: account, ProjectID: projectID, ProjectName: projectLabel, Debit: accounting.Text(d), Credit: accounting.Text(c)})
 		}
 	}
 	err = rows.Err()
@@ -613,6 +690,41 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 	if f.Kind == "trial" {
 		report.Rows = trial
 	}
+	if f.Kind == "project" {
+		bigOrZero := func(n *big.Int) *big.Int {
+			if n == nil {
+				return new(big.Int)
+			}
+			return n
+		}
+		for _, p := range projectOrder {
+			rev := bigOrZero(projRev[p.ID])
+			exp := bigOrZero(projExp[p.ID])
+			wip := bigOrZero(projWIP[p.ID])
+			totalCost := new(big.Int).Add(exp, wip)
+			profit := new(big.Int).Sub(rev, totalCost)
+			summary := Row{
+				Key:       p.ID,
+				Code:      p.Code,
+				Name:      p.Name,
+				Revenue:   rev.String(),
+				Expense:   exp.String(),
+				WIP:       wip.String(),
+				TotalCost: totalCost.String(),
+				Profit:    profit.String(),
+				Debit:     "0",
+				Credit:    "0",
+			}
+			if f.Project != "" && f.Project != "all" {
+				if p.ID == f.Project {
+					copy := summary
+					report.ProjectSummary = &copy
+				}
+			} else if p.Active || rev.Sign() != 0 || exp.Sign() != 0 || wip.Sign() != 0 {
+				report.Rows = append(report.Rows, summary)
+			}
+		}
+	}
 	if f.Kind == "debt" {
 		group := "receivable"
 		if f.Account == "payable" {
@@ -652,10 +764,15 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 		}
 	}
 	query := search(f.Query)
-	report.Rows = slices.DeleteFunc(report.Rows, func(row Row) bool { return !strings.Contains(search(row.Code+" "+row.Name+" "+row.Description), query) })
-	sums := []*big.Int{new(big.Int), new(big.Int), new(big.Int), new(big.Int), new(big.Int), new(big.Int)}
+	report.Rows = slices.DeleteFunc(report.Rows, func(row Row) bool {
+		return !strings.Contains(search(row.Code+" "+row.Name+" "+row.Description+" "+row.ProjectName), query)
+	})
+	sums := make([]*big.Int, 11)
+	for i := range sums {
+		sums[i] = new(big.Int)
+	}
 	for _, row := range report.Rows {
-		for i, value := range []string{row.Debit, row.Credit, row.OpeningDebit, row.OpeningCredit, row.ClosingDebit, row.ClosingCredit} {
+		for i, value := range []string{row.Debit, row.Credit, row.OpeningDebit, row.OpeningCredit, row.ClosingDebit, row.ClosingCredit, row.Revenue, row.Expense, row.WIP, row.TotalCost, row.Profit} {
 			if value != "" {
 				n, ok := new(big.Int).SetString(value, 10)
 				if !ok {
@@ -671,6 +788,19 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 	report.OpeningCredit = sums[3].String()
 	report.ClosingDebit = sums[4].String()
 	report.ClosingCredit = sums[5].String()
+	if f.Kind == "project" && (f.Project == "" || f.Project == "all") {
+		report.Revenue = sums[6].String()
+		report.Expense = sums[7].String()
+		report.WIP = sums[8].String()
+		report.TotalCost = sums[9].String()
+		report.Profit = sums[10].String()
+	} else if f.Kind == "project" && report.ProjectSummary != nil {
+		report.Revenue = report.ProjectSummary.Revenue
+		report.Expense = report.ProjectSummary.Expense
+		report.WIP = report.ProjectSummary.WIP
+		report.TotalCost = report.ProjectSummary.TotalCost
+		report.Profit = report.ProjectSummary.Profit
+	}
 	report.Total = len(report.Rows)
 	from, to := bounds(f.Page, f.PageSize, report.Total)
 	report.Rows = report.Rows[from:to]
@@ -711,6 +841,15 @@ func CatalogAccounts(accounts []Account, query string) []Account {
 	for _, account := range accounts {
 		if strings.Contains(search(account.Code+" "+account.Name), search(query)) {
 			out = append(out, account)
+		}
+	}
+	return out
+}
+func CatalogProjects(projects []Project, query string) []Project {
+	out := []Project{}
+	for _, project := range projects {
+		if strings.Contains(search(project.Code+" "+project.Name+" "+project.Description), search(query)) {
+			out = append(out, project)
 		}
 	}
 	return out

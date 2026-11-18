@@ -36,7 +36,7 @@ func AuditRestoreSupport(e ledger.AuditEntry) (bool, string) {
 		return false, "Nhật ký này chưa lưu dữ liệu trước/sau nên không thể khôi phục tự động."
 	}
 	switch e.BaseAction {
-	case "document.save", "voucher.save", "partner.save", "admin.account.save", "bank.save", "warehouse.save", "item.save", "admin.employee.save", "financial.save", "admin.opening.save", "admin.opening.discard", "admin.opening.adjustment.save", "admin.opening.adjustment.discard":
+	case "document.save", "voucher.save", "partner.save", "project.save", "admin.account.save", "bank.save", "warehouse.save", "item.save", "admin.employee.save", "financial.save", "admin.opening.save", "admin.opening.discard", "admin.opening.adjustment.save", "admin.opening.adjustment.discard":
 		if e.Count == 0 {
 			return false, "Thao tác không làm thay đổi dữ liệu."
 		}
@@ -126,14 +126,23 @@ func equalAuditState(table string, current, recorded json.RawMessage) bool {
 	if bytes.Equal(current, recorded) {
 		return true
 	}
-	if table != "partners" || len(current) == 0 || len(recorded) == 0 {
+	if len(current) == 0 || len(recorded) == 0 {
 		return false
 	}
 	var curMap, recMap map[string]*string
-	if json.Unmarshal(current, &curMap) != nil || json.Unmarshal(recorded, &recMap) != nil || len(recMap) != 7 || len(curMap) != 9 {
+	if json.Unmarshal(current, &curMap) != nil || json.Unmarshal(recorded, &recMap) != nil {
 		return false
 	}
-	if curMap["tax_code"] == nil || *curMap["tax_code"] != "" || curMap["address"] == nil || *curMap["address"] != "" {
+	switch table {
+	case "partners":
+		if len(recMap) != 7 || len(curMap) != 9 || curMap["tax_code"] == nil || *curMap["tax_code"] != "" || curMap["address"] == nil || *curMap["address"] != "" {
+			return false
+		}
+	case "document_lines":
+		if len(recMap) != 9 || len(curMap) != 11 || curMap["project_id"] != nil || curMap["project_name"] == nil || *curMap["project_name"] != "" {
+			return false
+		}
+	default:
 		return false
 	}
 	for key, val := range recMap {
@@ -360,7 +369,7 @@ func (s *Service) applyAuditRestore(ctx context.Context, tx *sql.Tx, cmd ledger.
 			if state == nil {
 				delete(lines, position)
 			} else {
-				lines[position] = ledger.Line{AccountID: state.text("account_id"), PartnerID: state.text("partner_id"), Description: state.text("description"), Debit: state.text("debit"), Credit: state.text("credit")}
+				lines[position] = ledger.Line{AccountID: state.text("account_id"), PartnerID: state.text("partner_id"), ProjectID: state.text("project_id"), Description: state.text("description"), Debit: state.text("debit"), Credit: state.text("credit")}
 			}
 		}
 		positions := []int{}
@@ -393,6 +402,23 @@ func (s *Service) applyAuditRestore(ctx context.Context, tx *sql.Tx, cmd ledger.
 			values = append(values, ledger.Partner{ID: r.text("id"), Code: r.text("code"), Name: r.text("name"), Role: r.text("role"), TaxCode: r.text("tax_code"), Address: r.text("address"), Email: r.text("email"), Phone: r.text("phone"), Active: !create && r.flag("active")})
 		}
 		return s.Ledger.SavePartnersTx(ctx, tx, values)
+	case "project.save":
+		values := []ledger.Project{}
+		for _, c := range auditRoots(e, "projects") {
+			r, err := decodeAudit(c.Before)
+			if err != nil {
+				return nil, err
+			}
+			create := r == nil
+			if create {
+				r, err = decodeAudit(c.After)
+				if err != nil {
+					return nil, err
+				}
+			}
+			values = append(values, ledger.Project{ID: r.text("id"), Code: r.text("code"), Name: r.text("name"), Description: r.text("description"), Active: !create && r.flag("active")})
+		}
+		return s.Ledger.SaveProjectsTx(ctx, tx, values)
 	case "admin.account.save":
 		roots := auditRoots(e, "accounts")
 		var r auditState

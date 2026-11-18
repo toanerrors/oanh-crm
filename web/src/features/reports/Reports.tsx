@@ -1,7 +1,7 @@
 import { Alert, Button, Select, Table, Tabs } from 'antd';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
-import { nonZeroTrialRows, partnerBalances, trialBalance } from '../../shared/accounting/ledger';
+import { formatLineProject, nonZeroTrialRows, partnerBalances, projectSummaryRows, trialBalance } from '../../shared/accounting/ledger';
 import { formatDate, formatMoney, normalizeSearch } from '../../shared/accounting/money';
 import { accountingRangeSlug, formatAccountingRange } from '../../shared/accounting/period-range';
 import { downloadCsv } from '../../shared/accounting/csv';
@@ -24,13 +24,34 @@ import { samePaginationScope } from '../../shared/data/pagination-scope';
 import { accountingModule } from '../../app/module-navigation';
 import type { ServerReport } from '../../shared/data/reports';
 
-interface ReportRow { key: string; code: string; name: string; debit: bigint; credit: bigint; openingDebit?: bigint; openingCredit?: bigint; closingDebit?: bigint; closingCredit?: bigint; date?: string; documentId?: string; description?: string; account?: string }
+interface ReportRow {
+  key: string;
+  code: string;
+  name: string;
+  debit: bigint;
+  credit: bigint;
+  openingDebit?: bigint;
+  openingCredit?: bigint;
+  closingDebit?: bigint;
+  closingCredit?: bigint;
+  revenue?: bigint;
+  expense?: bigint;
+  wip?: bigint;
+  totalCost?: bigint;
+  profit?: bigint;
+  date?: string;
+  documentId?: string;
+  description?: string;
+  account?: string;
+  projectId?: string;
+  projectName?: string;
+}
 
 export function Component() {
- const { pathname } = useLocation();
- const [params] = useSearchParams();
- if (!isDemo && pathname !== "/receivables" && ["financial", "income"].includes(params.get("tab") ?? "")) return <FinancialReports />;
- return <BookReports />;
+  const { pathname } = useLocation();
+  const [params] = useSearchParams();
+  if (!isDemo && pathname !== '/receivables' && ['financial', 'income'].includes(params.get('tab') ?? '')) return <FinancialReports />;
+  return <BookReports />;
 }
 
 function BookReports() {
@@ -39,60 +60,104 @@ function BookReports() {
   const [params, setParams] = useSearchParams();
   const module = accountingModule(pathname);
   const isDebt = pathname === '/receivables' || params.get('tab') === 'debt';
-  const tab = isDebt ? 'debt' : params.get('tab') === 'trial' ? 'trial' : params.get('tab') === 'ledger' ? 'ledger' : 'journal';
+  const tab = isDebt ? 'debt' : params.get('tab') === 'trial' ? 'trial' : params.get('tab') === 'ledger' ? 'ledger' : params.get('tab') === 'project' ? 'project' : 'journal';
   const account = params.get('account') ?? 'all';
+  const project = params.get('project') ?? 'all';
   const search = params.get('q') ?? '';
   const requestedPage = Number(params.get('page'));
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const setFilter = (key: string, value: string) => setParams(previous => { const next = new URLSearchParams(previous); if (value) next.set(key, value); else next.delete(key); if (key !== 'page') next.delete('page'); return next; }, { replace: true });
   const setAccount = (value: string) => setFilter('account', value);
+  const setProject = (value: string) => setFilter('project', value === 'all' ? '' : value);
   const setSearch = (value: string) => setFilter('q', value);
   const setPage = (value: number) => setFilter('page', String(value));
   const debtType = params.get('debt') === 'payable' ? 'payable' : 'receivable';
   const setDebtType = (value: string) => setFilter('debt', value);
+  const isProjectSummary = tab === 'project' && project === 'all';
+  const isProjectDetail = tab === 'project' && project !== 'all';
   const rangeLabel = formatAccountingRange(fromDate, toDate);
   const rangeSlug = accountingRangeSlug(fromDate, toDate);
-  const serverParams = new URLSearchParams({ period, from: fromDate, to: toDate, kind: tab, account: isDebt ? debtType : account, q: search, page: String(page), pageSize: '10', revision: String(data?.revision ?? 0) });
+  const serverParams = new URLSearchParams({ period, from: fromDate, to: toDate, kind: tab, account: isDebt ? debtType : account, project: project !== 'all' ? project : '', q: search, page: String(page), pageSize: '10', revision: String(data?.revision ?? 0) });
   const queryKey = [...workspaceKey(), 'report', serverParams.toString()];
   const server = useQuery<ServerReport>({ queryKey, placeholderData: (previous, query) => samePaginationScope(queryKey, query?.queryKey) ? previous : undefined, queryFn: ({ signal }) => api<ServerReport>(`/reports?${serverParams}`, { signal }), enabled: !isDemo && Boolean(data), retry: false });
   if (!data) return <DataBoundary><></></DataBoundary>;
   const posted = data.documents.filter(item => item.status === 'posted' && item.date <= toDate);
   const current = posted.filter(item => item.date >= fromDate);
-  const rows: ReportRow[] = tab === 'trial' ? nonZeroTrialRows(trialBalance(data, period, fromDate, toDate)) : tab === 'debt' ? partnerBalances(data, period, debtType, toDate).map(item => ({ key: item.id, code: item.code, name: item.name, debit: item.balance > 0n ? item.balance : 0n, credit: item.balance < 0n ? -item.balance : 0n })).filter(item => item.debit || item.credit) : current.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)).flatMap(doc => doc.lines.map((line, index) => ({ key: `${doc.id}-${index}`, code: doc.reference, name: data.accounts.find(item => item.id === line.accountId)?.name ?? 'Tài khoản không tồn tại', account: line.accountId, date: doc.date, documentId: doc.id, description: line.description || doc.description, debit: BigInt(line.debit), credit: BigInt(line.credit) })));
-  const filtered = !isDemo ? server.data?.rows.map(exactRow) ?? [] : rows.filter(row => (tab !== 'ledger' || account === 'all' || row.account === account) && normalizeSearch(`${row.code} ${row.name} ${row.description ?? ''}`).includes(normalizeSearch(search)));
+  const demoProjectSummary = projectSummaryRows(data, period, fromDate, toDate);
+  const rows: ReportRow[] = tab === 'trial'
+    ? nonZeroTrialRows(trialBalance(data, period, fromDate, toDate))
+    : tab === 'debt'
+      ? partnerBalances(data, period, debtType, toDate).map(item => ({ key: item.id, code: item.code, name: item.name, debit: item.balance > 0n ? item.balance : 0n, credit: item.balance < 0n ? -item.balance : 0n })).filter(item => item.debit || item.credit)
+      : isProjectSummary
+        ? demoProjectSummary
+        : current.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)).flatMap(doc => doc.lines.map((line, index) => {
+          const proj = line.projectId ? formatLineProject(line, data.projects).text : '';
+          return { key: `${doc.id}-${index}`, code: doc.reference, name: data.accounts.find(item => item.id === line.accountId)?.name ?? 'Tài khoản không tồn tại', account: line.accountId, projectId: line.projectId, projectName: proj === '—' ? '' : proj, date: doc.date, documentId: doc.id, description: line.description || doc.description, debit: BigInt(line.debit), credit: BigInt(line.credit) };
+        }));
+  const filtered = !isDemo
+    ? server.data?.rows.map(exactRow) ?? []
+    : rows.filter(row => (tab !== 'ledger' || account === 'all' || row.account === account) && (isProjectSummary || project === 'all' || row.projectId === project) && normalizeSearch(`${row.code} ${row.name} ${row.description ?? ''} ${row.projectName ?? ''}`).includes(normalizeSearch(search)));
   const debit = !isDemo ? BigInt(server.data?.debit ?? '0') : filtered.reduce((sum, row) => sum + row.debit, 0n);
   const credit = !isDemo ? BigInt(server.data?.credit ?? '0') : filtered.reduce((sum, row) => sum + row.credit, 0n);
-  const sumField = (field: keyof Pick<ReportRow, 'openingDebit' | 'openingCredit' | 'closingDebit' | 'closingCredit'>) => !isDemo ? BigInt(server.data?.[field] ?? '0') : filtered.reduce((sum, row) => sum + (row[field] ?? 0n), 0n);
-  const amountColumn = (title: string, key: keyof ReportRow) => ({ title, dataIndex: key, align: 'right' as const, width: tab === 'trial' ? 185 : 145, render: (value: bigint) => <span className={styles.tableAmount}>{formatMoney(value)}</span> });
-  const titles = { journal: 'Nhật ký chung', ledger: 'Sổ cái', trial: 'Cân đối phát sinh', debt: 'Chi tiết công nợ' };
+  const sumField = (field: keyof Pick<ReportRow, 'openingDebit' | 'openingCredit' | 'closingDebit' | 'closingCredit' | 'revenue' | 'expense' | 'wip' | 'totalCost' | 'profit'>) => !isDemo ? BigInt(server.data?.[field] ?? '0') : filtered.reduce((sum, row) => sum + (row[field] ?? 0n), 0n);
+  const amountColumn = (title: string, key: keyof ReportRow, highlightProfit = false) => ({
+    title,
+    dataIndex: key,
+    align: 'right' as const,
+    width: tab === 'trial' ? 185 : isProjectSummary ? 165 : 145,
+    render: (value: bigint = 0n) => <span className={`${styles.tableAmount} ${highlightProfit ? value > 0n ? styles.positive : value < 0n ? styles.warning : '' : ''}`}>{formatMoney(value)}</span>,
+  });
+  const titles = { journal: 'Nhật ký chung', ledger: 'Sổ cái', trial: 'Cân đối phát sinh', debt: 'Chi tiết công nợ', project: 'Doanh thu & chi phí công trình' };
   const ledgerBalance = !isDemo ? server.data?.accountBalance ? exactRow(server.data.accountBalance) : null : tab === 'ledger' && account !== 'all' ? trialBalance(data, period, fromDate, toDate).find(item => item.key === account) : null;
-  const exportReport = (format: ExportFormat) => { if (!isDemo) { const path = `/reports/export?${serverParams}&format=${format}`; if (format === 'print') { window.open(`/api/v1${path}`, '_blank', 'noopener,noreferrer'); return; } return downloadApi(path, `so-${tab}-${rangeSlug}.${format}`); } downloadCsv(`so-mau-${tab}-${rangeSlug}.csv`, [
-    ['DỮ LIỆU MẪU', titles[tab], rangeLabel, `Phiên bản ${data.revision}`, `Tài khoản: ${tab === 'ledger' ? account : 'Tất cả'}`],
-    ...(tab === 'trial' ? [['Mã', 'Tên', 'Dư đầu Nợ', 'Dư đầu Có', 'Phát sinh Nợ', 'Phát sinh Có', 'Dư cuối Nợ', 'Dư cuối Có'], ...filtered.map(row => [row.code, row.name, ...[row.openingDebit, row.openingCredit, row.debit, row.credit, row.closingDebit, row.closingCredit].map(value => `${formatMoney(value ?? 0n)} VND`)])] : [['Mã chứng từ / đối tượng', 'Ngày', 'Diễn giải / tên', 'Tài khoản', 'Nợ', 'Có'], ...filtered.map(row => [row.code, row.date ?? '', row.description ?? row.name, row.account ?? '', `${formatMoney(row.debit)} VND`, `${formatMoney(row.credit)} VND`])]),
-  ]); };
+  const projectSummary = !isDemo ? server.data?.projectSummary ? exactRow(server.data.projectSummary) : null : isProjectDetail ? demoProjectSummary.find(item => item.key === project) ?? null : null;
+  const exportReport = (format: ExportFormat) => {
+    if (!isDemo) {
+      const path = `/reports/export?${serverParams}&format=${format}`;
+      if (format === 'print') { window.open(`/api/v1${path}`, '_blank', 'noopener,noreferrer'); return; }
+      return downloadApi(path, `so-${tab}-${rangeSlug}.${format}`);
+    }
+    downloadCsv(`so-mau-${tab}-${rangeSlug}.csv`, [
+      ['DỮ LIỆU MẪU', titles[tab], rangeLabel, `Phiên bản ${data.revision}`, `Tài khoản: ${tab === 'ledger' ? account : 'Tất cả'}`],
+      ...(tab === 'trial'
+        ? [['Mã', 'Tên', 'Dư đầu Nợ', 'Dư đầu Có', 'Phát sinh Nợ', 'Phát sinh Có', 'Dư cuối Nợ', 'Dư cuối Có'], ...filtered.map(row => [row.code, row.name, ...[row.openingDebit, row.openingCredit, row.debit, row.credit, row.closingDebit, row.closingCredit].map(value => `${formatMoney(value ?? 0n)} VND`)])]
+        : isProjectSummary
+          ? [['Mã công trình', 'Tên công trình', 'Doanh thu thuần', 'Chi phí (6xx)', 'Dở dang 154 (+/-)', 'Tổng chi phí tập hợp', 'Chênh lệch (DT − CP)'], ...filtered.map(row => [row.code, row.name, ...[row.revenue, row.expense, row.wip, row.totalCost, row.profit].map(value => `${formatMoney(value ?? 0n)} VND`)])]
+          : [['Mã chứng từ / đối tượng', 'Ngày', 'Diễn giải / tên', 'Tài khoản', 'Công trình', 'Nợ', 'Có'], ...filtered.map(row => [row.code, row.date ?? '', row.description ?? row.name, row.account ?? '', row.projectName ?? '', `${formatMoney(row.debit)} VND`, `${formatMoney(row.credit)} VND`])]),
+    ]);
+  };
 
-  const pageActions = <>{!isDemo && tab === 'trial' && <><OpeningBalances /><ImportExcelButton kind="opening" /></>}{!isDemo && isDebt && <Link to={module && 'tradeKind' in module ? `${module.path}/settlements` : '/settlements'}><ToolbarButton label="Công nợ theo chứng từ" icon="users" /></Link>}<ExportMenu onReload={refresh} onExport={exportReport} disabled={!filtered.length || server.isPlaceholderData} formats={isDemo ? ['csv'] : undefined} /></>;
+  const showProjectFilter = tab === 'project' || ((data.projects?.length ?? 0) > 0 && (tab === 'journal' || tab === 'ledger'));
+  const pageActions = <>{!isDemo && tab === 'trial' && <><OpeningBalances /><ImportExcelButton kind="opening" /></>}{tab === 'project' && <Link to={module && 'tradeKind' in module ? `${module.path}/projects` : '/catalog?tab=projects'}><ToolbarButton label="Danh mục công trình" icon="box" /></Link>}{!isDemo && isDebt && <Link to={module && 'tradeKind' in module ? `${module.path}/settlements` : '/settlements'}><ToolbarButton label="Công nợ theo chứng từ" icon="users" /></Link>}<ExportMenu onReload={refresh} onExport={exportReport} disabled={!filtered.length || server.isPlaceholderData} formats={isDemo ? ['csv'] : undefined} /></>;
 
   return <DataBoundary>
     <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} />
-    <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : 'book'} /></span><div><strong>{titles[tab]} · {rangeLabel}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
+    <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : tab === 'project' ? 'chart' : 'book'} /></span><div><strong>{titles[tab]} · {rangeLabel}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : tab === 'project' ? 'Tổng chi phí tập hợp gồm chi phí 6xx và biến động dở dang 154, không tính trùng khi kết chuyển 154 → 632' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
     {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={() => { refresh(); void server.refetch(); }}>Tải lại dữ liệu</Button>} />}
     <section className={styles.panel}>
-      {(!isDebt || module) && <div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setParams({ tab: value, ...(value === 'debt' ? { debt: module && 'tradeKind' in module && module.tradeKind === 'purchase' ? 'payable' : 'receivable' } : {}) }); }} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, ...(module && 'tradeKind' in module ? [{ key: 'debt', label: 'Công nợ theo đối tượng' }] : []), ...(!isDemo ? [{ key: 'financial', label: 'Báo cáo tài chính' }] : [])]} /></div>}
-      <PageToolbar label="Công cụ báo cáo" actions={pageActions} activeFilters={Number(Boolean(search.trim())) + Number(tab === 'ledger' && account !== 'all')} onResetFilters={() => { setSearch(''); if (tab === 'ledger') setAccount('all'); }}><DebouncedSearchInput scopeKey={`${fromDate}-${toDate}-${pathname}-${tab}-${account}-${debtType}`} prefix={<Icon name="search" size={17} />} value={search} onSearch={setSearch} aria-label="Tìm trong báo cáo" placeholder="Tìm mã, tên hoặc diễn giải…" allowClear className={styles.filterSearch} />{tab === 'ledger' && <Select aria-label="Chọn tài khoản sổ cái" showSearch={searchOptions} value={account} onChange={value => { setAccount(value); }} style={{ minWidth: 240 }} options={[{ value: 'all', label: 'Tất cả tài khoản' }, ...data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{isDebt && <Select aria-label="Loại công nợ" value={debtType} onChange={value => { setDebtType(value); }} style={{ minWidth: 210 }} options={[{ value: 'receivable', label: 'Phải thu khách hàng · 131' }, { value: 'payable', label: 'Phải trả người bán · 331' }]} />}</PageToolbar>
+      {(!isDebt || module) && <div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setParams({ tab: value, ...(value === 'debt' ? { debt: module && 'tradeKind' in module && module.tradeKind === 'purchase' ? 'payable' : 'receivable' } : {}) }); }} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, { key: 'project', label: 'Doanh thu & chi phí công trình' }, ...(module && 'tradeKind' in module ? [{ key: 'debt', label: 'Công nợ theo đối tượng' }] : []), ...(!isDemo ? [{ key: 'financial', label: 'Báo cáo tài chính' }] : [])]} /></div>}
+      <PageToolbar label="Công cụ báo cáo" actions={pageActions} activeFilters={Number(Boolean(search.trim())) + Number(tab === 'ledger' && account !== 'all') + Number(showProjectFilter && project !== 'all')} onResetFilters={() => { setSearch(''); if (tab === 'ledger') setAccount('all'); if (showProjectFilter) setProject('all'); }}><DebouncedSearchInput scopeKey={`${fromDate}-${toDate}-${pathname}-${tab}-${account}-${project}-${debtType}`} prefix={<Icon name="search" size={17} />} value={search} onSearch={setSearch} aria-label="Tìm trong báo cáo" placeholder={tab === 'project' ? 'Tìm mã, tên công trình hoặc diễn giải…' : 'Tìm mã, tên hoặc diễn giải…'} allowClear className={styles.filterSearch} />{tab === 'ledger' && <Select aria-label="Chọn tài khoản sổ cái" showSearch={searchOptions} value={account} onChange={value => { setAccount(value); }} style={{ minWidth: 240 }} options={[{ value: 'all', label: 'Tất cả tài khoản' }, ...data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{showProjectFilter && <Select aria-label="Chọn công trình báo cáo" showSearch={searchOptions} value={project} onChange={value => { setProject(value); }} style={{ minWidth: 220 }} options={[{ value: 'all', label: 'Tất cả công trình' }, ...(data.projects ?? []).map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{isDebt && <Select aria-label="Loại công nợ" value={debtType} onChange={value => { setDebtType(value); }} style={{ minWidth: 210 }} options={[{ value: 'receivable', label: 'Phải thu khách hàng · 131' }, { value: 'payable', label: 'Phải trả người bán · 331' }]} />}</PageToolbar>
       {ledgerBalance && <div className={styles.ledgerBalances}>{[['Dư đầu Nợ', ledgerBalance.openingDebit], ['Dư đầu Có', ledgerBalance.openingCredit], ['Dư cuối Nợ', ledgerBalance.closingDebit], ['Dư cuối Có', ledgerBalance.closingCredit]].map(([label, value]) => <span key={String(label)}>{label}<strong>{formatMoney(value as bigint)}<small>VND</small></strong></span>)}</div>}
+      {isProjectDetail && projectSummary && <div className={styles.ledgerBalances}><Button size="small" onClick={() => setProject('all')}>← Tất cả công trình</Button>{[['Doanh thu thuần', projectSummary.revenue], ['Chi phí (6xx)', projectSummary.expense], ['Dở dang 154 (+/-)', projectSummary.wip], ['Tổng chi phí tập hợp', projectSummary.totalCost], ['Chênh lệch (DT − CP)', projectSummary.profit]].map(([label, value]) => <span key={String(label)}>{label}<strong>{formatMoney(value as bigint)}<small>VND</small></strong></span>)}</div>}
       {server.isPlaceholderData && <div role="status" className={styles.searchHint}>Đang tải trang {page}… Nội dung đang cập nhật.</div>}
-      <Table<ReportRow> loading={{ spinning: !isDemo && server.isFetching, delay: 120 }} key={`${tab}-${fromDate}-${toDate}-${account}`} rowKey="key" dataSource={filtered} scroll={{ x: tab === 'trial' ? 1300 : 850 }} pagination={{ current: page, onChange: setPage, total: isDemo ? filtered.length : server.data?.total ?? 0, pageSize: 10, hideOnSinglePage: true, showSizeChanger: false, showTotal: total => `${total} dòng` }} columns={tab === 'trial' ? [
+      <Table<ReportRow> loading={{ spinning: !isDemo && server.isFetching, delay: 120 }} key={`${tab}-${fromDate}-${toDate}-${account}-${project}`} rowKey="key" dataSource={filtered} scroll={{ x: tab === 'trial' ? 1300 : isProjectSummary ? 1150 : 900 }} pagination={{ current: page, onChange: setPage, total: isDemo ? filtered.length : server.data?.total ?? 0, pageSize: 10, hideOnSinglePage: true, showSizeChanger: false, showTotal: total => `${total} dòng` }} columns={tab === 'trial' ? [
         { title: 'TÀI KHOẢN', dataIndex: 'code', width: 110, fixed: 'left' }, { title: 'TÊN TÀI KHOẢN', dataIndex: 'name', width: 220 },
         { title: 'DƯ ĐẦU KỲ', children: [amountColumn('Nợ', 'openingDebit'), amountColumn('Có', 'openingCredit')] },
         { title: 'PHÁT SINH TRONG KỲ', children: [amountColumn('Nợ', 'debit'), amountColumn('Có', 'credit')] },
         { title: 'DƯ CUỐI KỲ', children: [amountColumn('Nợ', 'closingDebit'), amountColumn('Có', 'closingCredit')] },
+      ] : isProjectSummary ? [
+        { title: 'MÃ CÔNG TRÌNH', dataIndex: 'code', width: 150, render: (value: string, row) => <button className={styles.tableLink} onClick={() => setProject(row.key)}>{value}</button> },
+        { title: 'TÊN CÔNG TRÌNH', dataIndex: 'name' },
+        amountColumn('DOANH THU THUẦN', 'revenue'),
+        amountColumn('CHI PHÍ (6xx)', 'expense'),
+        amountColumn('DỞ DANG 154 (+/-)', 'wip'),
+        amountColumn('TỔNG CHI PHÍ TẬP HỢP', 'totalCost'),
+        amountColumn('CHÊNH LỆCH (DT − CP)', 'profit', true),
       ] : isDebt ? [{ title: 'MÃ ĐỐI TƯỢNG', dataIndex: 'code', width: 150 }, { title: 'TÊN ĐỐI TƯỢNG', dataIndex: 'name' }, amountColumn('DƯ NỢ (VND)', 'debit'), amountColumn('DƯ CÓ (VND)', 'credit')] : [
         { title: 'NGÀY', dataIndex: 'date', width: 105, render: formatDate },
         { title: 'CHỨNG TỪ', dataIndex: 'code', width: 135, render: (value: string, row) => <button className={styles.tableLink} disabled={server.isPlaceholderData} onClick={() => openDocument(row.documentId ?? null)}>{value}</button> },
-        { title: 'DIỄN GIẢI', dataIndex: 'description', render: (value: string, row) => <>{value}<small className={styles.cellSub}>{row.name}</small></> },
+        { title: 'DIỄN GIẢI', dataIndex: 'description', render: (value: string, row) => <>{value}<small className={styles.cellSub}>{row.name}{row.projectName ? ` · ${row.projectName}` : ''}</small></> },
         { title: 'TK', dataIndex: 'account', width: 65 }, amountColumn('NỢ (VND)', 'debit'), amountColumn('CÓ (VND)', 'credit'),
-      ]} summary={() => !isDemo && !server.data ? null : tab === 'trial' ? <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell>{[sumField('openingDebit'), sumField('openingCredit'), debit, credit, sumField('closingDebit'), sumField('closingCredit')].map((value, index) => <Table.Summary.Cell index={index + 2} align="right" key={index}><strong className={styles.tableAmount}>{formatMoney(value)}</strong></Table.Summary.Cell>)}</Table.Summary.Row> : <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={isDebt ? 2 : 4}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 2 : 4} align="right"><strong>{formatMoney(debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 3 : 5} align="right"><strong>{formatMoney(credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />
+      ]} summary={() => !isDemo && !server.data ? null : tab === 'trial' ? <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell>{[sumField('openingDebit'), sumField('openingCredit'), debit, credit, sumField('closingDebit'), sumField('closingCredit')].map((value, index) => <Table.Summary.Cell index={index + 2} align="right" key={index}><strong className={styles.tableAmount}>{formatMoney(value)}</strong></Table.Summary.Cell>)}</Table.Summary.Row> : isProjectSummary ? <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell>{[sumField('revenue'), sumField('expense'), sumField('wip'), sumField('totalCost'), sumField('profit')].map((value, index) => <Table.Summary.Cell index={index + 2} align="right" key={index}><strong className={styles.tableAmount}>{formatMoney(value)}</strong></Table.Summary.Cell>)}</Table.Summary.Row> : <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={isDebt ? 2 : 4}><strong>Tổng toàn bộ tập lọc</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 2 : 4} align="right"><strong>{formatMoney(debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={isDebt ? 3 : 5} align="right"><strong>{formatMoney(credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />
     </section>
   </DataBoundary>;
 }

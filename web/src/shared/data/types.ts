@@ -4,7 +4,9 @@ export type DocumentStatus = 'posted' | 'draft';
 export interface JournalLine {
   accountId: string;
   partnerId?: string;
+  projectId?: string;
   partnerName?: string;
+  projectName?: string;
   accountName?: string;
   description: string;
   debit: string;
@@ -42,6 +44,15 @@ export interface Partner {
   active: boolean;
 }
 
+export interface Project {
+  hasReferences?: boolean;
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
 export interface Account {
   hasReferences?: boolean;
   parentId?: string;
@@ -68,6 +79,7 @@ export interface Workspace {
   revision: number;
   documents: AccountingDocument[];
   partners: Partner[];
+  projects?: Project[];
   accounts: Account[];
 }
 
