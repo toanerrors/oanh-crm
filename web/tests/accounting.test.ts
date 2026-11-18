@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { formatMoney, isMoney, MAX_MONEY, isCalendarDate, normalizeSearch, compactMoney, parseMoneyInput } from '../src/shared/accounting/money.ts';
-import { accountBalance, filterDocuments, partnerBalances, periodDocuments, periodMovement, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
+import { accountBalance, filterDocuments, formatLineAccount, formatLinePartner, partnerBalances, periodDocuments, periodMovement, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
 import { serializeCsv } from '../src/shared/accounting/csv.ts';
 import { initialWorkspace } from '../src/shared/data/demo.ts';
 import { saveDemoDraft, saveDemoPartners, workspaceOptions } from '../src/shared/data/workspace.ts';
@@ -142,4 +142,27 @@ test('danh mục chưa dùng cho phép sửa mã và vẫn chặn mã trùng', a
   await saveDemoPartners([partner]);
   await saveDemoPartners([{ ...partner, code: 'EDIT002', name: 'Đối tác đã sửa', role: 'both' }]);
   await assert.rejects(saveDemoPartners([{ ...partner, id: 'duplicate-edit', code: 'EDIT002' }]), /bị trùng/);
+});
+
+test('hiển thị đối tượng và tài khoản trên dòng hạch toán dùng mã và tên, không lộ UUID', () => {
+  const partners = [{ id: '67fe6f44-66e8-47eb-b0d4-f747be62cbd4', code: '0318088925', name: 'CÔNG TY CỔ PHẦN HARMONY WORLD', role: 'supplier' as const, email: '', phone: '', active: true }];
+  const accounts = [{ id: 'a1b2c3d4-0000-4000-8000-000000000331', code: '3311', name: 'Phải trả nhà cung cấp nội địa', group: 'payable' as const, active: true }];
+  assert.deepEqual(formatLinePartner({}, partners), { text: '—' });
+  assert.deepEqual(
+    formatLinePartner({ partnerId: '67fe6f44-66e8-47eb-b0d4-f747be62cbd4', partnerName: 'CÔNG TY CỔ PHẦN HARMONY WORLD' }, partners),
+    { text: '0318088925 · CÔNG TY CỔ PHẦN HARMONY WORLD', title: '0318088925 · CÔNG TY CỔ PHẦN HARMONY WORLD' },
+  );
+  assert.deepEqual(
+    formatLinePartner({ partnerId: '67fe6f44-66e8-47eb-b0d4-f747be62cbd4', partnerName: 'Tên tại thời điểm ghi sổ' }, partners),
+    { text: '0318088925 · Tên tại thời điểm ghi sổ', title: '0318088925 · Tên tại thời điểm ghi sổ' },
+  );
+  assert.deepEqual(formatLinePartner({ partnerId: 'missing-uuid' }, partners), { text: 'Không tìm thấy đối tượng' });
+  assert.deepEqual(formatLinePartner({ partnerId: 'loading-uuid' }, undefined), { text: 'Đang tải…' });
+  assert.deepEqual(formatLinePartner({ partnerId: 'loading-uuid', partnerName: 'Tên từ server' }, undefined), { text: 'Tên từ server', title: 'Tên từ server' });
+  assert.deepEqual(
+    formatLineAccount({ accountId: 'a1b2c3d4-0000-4000-8000-000000000331' }, accounts),
+    { code: '3311', name: 'Phải trả nhà cung cấp nội địa', title: '3311 · Phải trả nhà cung cấp nội địa' },
+  );
+  assert.deepEqual(formatLineAccount({ accountId: 'missing-account-uuid' }, accounts), { code: 'Không tìm thấy tài khoản', name: undefined, title: undefined });
+  assert.deepEqual(formatLineAccount({ accountId: 'loading-account-uuid' }, undefined), { code: 'Đang tải…', name: undefined, title: undefined });
 });

@@ -4,6 +4,8 @@ export type DocumentStatus = 'posted' | 'draft';
 export interface JournalLine {
   accountId: string;
   partnerId?: string;
+  partnerName?: string;
+  accountName?: string;
   description: string;
   debit: string;
   credit: string;

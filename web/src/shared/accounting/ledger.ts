@@ -5,6 +5,28 @@ export function totals(lines: JournalLine[]): { debit: bigint; credit: bigint } 
   return lines.reduce((sum, line) => ({ debit: sum.debit + BigInt(line.debit), credit: sum.credit + BigInt(line.credit) }), { debit: 0n, credit: 0n });
 }
 
+export function formatLinePartner(line: Pick<JournalLine, 'partnerId' | 'partnerName'>, partners?: Workspace['partners']): { text: string; title?: string } {
+  if (!line.partnerId && !line.partnerName) return { text: '—' };
+  const partner = line.partnerId ? partners?.find(item => item.id === line.partnerId) : undefined;
+  if (partner) {
+    const name = line.partnerName || partner.name;
+    const text = partner.code ? `${partner.code} · ${name}` : name;
+    return { text, title: text };
+  }
+  if (line.partnerName) return { text: line.partnerName, title: line.partnerName };
+  return { text: partners ? 'Không tìm thấy đối tượng' : 'Đang tải…' };
+}
+
+export function formatLineAccount(line: Pick<JournalLine, 'accountId' | 'accountName'>, accounts?: Account[]): { code: string; name?: string; title?: string } {
+  const account = accounts?.find(item => item.id === line.accountId);
+  if (account) {
+    const name = line.accountName || account.name;
+    return { code: account.code, name, title: `${account.code} · ${name}` };
+  }
+  const code = accounts ? 'Không tìm thấy tài khoản' : 'Đang tải…';
+  return { code, name: line.accountName, title: line.accountName };
+}
+
 export function validateDraft(document: AccountingDocument, workspace: Workspace): string[] {
   const errors: string[] = [];
   if (!document.description.trim()) errors.push('Nhập diễn giải chứng từ.');

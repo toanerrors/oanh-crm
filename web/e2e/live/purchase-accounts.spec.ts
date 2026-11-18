@@ -203,3 +203,64 @@ test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài k
   await page.getByRole('tab', { name: 'Hạch toán', exact: true }).click();
   await expect(page.getByLabel('Tài khoản công nợ dòng 1', { exact: true })).toBeDisabled();
 });
+
+test('bút toán server tính hiển thị mã và tên đối tượng, tài khoản thay vì UUID nội bộ', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-18T02:38:00Z'));
+  const credentials = { username: 'e2e-owner', password: 'Synthetic-test-only-2026' };
+  const session = await (await page.request.get('/api/v1/session')).json();
+  if (session.needsSetup) {
+    const response = await page.request.post('/api/v1/setup', { data: { ...credentials, name: 'Người kiểm thử', companyName: 'Doanh nghiệp E2E', regime: 'Chế độ kiểm thử', confirmAccounts: true } });
+    expect(response.ok(), await response.text()).toBe(true);
+  }
+  const loggedIn = await page.request.post('/api/v1/auth/login', { data: credentials });
+  expect(loggedIn.ok(), await loggedIn.text()).toBe(true);
+  const { context } = await (await page.request.get('/api/v1/session')).json();
+  async function command(path: string, data: unknown) {
+    const response = await page.request.post(`/api/v1${path}`, { data, headers: { 'X-Dataset-Epoch': context.epoch, 'Idempotency-Key': crypto.randomUUID() } });
+    expect(response.ok(), await response.text()).toBe(true);
+  }
+  const customAccountId = 'a1b2c3d4-1111-4222-8333-444455556666';
+  await command('/accounts', { id: customAccountId, code: '64271', name: 'Chi phí thuê văn phòng', group: 'expense', requiresPartner: false, active: true, parentId: '642', parentRevision: 0 });
+  await command('/policies', { regime: 'Chế độ kiểm thử', effectiveFrom: '2026-11-01', confirmed: true, rounding: 'half_up', vatMethod: 'deduction', vatRates: ['0', '8', '10'], inventoryMethod: 'fifo', quantityScale: 2, standardDays: '26', hoursPerDay: '8', personalDeduction: '100', dependentDeduction: '50', corporateTaxRate: '20', insurance: [{ name: 'Khoản BH thử', employeeRate: '10', employerRate: '20' }], pitBrackets: [{ upTo: '1000', rate: '5' }, { upTo: '', rate: '10' }], depreciationMethod: 'straight_line', residualMethod: 'last_period' });
+  await command('/items', { id: 'rent-service-uuid', code: 'DV-THUE', name: 'THUÊ NHÀ', unit: 'tháng', tracked: false, active: true });
+  await page.goto('/vouchers/new?kind=purchase&service=1');
+  const partnerSaved = page.waitForResponse(response => response.url().endsWith('/api/v1/partners') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Mã nhà cung cấp: thêm nhà cung cấp', exact: true }).click();
+  await page.getByLabel('Mã đối tượng', { exact: true }).fill('0318088925');
+  await page.getByLabel('Tên đối tượng', { exact: true }).fill('CÔNG TY CỔ PHẦN HARMONY WORLD');
+  await page.getByLabel('Tên đối tượng', { exact: true }).press('Control+s');
+  const createdPartners = await (await partnerSaved).json();
+  const createdPartner = createdPartners.find((item: { code: string }) => item.code === '0318088925');
+  expect(createdPartner.id).toMatch(/^[0-9a-f-]{36}$/);
+  await page.getByLabel('Diễn giải', { exact: true }).fill('Thuê nhà tháng 11');
+  await choose(page, 'Hàng dịch vụ dòng 1', 'DV-THUE');
+  await choose(page, 'Tài khoản dòng 1', '64271');
+  await page.getByLabel('Đơn giá dòng 1', { exact: true }).fill('2000000');
+  await choose(page, 'VAT dòng 1', '8');
+  await choose(page, 'Khấu trừ VAT dòng 1', 'Có');
+  await page.getByRole('button', { name: /Tính và xem trước/ }).click();
+  await expect(page.getByRole('heading', { name: /Bút toán server tính/ })).toBeVisible();
+  const previewPanel = page.locator('section').filter({ has: page.getByRole('heading', { name: /Bút toán server tính/ }) }).last();
+  await expect(previewPanel.locator('table').first()).toContainText('64271');
+  await expect(previewPanel.locator('table').first()).toContainText('0318088925 · CÔNG TY CỔ PHẦN HARMONY WORLD');
+  await expect(previewPanel).not.toContainText(createdPartner.id);
+  await expect(previewPanel).not.toContainText(customAccountId);
+  await page.getByRole('radio', { name: 'Thanh toán ngay', exact: true }).check();
+  await page.getByRole('button', { name: /Tính và xem trước/ }).click();
+  await expect(page.getByRole('heading', { name: /Phiếu chi liên kết/ })).toBeVisible();
+  await expect(previewPanel.getByText('0318088925 · CÔNG TY CỔ PHẦN HARMONY WORLD')).toHaveCount(2);
+  await expect(previewPanel).not.toContainText(createdPartner.id);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: 'Ghi sổ', exact: true }).click();
+  await expect(page.getByText('Đã ghi sổ', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await expect(page).toHaveURL('/purchases');
+  const linesRegion = page.getByRole('region', { name: 'Chi tiết chứng từ đang chọn', exact: true });
+  await expect(linesRegion).toContainText('64271');
+  await expect(linesRegion).toContainText('0318088925 · CÔNG TY CỔ PHẦN HARMONY WORLD');
+  await expect(linesRegion).not.toContainText(createdPartner.id);
+  await expect(linesRegion).not.toContainText(customAccountId);
+});

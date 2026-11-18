@@ -10,7 +10,7 @@ import { documentTypes } from '../../shared/data/types';
 import type { AccountingDocument, JournalLine } from '../../shared/data/types';
 import { canPairJournalLines, journalEntryRows, journalEntrySides } from '../../shared/accounting/journal-entry';
 import type { JournalSide } from '../../shared/accounting/journal-entry';
-import { totals } from '../../shared/accounting/ledger';
+import { formatLineAccount, formatLinePartner, totals } from '../../shared/accounting/ledger';
 import { formatDate, formatMoney, isMoney } from '../../shared/accounting/money';
 import { Icon } from '../../shared/ui/Icon';
 import { MoneyInput } from '../../shared/ui/MoneyInput';
@@ -167,13 +167,13 @@ export function DocumentDetail() {
       <Descriptions column={{ xs: 1, sm: 2 }} className={styles.documentMeta} items={[
         { key: 'date', label: 'Ngày chứng từ', children: formatDate(document.date) },
         { key: 'currency', label: 'Đồng tiền', children: 'VND · Đơn vị đồng' },
-        { key: 'partner', label: 'Đối tượng', children: data.partners.find(item => item.id === document.partnerId)?.name ?? 'Không áp dụng' },
+        { key: 'partner', label: 'Đối tượng', children: document.partnerId ? formatLinePartner({ partnerId: document.partnerId }, data.partners).text : 'Không áp dụng' },
         { key: 'version', label: 'Phiên bản nháp / nguồn', children: document.version },
         { key: 'description', label: 'Diễn giải', children: document.description },
       ]} />
       <Table dataSource={document.lines.map((line, index) => ({ ...line, key: index }))} pagination={false} scroll={{ x: 650 }} columns={[
-        { title: 'Tài khoản', dataIndex: 'accountId', render: (id: string) => <><strong>{id}</strong><small className={styles.cellSub}>{data.accounts.find(item => item.id === id)?.name}</small></> },
-        { title: 'Đối tượng', dataIndex: 'partnerId', render: (id: string | undefined) => data.partners.find(item => item.id === id)?.name ?? '—' },
+        { title: 'Tài khoản', dataIndex: 'accountId', render: (_, line) => { const account = formatLineAccount(line, data.accounts); return <><strong>{account.code}</strong><small className={styles.cellSub}>{account.name}</small></>; } },
+        { title: 'Đối tượng', dataIndex: 'partnerId', render: (_, line) => { const partner = formatLinePartner(line, data.partners); return <span title={partner.title}>{partner.text}</span>; } },
         { title: 'Nợ', dataIndex: 'debit', align: 'right', render: (value: string) => formatMoney(value) },
         { title: 'Có', dataIndex: 'credit', align: 'right', render: (value: string) => formatMoney(value) },
       ]} summary={() => <Table.Summary.Row><Table.Summary.Cell index={0} colSpan={2}><strong>Tổng cộng</strong></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><strong>{total && formatMoney(total.debit)}</strong></Table.Summary.Cell><Table.Summary.Cell index={3} align="right"><strong>{total && formatMoney(total.credit)}</strong></Table.Summary.Cell></Table.Summary.Row>} />

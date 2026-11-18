@@ -10,6 +10,12 @@ Cập nhật: 18/11/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Hiển thị mã và tên đối tượng, tài khoản trên bảng bút toán — 0.18.1
+
+- Đã làm: bổ sung `formatLinePartner` và `formatLineAccount` trong `web/src/shared/accounting/ledger.ts` để tra `partnerId`/`accountId` sang `mã · tên` từ danh mục hiện hành (ưu tiên giữ tên snapshot lịch sử `partnerName`/`accountName` trên dòng bút toán đã lưu; hiển thị `—` khi dòng không gắn đối tượng và nhãn `Đang tải…`/`Không tìm thấy…` thay vì in UUID nội bộ).
+- Áp dụng đồng bộ cho bảng `Bút toán server tính`, bảng `Phiếu thu/chi liên kết` và cột tài khoản tiền/chuyển tiền trong `VoucherForm.tsx`, bảng `Kết quả server tính` trong `Automation.tsx`, bảng `Chi tiết chứng từ đang chọn` trong `Documents.tsx` và ngăn `Chi tiết chứng từ` trong `DocumentDrawer.tsx`. Không thay đổi backend, schema hoặc quy tắc ghi sổ.
+- Đã kiểm tra: `tsc --noEmit`, `tsc -b`, 74 unit test Node (thêm test `formatLinePartner`/`formatLineAccount`), `vite build`, 16/16 E2E `workspace.spec.ts` và kịch bản E2E live `bút toán server tính hiển thị mã và tên đối tượng, tài khoản thay vì UUID nội bộ` trong `purchase-accounts.spec.ts` (kiểm chứng cả desktop 1440px và mobile 390px không tràn ngang).
+
 ## Mặc định mở kỳ kế toán, chỉ khóa khi chốt sổ — 0.18.0
 
 - Đã làm: bỏ yêu cầu phải mở kỳ từng tháng trước khi lập/ghi sổ chứng từ, sửa chứng từ đã ghi sổ, ghi tăng tài sản hay xác nhận/điều chỉnh số dư đầu kỳ. Mọi kỳ chưa có bản ghi trong `periods` hoặc có `closed=0` đều mặc định đang mở (`ledger.PeriodClosedTx`); chỉ chặn khi kỳ có `closed=1`. Khi kết chuyển lãi lỗ (`closing`), server tự upsert `closed=1` vào `periods`.
