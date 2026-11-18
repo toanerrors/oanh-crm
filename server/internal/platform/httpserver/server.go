@@ -128,6 +128,7 @@ func New(store *sqlite.Store, assets string, secure bool) *Server {
 
 	m.HandleFunc("POST /api/v1/restore/stage", s.stageRestore)
 	m.HandleFunc("POST /api/v1/restore/activate", s.activateRestore)
+	m.HandleFunc("POST /api/v1/restore/reset", s.resetDataset)
 	m.HandleFunc("GET /api/v1/documents/{id}/attachments", s.attachments)
 	m.HandleFunc("POST /api/v1/documents/{id}/attachments", s.uploadAttachment)
 	m.HandleFunc("GET /api/v1/attachments/{id}", s.downloadAttachment)
@@ -164,7 +165,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
 	r = r.WithContext(ctx)
-	if r.URL.Path == "/api/v1/restore/activate" {
+	if r.URL.Path == "/api/v1/restore/activate" || r.URL.Path == "/api/v1/restore/reset" {
 		s.Store.Gate.Lock()
 		defer s.Store.Gate.Unlock()
 	} else {

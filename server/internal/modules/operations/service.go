@@ -84,6 +84,37 @@ func (s *Service) SavePolicy(ctx context.Context, cmd ledger.Command, p Policy) 
 		if affected > 0 {
 			return nil, accounting.Fail("HISTORY_LOCKED", "Ngày hiệu lực mới không được thay chính sách của nghiệp vụ đã ghi nhận.")
 		}
+		if existingID := strings.TrimSpace(p.ID); existingID != "" {
+			var existingVersion int
+			if err := tx.QueryRowContext(ctx, "SELECT version FROM policies WHERE id=?", existingID).Scan(&existingVersion); err != nil {
+				if err == sql.ErrNoRows {
+					return nil, accounting.Fail("NOT_FOUND", "Không tìm thấy phiên bản chính sách.")
+				}
+				return nil, err
+			}
+			var referenced int
+			if err := tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM operations WHERE policy_id=?) + (SELECT count(*) FROM documents WHERE policy_id=?)", existingID, existingID).Scan(&referenced); err != nil {
+				return nil, err
+			}
+			if referenced > 0 {
+				return nil, accounting.Fail("HISTORY_LOCKED", "Chính sách đã có chứng từ áp dụng; hãy thêm phiên bản chính sách mới với ngày hiệu lực tiếp theo.")
+			}
+			var lowerFrom, nextFrom string
+			if err := tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(CASE WHEN version<? THEN effective_from END),''),COALESCE(MIN(CASE WHEN version>? THEN effective_from END),'') FROM policies WHERE id<>?", existingVersion, existingVersion, existingID).Scan(&lowerFrom, &nextFrom); err != nil {
+				return nil, err
+			}
+			if lowerFrom != "" && p.EffectiveFrom <= lowerFrom || nextFrom != "" && p.EffectiveFrom >= nextFrom {
+				return nil, accounting.Fail("HISTORY_LOCKED", "Ngày hiệu lực phải giữ đúng thứ tự giữa các phiên bản chính sách.")
+			}
+			p.ID = existingID
+			p.Version = existingVersion
+			b, err := json.Marshal(p)
+			if err != nil {
+				return nil, err
+			}
+			_, err = tx.ExecContext(ctx, "UPDATE policies SET effective_from=?,data=? WHERE id=?", p.EffectiveFrom, string(b), p.ID)
+			return p, err
+		}
 		var latest string
 		err := tx.QueryRowContext(ctx, "SELECT data FROM policies ORDER BY effective_from DESC LIMIT 1").Scan(&latest)
 		if err != nil && err != sql.ErrNoRows {

@@ -120,23 +120,13 @@ func (s *Service) Setup(ctx context.Context, input Setup) error {
 	if _, err = tx.ExecContext(ctx, "UPDATE meta SET company_name=?,regime=?,revision=revision+1 WHERE id=1", input.CompanyName, input.Regime); err != nil {
 		return err
 	}
-	for _, a := range initialAccounts {
-		if _, err = tx.ExecContext(ctx, "INSERT INTO accounts VALUES(?,?,?,?,?,1) ON CONFLICT(code) DO NOTHING", a[0], a[0], a[1], a[2], a[3] == "1"); err != nil {
-			return err
-		}
-	}
-	if err = sqlite.SeedAccountHierarchy(ctx, tx, 0); err != nil {
+	if err = sqlite.SeedInitialAccounts(ctx, tx); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO audit(actor_id,action,entity_id,occurred_at,revision) SELECT ?,'setup',company_id,?,revision FROM meta", id, sqlite.Now()); err != nil {
 		return err
 	}
 	return tx.Commit()
-}
-
-var initialAccounts = [][4]string{
-	{"821", "Chi phí thuế thu nhập doanh nghiệp", "expense", "0"}, {"3334", "Thuế thu nhập doanh nghiệp", "tax", "0"},
-	{"111", "Tiền mặt", "cash", "0"}, {"1121", "Tiền gửi ngân hàng", "cash", "0"}, {"131", "Phải thu của khách hàng", "receivable", "1"}, {"1331", "Thuế GTGT được khấu trừ", "tax", "0"}, {"156", "Hàng hóa", "inventory", "0"}, {"154", "Chi phí sản xuất kinh doanh dở dang", "wip", "0"}, {"211", "Tài sản cố định hữu hình", "asset", "0"}, {"214", "Hao mòn tài sản cố định", "asset", "0"}, {"242", "Chi phí trả trước", "asset", "0"}, {"331", "Phải trả cho người bán", "payable", "1"}, {"33311", "Thuế GTGT phải nộp", "tax", "0"}, {"3335", "Thuế thu nhập cá nhân", "tax", "0"}, {"334", "Phải trả người lao động", "liability", "0"}, {"338", "Phải trả bảo hiểm", "liability", "0"}, {"411", "Vốn đầu tư của chủ sở hữu", "capital", "0"}, {"421", "Lợi nhuận sau thuế chưa phân phối", "capital", "0"}, {"511", "Doanh thu bán hàng và cung cấp dịch vụ", "revenue", "0"}, {"632", "Giá vốn hàng bán", "expense", "0"}, {"642", "Chi phí quản lý doanh nghiệp", "expense", "0"}, {"911", "Xác định kết quả kinh doanh", "capital", "0"},
 }
 
 func (s *Service) Login(ctx context.Context, username, password string) (User, string, error) {

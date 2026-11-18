@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { restoreConfirmation,currentBackupState } from '../src/features/workspace/recovery-state.ts';
+import { restoreConfirmation,resetConfirmation,currentBackupState } from '../src/features/workspace/recovery-state.ts';
 import type { RestorePreview,BackupOverview } from '../src/features/workspace/recovery-state.ts';
 const preview:RestorePreview={id:'stage',expiresAt:'2026-10-24T12:30:00Z',current:{companyId:'company',companyName:'Công ty kiểm thử',epoch:'new',revision:9,documents:10,posted:8,attachments:2},manifest:{companyId:'company',companyName:'Công ty kiểm thử',epoch:'old',revision:4,createdAt:'2026-10-24T11:00:00Z',documents:4,posted:2,debit:'9007199254740993',credit:'9007199254740993'}};
 test('khôi phục cần đúng tên, lý do, xác nhận và kết quả kiểm tra còn hạn',()=>{
@@ -18,4 +18,11 @@ test('trạng thái bảo vệ không nhận bản sao của epoch trước làm
  assert.equal(currentBackupState({...data,latest:{...data.latest!,manifest:{...preview.manifest,epoch:'new'}}}),'changed');
  assert.equal(currentBackupState({...data,latest:{...data.latest!,manifest:{...preview.manifest,epoch:'new',revision:9}}}),'current');
  assert.equal(currentBackupState({...data,latest:null}),'missing');
+});
+test('đặt lại ban đầu cần đúng tên doanh nghiệp, lý do hợp lệ và xác nhận',()=>{
+ assert.equal(resetConfirmation(preview.current,'Công ty kiểm thử','Xóa dữ liệu test',true),true);
+ assert.equal(resetConfirmation(preview.current,'Công ty khác','Xóa dữ liệu test',true),false);
+ assert.equal(resetConfirmation(preview.current,'Công ty kiểm thử','ab',true),false);
+ assert.equal(resetConfirmation(preview.current,'Công ty kiểm thử','Xóa dữ liệu test',false),false);
+ assert.equal(resetConfirmation(null,'Công ty kiểm thử','Xóa dữ liệu test',true),false);
 });

@@ -1813,6 +1813,49 @@ paths:
               required:
               - stageId
               - confirmCompanyId
+  /restore/reset:
+    post:
+      summary: Sao lưu dự phòng rồi đặt lại dữ liệu ban đầu, chỉ giữ người dùng
+      operationId: post_restore_reset
+      description: 'Quyền: owner.'
+      responses:
+        '200':
+          description: Thành công sau khi hoàn tất đặt lại dữ liệu.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reset:
+                    const: true
+                  snapshot:
+                    $ref: '#/components/schemas/Manifest'
+                required:
+                - reset
+                - snapshot
+        default:
+          description: Lỗi có mã ổn định.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id013
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirmCompanyId: *id002
+                confirmCompanyName: {type: string, maxLength: 200}
+                reason: {type: string, minLength: 3, maxLength: 500}
+                keepPolicies: {type: boolean}
+              required:
+              - confirmCompanyId
+              - confirmCompanyName
+              - reason
   /documents/{id}/attachments:
     get:
       summary: Danh sách file đính kèm

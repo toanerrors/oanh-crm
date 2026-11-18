@@ -16,6 +16,9 @@ export interface BackupOverview {
 export function restoreConfirmation(preview: RestorePreview | null, company: string, reason: string, acknowledged: boolean, now: number) {
  return Boolean(preview && company === preview.current.companyName && reason.trim().length >= 3 && reason.trim().length <= 500 && acknowledged && Date.parse(preview.expiresAt) > now);
 }
+export function resetConfirmation(current: RecoveryCurrent | null | undefined, company: string, reason: string, acknowledged: boolean) {
+ return Boolean(current && company === current.companyName && reason.trim().length >= 3 && reason.trim().length <= 500 && acknowledged);
+}
 export function currentBackupState(overview: Pick<BackupOverview,'latest'|'current'>): 'missing' | 'changed' | 'current' {
  if (!overview.latest || !overview.latest.verifiedAt || !overview.latest.sha256 || overview.latest.manifest.epoch !== overview.current.epoch) return 'missing';
  return overview.latest.manifest.revision === overview.current.revision ? 'current' : 'changed';

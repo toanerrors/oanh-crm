@@ -214,3 +214,48 @@ func (s *Server) saveBackupSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	s.respond(w, 200, schedule)
 }
+func (s *Server) resetDataset(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.user(w, r, true)
+	if !ok {
+		return
+	}
+	var input struct {
+		ConfirmCompanyID   string `json:"confirmCompanyId"`
+		ConfirmCompanyName string `json:"confirmCompanyName"`
+		Reason             string `json:"reason"`
+		KeepPolicies       *bool  `json:"keepPolicies"`
+	}
+	if !s.decode(w, r, &input) {
+		return
+	}
+	current, err := s.Store.RecoveryCurrent(r.Context())
+	if err != nil {
+		s.failure(w, r, err)
+		return
+	}
+	if r.Header.Get("X-Dataset-Epoch") != current.Epoch || input.ConfirmCompanyID != current.CompanyID {
+		s.failure(w, r, accounting.Fail("DATASET_CHANGED", "Xác nhận đúng doanh nghiệp và phiên dữ liệu đang dùng trước khi đặt lại."))
+		return
+	}
+	reason := strings.TrimSpace(input.Reason)
+	if input.ConfirmCompanyName != current.CompanyName || utf8.RuneCountInString(reason) < 3 || utf8.RuneCountInString(reason) > 500 {
+		s.failure(w, r, accounting.Fail("VALIDATION", "Nhập đúng tên doanh nghiệp đang dùng và lý do đặt lại (từ 3 đến 500 ký tự)."))
+		return
+	}
+	keepPolicies := true
+	if input.KeepPolicies != nil {
+		keepPolicies = *input.KeepPolicies
+	}
+	m, err := s.Store.ResetKeepingUsers(r.Context(), sqlite.ResetOptions{
+		ActorID:      u.ID,
+		ActorName:    u.Name,
+		Reason:       reason,
+		KeepPolicies: keepPolicies,
+		KeepSessions: true,
+	})
+	if err != nil {
+		s.failure(w, r, err)
+		return
+	}
+	s.respond(w, 200, map[string]any{"reset": true, "snapshot": m})
+}
