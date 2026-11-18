@@ -47,9 +47,11 @@
 .profile small { display: block; color: #69766e; font-size: 12px; font-weight: 400; margin-top: 2px; }
 .main { padding: 12px 16px 16px; max-width: 1680px; margin: auto; min-height: calc(100vh - 52px); }
 .contextBar { display: flex; align-items: center; justify-content: flex-end; color: #7e8b82; font-size: 12px; margin-bottom: 8px; gap: 8px; }
-.contextBar > div { display: flex; gap: 8px; align-items: center; }
-.periodLabel { font-size: 12px; margin-right: 2px; }
-.periodSelect { width: 168px; }
+.contextBar > div { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.periodLabel { font-size: 12px; margin-right: 2px; white-space: nowrap; }
+.periodSelect { width: 158px; }
+.periodRange { display: grid; grid-template-columns: 124px auto 124px; align-items: center; gap: 4px; min-width: 0; }
+.periodRangeSep { color: #7e8b82; user-select: none; }
 .headingActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .welcomeStrip { background: linear-gradient(110deg, #e8f3ed, #f6f8f2); border: 1px solid #e1ece2; border-radius: 8px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 8px; }
 .welcomeSpark { color: #6f9260; width: 28px; height: 28px; display: grid; place-items: center; background: #e5efdf; border-radius: 7px; }
@@ -364,7 +366,8 @@
 .visuallyHidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .denseWorkspace { position: relative; }
 .denseWorkspace .contextBar { position: absolute; right: 16px; top: 5px; margin: 0; z-index: 2; }
-.denseWorkspace .moduleNavigation { padding-right: 240px; min-height: 44px; }
+.denseWorkspace .moduleNavigation { padding-right: 520px; min-height: 44px; }
+@media (max-width: 1279px) { .denseWorkspace .contextBar { position: static; margin-bottom: 8px; } .denseWorkspace .moduleNavigation { margin-top: 0; padding-right: 16px; } }
 .denseWorkspace .accountCard { padding: 7px 16px; min-height: 56px; }
 .denseWorkspace .accountCard strong { font-size: 16px; }
 .denseWorkspace .accountCard > div > span { margin-bottom: 1px; }
@@ -430,8 +433,10 @@
   .sidebarToggle.sidebarToggle { display: none; }
   .main { padding: 8px 8px calc(68px + env(safe-area-inset-bottom)); }
   .contextBar { margin-bottom: 6px; }
-  .periodSelect { width: 138px; }
-  .moduleNavigation, .denseWorkspace .moduleNavigation { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin: -8px -8px 8px; padding: 4px 8px; gap: 4px; min-height: 36px; }
+  .contextBar > div { width: 100%; gap: 6px; }
+  .periodSelect { flex: 1 1 138px; width: auto; min-width: 0; max-width: 190px; }
+  .periodRange { width: 100%; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .moduleNavigation, .denseWorkspace .moduleNavigation { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin: 0 -8px 8px; padding: 4px 8px; gap: 4px; min-height: 36px; }
   .moduleNavigation::-webkit-scrollbar { display: none; }
   .moduleNavigation > a { flex: 0 0 auto; }
   .moduleNavigation :global(.ant-btn) { font-size: 12px; padding-inline: 10px; height: 28px; border-radius: 5px; }

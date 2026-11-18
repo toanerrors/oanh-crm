@@ -54,8 +54,10 @@ export function validateDraft(document: AccountingDocument, workspace: Workspace
   return errors;
 }
 
-export function periodDocuments(documents: AccountingDocument[], period: string): AccountingDocument[] {
-  return documents.filter(item => item.date.startsWith(`${period}-`)).sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+export function periodDocuments(documents: AccountingDocument[], period: string, from?: string, to?: string): AccountingDocument[] {
+  return documents
+    .filter(item => (from && to ? item.date >= from && item.date <= to : item.date.startsWith(`${period}-`)))
+    .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
 }
 
 export function filterDocuments(documents: AccountingDocument[], query: string, partners: Workspace['partners']): AccountingDocument[] {
@@ -64,9 +66,9 @@ export function filterDocuments(documents: AccountingDocument[], query: string, 
   return documents.filter(item => normalizeSearch(`${item.reference} ${item.description} ${partners.find(partner => partner.id === item.partnerId)?.name ?? ''}`).includes(search));
 }
 
-export function accountBalance(documents: AccountingDocument[], accountIds: string[], endPeriod: string): bigint {
+export function accountBalance(documents: AccountingDocument[], accountIds: string[], endPeriod: string, to?: string): bigint {
   const ids = new Set(accountIds);
-  return documents.filter(item => item.status === 'posted' && item.date.slice(0, 7) <= endPeriod)
+  return documents.filter(item => item.status === 'posted' && (to ? item.date <= to : item.date.slice(0, 7) <= endPeriod))
     .flatMap(item => item.lines).filter(line => ids.has(line.accountId))
     .reduce((sum, line) => sum + BigInt(line.debit) - BigInt(line.credit), 0n);
 }
@@ -77,17 +79,18 @@ export function periodMovement(documents: AccountingDocument[], accounts: Accoun
     .filter(line => ids.has(line.accountId)).reduce((sum, line) => sum + (group === 'revenue' ? BigInt(line.credit) - BigInt(line.debit) : BigInt(line.debit) - BigInt(line.credit)), 0n);
 }
 
-export function partnerBalances(workspace: Workspace, period: string, group: 'receivable' | 'payable') {
+export function partnerBalances(workspace: Workspace, period: string, group: 'receivable' | 'payable', to?: string) {
   const ids = new Set(workspace.accounts.filter(item => item.group === group).map(item => item.id));
-  const lines = workspace.documents.filter(item => item.status === 'posted' && item.date.slice(0, 7) <= period).flatMap(item => item.lines).filter(line => ids.has(line.accountId));
+  const lines = workspace.documents.filter(item => item.status === 'posted' && (to ? item.date <= to : item.date.slice(0, 7) <= period)).flatMap(item => item.lines).filter(line => ids.has(line.accountId));
   return workspace.partners.map(partner => ({
     ...partner,
     balance: lines.filter(line => line.partnerId === partner.id).reduce((sum, line) => sum + BigInt(line.debit) - BigInt(line.credit), 0n),
   }));
 }
 
-export function trialBalance(workspace: Workspace, period: string) {
-  const posted = workspace.documents.filter(item => item.status === 'posted' && item.date.slice(0, 7) <= period);
+export function trialBalance(workspace: Workspace, period: string, from?: string, to?: string) {
+  const start = from ?? `${period}-01`;
+  const posted = workspace.documents.filter(item => item.status === 'posted' && (to ? item.date <= to : item.date.slice(0, 7) <= period));
   return workspace.accounts.map(account => {
     const balances = new Map<string, { opening: bigint; closing: bigint }>();
     let debit = 0n;
@@ -98,7 +101,7 @@ export function trialBalance(workspace: Workspace, period: string) {
         const balance = balances.get(key) ?? { opening: 0n, closing: 0n };
         const net = BigInt(line.debit) - BigInt(line.credit);
         balance.closing += net;
-        if (document.date < `${period}-01`) balance.opening += net;
+        if (document.date < start) balance.opening += net;
         else { debit += BigInt(line.debit); credit += BigInt(line.credit); }
         balances.set(key, balance);
       }

@@ -7,6 +7,7 @@ import { api, apiScope, isDemo } from '../../shared/api/client';
 import { workspaceKey } from '../../shared/data/workspace';
 import type { InvoiceList, TradeInvoice } from '../../shared/data/operations';
 import { businessToday, formatDate, formatMoney } from '../../shared/accounting/money';
+import { isFullMonthRange } from '../../shared/accounting/period-range';
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { searchOptions } from '../../shared/ui/search';
 import { ToolbarButton } from '../../shared/ui/ToolbarButton';
@@ -15,17 +16,17 @@ import styles from '../../app/App.module.css';
 import { accountingModule } from '../../app/module-navigation';
 
 export function Component() {
-  const { period } = useWorkspace();
-  return <SettlementPage key={period} />;
+  const { toDate } = useWorkspace();
+  return <SettlementPage key={toDate} />;
 }
 
 function SettlementPage() {
-  const { data, period, openDocument } = useWorkspace();
+  const { data, period, fromDate, toDate, openDocument } = useWorkspace();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const module = accountingModule(useLocation().pathname);
   const kind = module && 'tradeKind' in module ? module.tradeKind : params.get('kind') === 'purchase' ? 'purchase' : 'sale';
-  const defaultAsOf = businessToday().startsWith(period) ? businessToday() : `${period}-${new Date(Number(period.slice(0, 4)), Number(period.slice(5)), 0).getDate()}`;
+  const defaultAsOf = isFullMonthRange(fromDate, toDate) && businessToday().startsWith(period) ? businessToday() : toDate;
   const [asOf, setAsOf] = useState(defaultAsOf);
   const [partner, setPartner] = useState('');
   const [page, setPage] = useState(1);

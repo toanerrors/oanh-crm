@@ -13,8 +13,11 @@ import (
 
 func (s *Server) filter(w http.ResponseWriter, r *http.Request) (ledger.Filter, bool) {
 	q := r.URL.Query()
-	f := ledger.Filter{Period: q.Get("period"), Source: q.Get("source"), BankAccount: q.Get("bank"), Kind: q.Get("kind"), Account: q.Get("account"), Status: q.Get("status"), Type: q.Get("type"), Query: q.Get("q"), Sort: q.Get("sort"), Desc: q.Get("direction") != "asc", Page: 1, PageSize: 10}
-	if !accounting.Period(f.Period) || len(f.Query) > 300 || f.Source != "" && f.Source != "closing" || f.BankAccount != "" && !accounting.ID(f.BankAccount) {
+	f := ledger.Filter{Period: q.Get("period"), From: q.Get("from"), To: q.Get("to"), Source: q.Get("source"), BankAccount: q.Get("bank"), Kind: q.Get("kind"), Account: q.Get("account"), Status: q.Get("status"), Type: q.Get("type"), Query: q.Get("q"), Sort: q.Get("sort"), Desc: q.Get("direction") != "asc", Page: 1, PageSize: 10}
+	if f.Period == "" && accounting.Date(f.To) {
+		f.Period = f.To[:7]
+	}
+	if _, _, _, _, _, e := f.ResolveRange(); e != nil || !accounting.Period(f.Period) || len(f.Query) > 300 || f.Source != "" && f.Source != "closing" || f.BankAccount != "" && !accounting.ID(f.BankAccount) {
 		s.failure(w, r, accounting.Fail("BAD_REQUEST", "Kỳ hoặc bộ lọc không hợp lệ."))
 		return f, false
 	}
@@ -119,10 +122,11 @@ func (s *Server) exportDocuments(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, []string{d.Reference, d.Date, kind, d.Description, sum.String(), status, d.SourceType, d.SourceID})
 	}
-	result.Context.Period = f.Period
+	_, _, _, label, slug, _ := f.ResolveRange()
+	result.Context.Period = label
 	table := spreadsheet.ExportTable{Name: "Chứng từ", Headers: []string{"Số chứng từ", "Ngày", "Loại", "Diễn giải", "Tổng Nợ", "Trạng thái", "Loại nguồn", "Mã nguồn"}, Rows: rows, MoneyColumns: map[int]bool{4: true}, Total: []string{"Tổng toàn bộ tập lọc", "", "", "", result.Amount, "", "", ""}}
-	book := spreadsheet.ExportBook{Title: "Danh sách chứng từ", Company: result.CompanyName, Period: f.Period, Revision: result.Revision, Metadata: filterMetadata(f), Tables: []spreadsheet.ExportTable{table}}
-	s.writeExport(w, r, format, "chung-tu-"+f.Period, result.Context, book)
+	book := spreadsheet.ExportBook{Title: "Danh sách chứng từ", Company: result.CompanyName, Period: label, Revision: result.Revision, Metadata: filterMetadata(f), Tables: []spreadsheet.ExportTable{table}}
+	s.writeExport(w, r, format, "chung-tu-"+slug, result.Context, book)
 }
 func (s *Server) exportReport(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.user(w, r, false); !ok {
@@ -151,13 +155,14 @@ func (s *Server) exportReport(w http.ResponseWriter, r *http.Request) {
 	for _, row := range result.Rows {
 		rows = append(rows, []string{row.Code, row.Date, row.Name, row.Description, row.Account, row.OpeningDebit, row.OpeningCredit, row.Debit, row.Credit, row.ClosingDebit, row.ClosingCredit})
 	}
-	result.Context.Period = f.Period
+	_, _, _, label, slug, _ := f.ResolveRange()
+	result.Context.Period = label
 	table := spreadsheet.ExportTable{Name: "Sổ kế toán", Headers: []string{"Mã", "Ngày", "Tên", "Diễn giải", "Tài khoản", "Dư đầu Nợ", "Dư đầu Có", "Phát sinh Nợ", "Phát sinh Có", "Dư cuối Nợ", "Dư cuối Có"}, Rows: rows, MoneyColumns: map[int]bool{5: true, 6: true, 7: true, 8: true, 9: true, 10: true}, Total: []string{"Tổng toàn bộ tập lọc", "", "", "", "", result.OpeningDebit, result.OpeningCredit, result.Debit, result.Credit, result.ClosingDebit, result.ClosingCredit}}
 	titles := map[string]string{"journal": "Nhật ký chung", "ledger": "Sổ cái", "trial": "Cân đối phát sinh", "debt": "Chi tiết công nợ", "income": "Doanh thu và chi phí"}
 	title := titles[f.Kind]
 	if title == "" {
 		title = "Sổ kế toán"
 	}
-	book := spreadsheet.ExportBook{Title: title, Company: result.CompanyName, Period: f.Period, Revision: result.Revision, Metadata: filterMetadata(f), Tables: []spreadsheet.ExportTable{table}}
-	s.writeExport(w, r, format, "so-"+f.Kind+"-"+f.Period, result.Context, book)
+	book := spreadsheet.ExportBook{Title: title, Company: result.CompanyName, Period: label, Revision: result.Revision, Metadata: filterMetadata(f), Tables: []spreadsheet.ExportTable{table}}
+	s.writeExport(w, r, format, "so-"+f.Kind+"-"+slug, result.Context, book)
 }

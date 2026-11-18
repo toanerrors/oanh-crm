@@ -353,3 +353,116 @@ func TestTrialBalanceHidesSixZeroColumnsAndKeepsActiveAccounts(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCustomDateRangeReportsDocumentsAndMoneyCutoff(t *testing.T) {
+	f := openFixture(t)
+	ctx := context.Background()
+	in := OpeningInput{
+		ID:     "range-opening",
+		Cutoff: "2026-02-01",
+		Source: "Sổ chuyển đổi 01/02/2026",
+		Lines: []OpeningLine{
+			openingLine("111", "", "9007199254740993", "0"),
+			openingLine("131", "customer", "1000", "0"),
+			openingLine("131", "supplier", "0", "400"),
+			openingLine("411", "", "0", "9007199254741593"),
+		},
+	}
+	b, err := f.ops.SaveOpening(ctx, f.cmd("range-opening-save"), in)
+	state := decodeOpening(t, b, err)
+	if _, err = f.ops.PostOpening(ctx, f.cmd("range-opening-post"), ledger.Post{ID: state.Document.ID, Version: state.Document.Version}); err != nil {
+		t.Fatal(err)
+	}
+	vouchers := []struct {
+		id    string
+		date  string
+		lines []ledger.Line
+	}{
+		{"doc-feb", "2026-02-15", []ledger.Line{{AccountID: "111", Debit: "200", Credit: "0"}, {AccountID: "131", PartnerID: "customer", Debit: "0", Credit: "200"}}},
+		{"doc-oct-before", "2026-10-09", []ledger.Line{{AccountID: "642", Debit: "300", Credit: "0"}, {AccountID: "111", Debit: "0", Credit: "300"}}},
+		{"doc-oct-start", "2026-10-10", []ledger.Line{{AccountID: "131", PartnerID: "customer", Debit: "500", Credit: "0"}, {AccountID: "511", Debit: "0", Credit: "500"}}},
+		{"doc-nov-end", "2026-11-15", []ledger.Line{{AccountID: "111", Debit: "150", Credit: "0"}, {AccountID: "131", PartnerID: "supplier", Debit: "0", Credit: "150"}}},
+		{"doc-nov-after", "2026-11-16", []ledger.Line{{AccountID: "642", Debit: "700", Credit: "0"}, {AccountID: "111", Debit: "0", Credit: "700"}}},
+	}
+	for _, v := range vouchers {
+		doc := f.draft(v.id)
+		doc.Date = v.date
+		doc.Lines = v.lines
+		b, err = f.ledger.Save(ctx, f.cmd("save-"+v.id), doc)
+		saved := decodeDocument(t, b, err)
+		if _, err = f.ledger.Post(ctx, f.cmd("post-"+v.id), ledger.Post{ID: saved.ID, Version: saved.Version}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	draft := f.draft("doc-nov-draft")
+	draft.Date = "2026-11-10"
+	draft.Lines = []ledger.Line{{AccountID: "642", Debit: "999", Credit: "0"}, {AccountID: "111", Debit: "0", Credit: "999"}}
+	if _, err = f.ledger.Save(ctx, f.cmd("save-draft"), draft); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = f.ledger.Report(ctx, ledger.Filter{From: "2026-01-01", To: "2026-11-18", Kind: "trial"}); accounting.Code(err) != "BEFORE_CONVERSION" {
+		t.Fatalf("expected BEFORE_CONVERSION, got %v", err)
+	}
+	for _, bad := range []ledger.Filter{{From: "2026-11-15", To: "2026-10-10", Kind: "trial"}, {From: "2026-10-10", Kind: "trial"}, {From: "2026-02-29", To: "2026-03-01", Kind: "trial"}} {
+		if _, err = f.ledger.Report(ctx, bad); accounting.Code(err) != "BAD_REQUEST" {
+			t.Fatalf("expected BAD_REQUEST for %+v, got %v", bad, err)
+		}
+	}
+
+	sliceFilter := ledger.Filter{Period: "2026-11", From: "2026-10-10", To: "2026-11-15", Kind: "trial", PageSize: 200}
+	sliceTrial, err := f.ledger.Report(ctx, sliceFilter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sliceTrial.Period != "2026-10-10 – 2026-11-15" || sliceTrial.OpeningDebit != "9007199254741993" || sliceTrial.OpeningCredit != "9007199254741993" || sliceTrial.Debit != "650" || sliceTrial.Credit != "650" || sliceTrial.ClosingDebit != "9007199254742643" || sliceTrial.ClosingCredit != "9007199254742643" {
+		t.Fatalf("unexpected slice trial summary: %+v", sliceTrial)
+	}
+	byCode := map[string]ledger.Row{}
+	for _, r := range sliceTrial.Rows {
+		byCode[r.Code] = r
+	}
+	if r := byCode["131"]; r.OpeningDebit != "800" || r.OpeningCredit != "400" || r.Debit != "500" || r.Credit != "150" || r.ClosingDebit != "1300" || r.ClosingCredit != "550" {
+		t.Fatalf("unexpected two-sided 131 row: %+v", r)
+	}
+
+	debt, err := f.ledger.Report(ctx, ledger.Filter{From: "2026-10-10", To: "2026-11-15", Kind: "debt", Account: "receivable", PageSize: 50})
+	if err != nil || debt.Total != 2 || debt.Debit != "1300" || debt.Credit != "550" {
+		t.Fatalf("unexpected debt report: %+v %v", debt, err)
+	}
+	journal, err := f.ledger.Report(ctx, ledger.Filter{From: "2026-10-10", To: "2026-11-15", Kind: "journal", PageSize: 50})
+	if err != nil || journal.Total != 4 || journal.Debit != "650" || journal.Credit != "650" {
+		t.Fatalf("unexpected journal report: %+v %v", journal, err)
+	}
+	cashDocs, err := f.ledger.Documents(ctx, ledger.Filter{From: "2026-10-10", To: "2026-11-15", Account: "111", Status: "all", PageSize: 50})
+	if err != nil || cashDocs.Counts["all"] != 2 || cashDocs.Counts["posted"] != 1 || cashDocs.Counts["draft"] != 1 || cashDocs.Money == nil || cashDocs.Money.Opening != "9007199254740893" || cashDocs.Money.Receipts != "150" || cashDocs.Money.Payments != "0" || cashDocs.Money.Closing != "9007199254741043" {
+		t.Fatalf("unexpected cash documents/money: %+v %+v %v", cashDocs, cashDocs.Money, err)
+	}
+
+	ytdDocs, err := f.ledger.Documents(ctx, ledger.Filter{From: "2026-02-01", To: "2026-11-18", Account: "all", Status: "all", PageSize: 50})
+	if err != nil || ytdDocs.Counts["all"] != 6 || ytdDocs.Counts["posted"] != 5 || ytdDocs.Counts["draft"] != 1 {
+		t.Fatalf("unexpected YTD documents: %+v %v", ytdDocs, err)
+	}
+	ytdTrial, err := f.ledger.Report(ctx, ledger.Filter{From: "2026-02-01", To: "2026-11-18", Kind: "trial", PageSize: 200})
+	if err != nil || ytdTrial.OpeningDebit != "9007199254741993" || ytdTrial.Debit != "1850" || ytdTrial.Credit != "1850" {
+		t.Fatalf("unexpected YTD trial: %+v %v", ytdTrial, err)
+	}
+
+	if err = f.store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := sqlite.Open(ctx, f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.store = reopened
+	f.ledger.Store = reopened
+	t.Cleanup(func() { reopened.Close() })
+	afterReopen, err := f.ledger.Report(ctx, sliceFilter)
+	if err != nil || afterReopen.ClosingDebit != sliceTrial.ClosingDebit || afterReopen.Debit != "650" {
+		t.Fatalf("unexpected report after reopen: %+v %v", afterReopen, err)
+	}
+	if err = sqlite.Check(ctx, f.store.Read); err != nil {
+		t.Fatal(err)
+	}
+}

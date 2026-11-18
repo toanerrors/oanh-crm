@@ -755,6 +755,8 @@ paths:
       parameters:
       - {name: source, in: query, schema: {enum: [closing]}}
       - {name: bank, in: query, schema: {type: string}, description: Lọc chứng từ và số dư theo ID tài khoản ngân hàng}
+      - &idRangeFrom {name: from, in: query, required: false, schema: {$ref: '#/components/schemas/Date'}, description: Ngày bắt đầu khoảng lọc (YYYY-MM-DD)}
+      - &idRangeTo {name: to, in: query, required: false, schema: {$ref: '#/components/schemas/Date'}, description: Ngày kết thúc khoảng lọc (YYYY-MM-DD)}
       - *id001
       - &id003
         name: kind
@@ -883,6 +885,8 @@ paths:
       - {name: format, in: query, schema: {type: string, enum: [csv, xlsx, print], default: csv}, description: CSV tối đa 100.000 dòng; Excel/bản in tối đa 10.000 dòng. Không phụ thuộc trang đang xem.}
       - {name: source, in: query, schema: {enum: [closing]}}
       - {name: bank, in: query, schema: {type: string}, description: Lọc chứng từ và số dư theo ID tài khoản ngân hàng}
+      - *idRangeFrom
+      - *idRangeTo
       - *id001
       - *id003
       - *id004
@@ -1038,6 +1042,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       parameters:
+      - *idRangeFrom
+      - *idRangeTo
       - *id001
       - *id003
       - *id004
@@ -1073,6 +1079,8 @@ paths:
                 $ref: '#/components/schemas/Error'
       parameters:
       - {name: format, in: query, schema: {type: string, enum: [csv, xlsx, print], default: csv}, description: CSV tối đa 100.000 dòng; Excel/bản in tối đa 10.000 dòng. Không phụ thuộc trang đang xem.}
+      - *idRangeFrom
+      - *idRangeTo
       - *id001
       - *id003
       - *id004
@@ -1103,6 +1111,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       parameters:
+      - *idRangeFrom
+      - *idRangeTo
       - *id001
       - *id003
       - *id004

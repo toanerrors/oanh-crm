@@ -146,4 +146,13 @@ func TestExportFormatsSnapshotsPermissionsAndPrecision(t *testing.T) {
 			t.Fatal(path, status, string(b))
 		}
 	}
+	if status, raw, headers := call("GET", "/reports/export?from=2026-01-01&to=2026-10-31&kind=trial&format=xlsx", nil); status != 200 || !strings.Contains(headers.Get("Content-Disposition"), "so-trial-2026-01-01_2026-10-31.xlsx") {
+		t.Fatal(status, headers, string(raw))
+	}
+	if status, raw, headers := call("GET", "/documents/export?period=2026-10&from=2026-10-01&to=2026-10-31&format=csv", nil); status != 200 || !strings.Contains(headers.Get("Content-Disposition"), "chung-tu-2026-10.csv") {
+		t.Fatal(status, headers, string(raw))
+	}
+	if status, _, _ := call("GET", "/reports?from=2026-10-20&to=2026-10-01&kind=trial", nil); status != 400 {
+		t.Fatal(status)
+	}
 }

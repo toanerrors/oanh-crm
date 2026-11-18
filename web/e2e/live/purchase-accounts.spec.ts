@@ -73,6 +73,7 @@ test('chọn tài khoản mua hàng, lưu nháp và ghi sổ giữ đúng tài k
   async function command(path: string, data: unknown) {
     const response = await page.request.post(`/api/v1${path}`, { data, headers: { 'X-Dataset-Epoch': context.epoch, 'Idempotency-Key': crypto.randomUUID() } });
     expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
   }
   await command('/policies', { regime: 'Chế độ kiểm thử', effectiveFrom: '2026-12-01', confirmed: true, rounding: 'half_up', vatMethod: 'deduction', vatRates: ['0', '8', '10'], inventoryMethod: 'fifo', quantityScale: 2, standardDays: '26', hoursPerDay: '8', personalDeduction: '100', dependentDeduction: '50', corporateTaxRate: '20', insurance: [{ name: 'Khoản BH thử', employeeRate: '10', employerRate: '20' }], pitBrackets: [{ upTo: '1000', rate: '5' }, { upTo: '', rate: '10' }], depreciationMethod: 'straight_line', residualMethod: 'last_period' });
   await command('/partners', { partners: [{ id: 'account-supplier', code: 'NCC-TK', name: 'Nhà cung cấp thử tài khoản', role: 'supplier', active: true }] });
@@ -218,10 +219,11 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   async function command(path: string, data: unknown) {
     const response = await page.request.post(`/api/v1${path}`, { data, headers: { 'X-Dataset-Epoch': context.epoch, 'Idempotency-Key': crypto.randomUUID() } });
     expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
   }
   const customAccountId = 'a1b2c3d4-1111-4222-8333-444455556666';
   await command('/accounts', { id: customAccountId, code: '64271', name: 'Chi phí thuê văn phòng', group: 'expense', requiresPartner: false, active: true, parentId: '642', parentRevision: 0 });
-  await command('/policies', { regime: 'Chế độ kiểm thử', effectiveFrom: '2026-11-01', confirmed: true, rounding: 'half_up', vatMethod: 'deduction', vatRates: ['0', '8', '10'], inventoryMethod: 'fifo', quantityScale: 2, standardDays: '26', hoursPerDay: '8', personalDeduction: '100', dependentDeduction: '50', corporateTaxRate: '20', insurance: [{ name: 'Khoản BH thử', employeeRate: '10', employerRate: '20' }], pitBrackets: [{ upTo: '1000', rate: '5' }, { upTo: '', rate: '10' }], depreciationMethod: 'straight_line', residualMethod: 'last_period' });
+  await command('/policies', { regime: 'Chế độ kiểm thử', effectiveFrom: '2026-01-01', confirmed: true, rounding: 'half_up', vatMethod: 'deduction', vatRates: ['0', '8', '10'], inventoryMethod: 'fifo', quantityScale: 2, standardDays: '26', hoursPerDay: '8', personalDeduction: '100', dependentDeduction: '50', corporateTaxRate: '20', insurance: [{ name: 'Khoản BH thử', employeeRate: '10', employerRate: '20' }], pitBrackets: [{ upTo: '1000', rate: '5' }, { upTo: '', rate: '10' }], depreciationMethod: 'straight_line', residualMethod: 'last_period' });
   await command('/items', { id: 'rent-service-uuid', code: 'DV-THUE', name: 'THUÊ NHÀ', unit: 'tháng', tracked: false, active: true });
   await page.goto('/vouchers/new?kind=purchase&service=1');
   const partnerSaved = page.waitForResponse(response => response.url().endsWith('/api/v1/partners') && response.request().method() === 'POST');
@@ -309,4 +311,67 @@ test('bút toán server tính hiển thị mã và tên đối tượng, tài kh
   await page.getByRole('button', { name: 'Đóng', exact: true }).click();
   await page.goto('/purchases/settlements');
   await expect(page.getByText('Đã thanh toán · Dư 340.000', { exact: true })).toBeVisible();
+
+  const augInput = {
+    kind: 'purchase',
+    sourceId: 'aug-purchase-e2e',
+    tradeMode: 'service',
+    priceMode: 'exclusive',
+    date: '2026-08-03',
+    partnerId: createdPartner.id,
+    description: 'Chi phí điện nước tháng 8',
+    voucher: { documentDate: '2026-08-03' },
+    lines: [{ itemId: 'rent-service-uuid', description: 'Chi phí điện nước', accountId: '642', quantity: '1', unitPrice: '1500000', vatRate: '8', deductible: true }],
+  };
+  const augPreview = await command('/operations/preview', augInput);
+  await command('/operations', { ...augInput, expectedPolicyId: augPreview.policyId, expectedRevision: augPreview.revision });
+
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/purchases');
+  await choose(page, 'Chọn kỳ kế toán', 'Tháng 08, 2026');
+  await expect(page.getByLabel('Từ ngày kế toán', { exact: true })).toHaveValue('01/08/2026');
+  await expect(page.getByLabel('Đến ngày kế toán', { exact: true })).toHaveValue('31/08/2026');
+  await expect(page.getByText('Chi phí điện nước tháng 8', { exact: true })).toBeVisible();
+  await expect(page.getByText('Thuê nhà tháng 11', { exact: true })).toHaveCount(0);
+
+  await choose(page, 'Chọn kỳ kế toán', 'Đầu năm đến nay');
+  await expect(page.getByLabel('Từ ngày kế toán', { exact: true })).toHaveValue('01/01/2026');
+  await expect(page.getByLabel('Đến ngày kế toán', { exact: true })).toHaveValue('18/11/2026');
+  await expect(page.getByText('Chi phí điện nước tháng 8', { exact: true })).toBeVisible();
+  await expect(page.getByText('Thuê nhà tháng 11', { exact: true })).toBeVisible();
+  await expect(page.getByText('Thuê nhà kỳ tiếp theo chưa thanh toán', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Sổ sách & báo cáo', exact: true }).click();
+  await page.getByRole('tab', { name: 'Cân đối phát sinh', exact: true }).click();
+  await expect(page.getByText('Cân đối phát sinh · Từ 01/01/2026 đến 18/11/2026', { exact: true })).toBeVisible();
+  const row642 = page.locator('tbody tr').filter({ has: page.getByRole('cell', { name: '642', exact: true }) });
+  await expect(row642.locator('td').nth(2)).toHaveText('0');
+  await expect(row642.locator('td').nth(4)).toHaveText('3.500.000');
+  await expect(row642.locator('td').nth(6)).toHaveText('3.500.000');
+
+  const fromInput = page.getByLabel('Từ ngày kế toán', { exact: true });
+  await fromInput.click();
+  await fromInput.fill('01/10/2026');
+  await fromInput.press('Enter');
+  await expect(page.getByRole('combobox', { name: 'Chọn kỳ kế toán' }).locator('xpath=ancestor::*[contains(@class,"ant-select")][last()]')).toContainText('Tùy chọn ngày');
+  await expect(page.getByText('Cân đối phát sinh · Từ 01/10/2026 đến 18/11/2026', { exact: true })).toBeVisible();
+  await expect(row642.locator('td').nth(2)).toHaveText('1.500.000');
+  await expect(row642.locator('td').nth(4)).toHaveText('2.000.000');
+  await expect(row642.locator('td').nth(6)).toHaveText('3.500.000');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await fromInput.press('Escape');
+  await fromInput.blur();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflowing = await page.evaluate(() => {
+    if (document.documentElement.scrollWidth <= window.innerWidth) return [];
+    return [...document.querySelectorAll('*')]
+      .filter(el => el.getBoundingClientRect().right > window.innerWidth + 1)
+      .slice(0, 5)
+      .map(el => `${el.tagName}.${el.className}:${Math.round(el.getBoundingClientRect().right)}`);
+  });
+  expect(overflowing).toEqual([]);
+  await page.goto('/purchases');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

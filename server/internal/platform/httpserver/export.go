@@ -32,6 +32,9 @@ func exportLimit(format string) int {
 }
 func filterMetadata(f ledger.Filter) [][]string {
 	rows := [][]string{{"Phạm vi", "Toàn bộ tập lọc"}}
+	if from, to, _, label, _, err := f.ResolveRange(); err == nil && strings.Contains(label, " – ") {
+		rows = append(rows, []string{"Khoảng ngày", from + " – " + to})
+	}
 	for _, row := range [][]string{{"Tìm kiếm", f.Query}, {"Tài khoản", f.Account}, {"Tài khoản ngân hàng", f.BankAccount}, {"Loại chứng từ", f.Type}, {"Trạng thái", f.Status}, {"Nguồn", f.Source}} {
 		if row[1] != "" && row[1] != "all" {
 			rows = append(rows, row)

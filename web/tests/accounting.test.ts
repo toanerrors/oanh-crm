@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { formatMoney, isMoney, MAX_MONEY, isCalendarDate, normalizeSearch, compactMoney, parseMoneyInput } from '../src/shared/accounting/money.ts';
 import { accountBalance, allocationInvoiceOptions, filterDocuments, formatLineAccount, formatLinePartner, invoiceAvailableAmount, nonZeroTrialRows, partnerBalances, periodDocuments, periodMovement, totals, trialBalance, validateDraft } from '../src/shared/accounting/ledger.ts';
+import { accountingRangeSlug, activePeriodPreset, formatAccountingRange, monthDateRange, normalizeDateRange, periodPresetOptions, resolvePresetRange } from '../src/shared/accounting/period-range.ts';
 import { serializeCsv } from '../src/shared/accounting/csv.ts';
 import { initialWorkspace } from '../src/shared/data/demo.ts';
 import { saveDemoDraft, saveDemoPartners, workspaceOptions } from '../src/shared/data/workspace.ts';
@@ -214,4 +215,49 @@ test('phân bổ công nợ hiển thị số chứng từ, tính đúng số ti
     documents: [{ id: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', reference: 'MH-2026-000004' }],
   });
   assert.deepEqual(loadingFallback, [{ value: 'MWFVV4PZ5HVBEBSXJ63CAKMXT3', label: 'MH-2026-000004' }]);
+});
+
+test('khoảng ngày kế toán tự lọc, đầu năm đến nay, năm nhuận và cắt sổ theo ngày', () => {
+  assert.deepEqual(monthDateRange('2024-02'), { from: '2024-02-01', to: '2024-02-29' });
+  assert.deepEqual(monthDateRange('2026-02'), { from: '2026-02-01', to: '2026-02-28' });
+  assert.equal(formatAccountingRange('2026-11-01', '2026-11-30'), 'Kỳ 11/2026');
+  assert.equal(formatAccountingRange('2026-01-01', '2026-11-18'), 'Từ 01/01/2026 đến 18/11/2026');
+  assert.equal(accountingRangeSlug('2026-10-01', '2026-10-31'), '2026-10');
+  assert.equal(accountingRangeSlug('2026-01-01', '2026-11-18'), '2026-01-01_2026-11-18');
+  assert.deepEqual(normalizeDateRange('2026-11-20', '2026-11-10', 'from'), { from: '2026-11-20', to: '2026-11-20' });
+  assert.deepEqual(normalizeDateRange('2026-11-20', '2026-11-10', 'to'), { from: '2026-11-10', to: '2026-11-10' });
+
+  const options = periodPresetOptions(2026, true);
+  const octIdx = options.findIndex(item => item.value === '2026-10');
+  assert.equal(options[octIdx - 1]?.value, '2026-09');
+
+  assert.deepEqual(
+    resolvePresetRange('ytd', { today: '2026-11-18', conversionDate: '2026-03-01' }),
+    { from: '2026-03-01', to: '2026-11-18' },
+  );
+  assert.equal(
+    activePeriodPreset('2026-03-01', '2026-11-18', 'ytd', { today: '2026-11-18', conversionDate: '2026-03-01' }),
+    'ytd',
+  );
+  assert.equal(
+    activePeriodPreset('2026-08-03', '2026-11-18', null, { today: '2026-11-18' }),
+    'custom',
+  );
+
+  const twoMonthDocs = periodDocuments(initialWorkspace.documents, '2026-10', '2026-09-01', '2026-10-31');
+  const ytdDocs = periodDocuments(initialWorkspace.documents, '2026-10', '2026-01-01', '2026-10-31');
+  const sepDocs = periodDocuments(initialWorkspace.documents, '2026-09');
+  const octDocs = periodDocuments(initialWorkspace.documents, '2026-10');
+  assert.equal(twoMonthDocs.length, sepDocs.length + octDocs.length);
+  assert.ok(ytdDocs.length > twoMonthDocs.length);
+
+  const ytdTrial = trialBalance(initialWorkspace, '2026-10', '2026-01-01', '2026-10-31');
+  const octTrial = trialBalance(initialWorkspace, '2026-10');
+  for (const row of ytdTrial) {
+    assert.equal(row.openingDebit, 0n);
+    assert.equal(row.openingCredit, 0n);
+    const octRow = octTrial.find(item => item.key === row.key)!;
+    assert.equal(row.closingDebit, octRow.closingDebit);
+    assert.equal(row.closingCredit, octRow.closingCredit);
+  }
 });

@@ -5,8 +5,11 @@ import { useWorkspace } from './WorkspaceProvider';
 import { voucherDraftLabel, voucherDraftModule } from '../features/vouchers/draft-state';
 import { documentTypes } from '../shared/data/types';
 import { Icon } from '../shared/ui/Icon';
+import { DateInput } from '../shared/ui/DateInput';
 import styles from './App.module.css';
 import { api, apiScope, isDemo } from '../shared/api/client';
+import { businessToday, isCalendarDate } from '../shared/accounting/money';
+import { normalizeDateRange, periodPresetOptions, resolvePresetRange } from '../shared/accounting/period-range';
 import { searchOptions } from '../shared/ui/search';
 import { DocumentSearch } from './DocumentSearch';
 import { accountingModule } from './module-navigation';
@@ -34,7 +37,7 @@ const navigation: SidebarItem[] = [
 ];
 
 export function AppShell() {
-  const { period, setPeriod, data, draft, documentDrafts, resumeDocumentDraft, voucherDrafts, detailId, refresh, newDraft } = useWorkspace();
+  const { period, fromDate, toDate, periodPreset, setDateRange, data, draft, documentDrafts, resumeDocumentDraft, voucherDrafts, detailId, refresh, newDraft } = useWorkspace();
   const scope = apiScope();
   const shortcuts = useMemo(() => sidebarShortcuts(navigation, isDemo ? 'owner' : scope.permissions, isDemo), [scope.permissions]);
   const pins = useSidebarPins(sidebarPinsKey(isDemo ? 'demo' : scope.companyId, isDemo ? 'demo' : scope.actor), shortcuts);
@@ -54,8 +57,15 @@ export function AppShell() {
   const companyName = isDemo ? 'Không gian mẫu' : data?.companyName ?? 'Doanh nghiệp';
   const person = isDemo ? 'Minh Anh' : apiScope().name;
   const initials = person.split(' ').slice(-2).map(value => value[0]).join('').toUpperCase();
-  const draftCount = data?.server?.draftCount ?? data?.documents.filter(item => item.status === 'draft' && item.date.startsWith(period)).length ?? 0;
-  const drafts = data?.documents.filter(item => item.status === 'draft' && item.date.startsWith(period)) ?? [];
+  const draftCount = data?.server?.draftCount ?? data?.documents.filter(item => item.status === 'draft' && item.date >= fromDate && item.date <= toDate).length ?? 0;
+  const drafts = data?.documents.filter(item => item.status === 'draft' && item.date >= fromDate && item.date <= toDate) ?? [];
+  const resetPageParam = () => {
+    const params = new URLSearchParams(location.search);
+    if (params.has('page')) {
+      params.delete('page');
+      navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true, state: location.state });
+    }
+  };
 
   useEffect(() => { document.title = `${current} · Oanh`; }, [current]);
 
@@ -87,7 +97,7 @@ export function AppShell() {
       </header>
       {navigationState.state !== 'idle' && <div className={styles.routeProgress} role="progressbar" aria-label="Đang chuyển trang" />}
       <main id="main-content" className={`${styles.main} ${!isDemo && module ? styles.denseWorkspace : ''}`} tabIndex={-1}>
-        <div className={styles.contextBar}><div>{moduleDrafts.length > 0 && <Dropdown trigger={['click']} menu={{ items: moduleDrafts }}><Button type="text" icon={<Icon name="file" size={14} />}>Nháp đang nhập ({moduleDrafts.length}) <Icon name="down" size={12} /></Button></Dropdown>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch={searchOptions} aria-label="Chọn kỳ kế toán" value={period} onChange={value => { if (value === period) return; setPeriod(value); const params = new URLSearchParams(location.search); if (params.has('page')) { params.delete('page'); navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true, state: location.state }); } }} className={styles.periodSelect} options={Array.from({ length: isDemo ? 12 : 84 }, (_, index) => { const year = Number(period.slice(0, 4)) + (isDemo ? 0 : Math.floor(index / 12) - 3); const month = String(index % 12 + 1).padStart(2, '0'); return { value: `${year}-${month}`, label: `Tháng ${month}, ${year}` }; })} suffixIcon={<Icon name="down" size={13} />} /></div></div>
+        <div className={styles.contextBar}><div>{moduleDrafts.length > 0 && <Dropdown trigger={['click']} menu={{ items: moduleDrafts }}><Button type="text" icon={<Icon name="file" size={14} />}>Nháp đang nhập ({moduleDrafts.length}) <Icon name="down" size={12} /></Button></Dropdown>}<span className={styles.periodLabel}>Kỳ kế toán</span><Select showSearch={searchOptions} aria-label="Chọn kỳ kế toán" value={periodPreset} popupMatchSelectWidth={200} onChange={value => { if (value === 'custom') return; const next = resolvePresetRange(value, { today: businessToday(), demo: isDemo, conversionDate: data?.conversionDate }); if (!next || (next.from === fromDate && next.to === toDate && value === periodPreset)) return; setDateRange(next.from, next.to, value); resetPageParam(); }} className={styles.periodSelect} options={periodPresetOptions(Number(period.slice(0, 4)), isDemo)} suffixIcon={<Icon name="down" size={13} />} /><div className={styles.periodRange} role="group" aria-label="Khoảng ngày kế toán"><DateInput allowClear={false} aria-label="Từ ngày kế toán" value={fromDate} onChange={value => { if (!isCalendarDate(value) || value === fromDate) return; const next = normalizeDateRange(value, toDate, 'from'); setDateRange(next.from, next.to, null); resetPageParam(); }} /><span className={styles.periodRangeSep} aria-hidden="true">–</span><DateInput allowClear={false} aria-label="Đến ngày kế toán" value={toDate} onChange={value => { if (!isCalendarDate(value) || value === toDate) return; const next = normalizeDateRange(fromDate, value, 'to'); setDateRange(next.from, next.to, null); resetPageParam(); }} /></div></div></div>
         <Outlet />
       </main>
       <nav aria-label="Thanh điều hướng dưới" className={styles.mobileTabBar}>

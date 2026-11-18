@@ -63,11 +63,33 @@ type Report struct {
 	AccountBalance *Row   `json:"accountBalance,omitempty"`
 }
 type Filter struct {
-	Period, Kind, Account, Status, Type, Query, Sort, Source, BankAccount string
-	Page, PageSize                                                        int
-	Desc                                                                  bool
-	Revision                                                              *int64
+	Period, From, To, Kind, Account, Status, Type, Query, Sort, Source, BankAccount string
+	Page, PageSize                                                                  int
+	Desc                                                                            bool
+	Revision                                                                        *int64
 }
+
+func (f Filter) ResolveRange() (from, to, toExclusive, label, slug string, err error) {
+	if f.From == "" && f.To == "" {
+		start, e := time.Parse("2006-01", f.Period)
+		if e != nil || start.Format("2006-01") != f.Period {
+			return "", "", "", "", "", accounting.Fail("BAD_REQUEST", "Kỳ hoặc khoảng ngày không hợp lệ.")
+		}
+		next := start.AddDate(0, 1, 0)
+		return start.Format("2006-01-02"), next.AddDate(0, 0, -1).Format("2006-01-02"), next.Format("2006-01-02"), f.Period, f.Period, nil
+	}
+	if !accounting.Date(f.From) || !accounting.Date(f.To) || f.From > f.To {
+		return "", "", "", "", "", accounting.Fail("BAD_REQUEST", "Khoảng ngày không hợp lệ.")
+	}
+	endDay, _ := time.Parse("2006-01-02", f.To)
+	toExclusive = endDay.AddDate(0, 0, 1).Format("2006-01-02")
+	monthStart, _ := time.Parse("2006-01", f.From[:7])
+	if f.From == monthStart.Format("2006-01-02") && toExclusive == monthStart.AddDate(0, 1, 0).Format("2006-01-02") {
+		return f.From, f.To, toExclusive, f.From[:7], f.From[:7], nil
+	}
+	return f.From, f.To, toExclusive, f.From + " – " + f.To, f.From + "_" + f.To, nil
+}
+
 type DocumentList struct {
 	Context
 	Documents []Document     `json:"documents"`
@@ -273,13 +295,17 @@ func (s *Service) Metrics(ctx context.Context, q Queryer, period string) (*Metri
 }
 func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error) {
 	result := DocumentList{Documents: []Document{}, Counts: map[string]int{"all": 0, "posted": 0, "draft": 0}}
+	rangeFrom, _, toExclusive, label, _, err := f.ResolveRange()
+	if err != nil {
+		return result, err
+	}
 	tx, err := s.Store.Read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return result, err
 	}
 	defer tx.Rollback()
 	result.Context, err = ReadContext(ctx, tx)
-	result.Period = f.Period
+	result.Period = label
 	if err != nil {
 		return result, err
 	}
@@ -323,12 +349,12 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 		}
 	}
 	if allMoney || f.BankAccount != "" {
-		result.Money, err = moneySummary(ctx, tx, f.Account, f.Period, f.BankAccount)
+		result.Money, err = moneySummary(ctx, tx, f.Account, rangeFrom, toExclusive, f.BankAccount)
 		if err != nil {
 			return result, err
 		}
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM documents WHERE source_type NOT IN ('opening','opening_adjustment','opening_adjustment_reversal') AND substr(date,1,7)=? ORDER BY date DESC,posted_order DESC,id", f.Period)
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM documents WHERE source_type NOT IN ('opening','opening_adjustment','opening_adjustment_reversal') AND date>=? AND date<? ORDER BY date DESC,posted_order DESC,id", rangeFrom, toExclusive)
 	if err != nil {
 		return result, err
 	}
@@ -415,23 +441,18 @@ func (s *Service) Documents(ctx context.Context, f Filter) (DocumentList, error)
 	}
 	return result, tx.Commit()
 }
-func moneySummary(ctx context.Context, tx *sql.Tx, account, period, bank string) (*MoneySummary, error) {
-	start, err := time.Parse("2006-01", period)
-	if err != nil {
-		return nil, accounting.Fail("BAD_REQUEST", "Kỳ báo cáo tiền không hợp lệ.")
-	}
-	end := start.AddDate(0, 1, 0).Format("2006-01-02")
+func moneySummary(ctx context.Context, tx *sql.Tx, account, rangeFrom, toExclusive, bank string) (*MoneySummary, error) {
 	accounts := strings.Split(account, ",")
 	args := make([]any, 0, len(accounts)+1)
 	for _, id := range accounts {
 		args = append(args, id)
 	}
-	args = append(args, end)
+	args = append(args, toExclusive)
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(accounts)), ",")
 	query := "SELECT d.date,d.source_type,l.debit,l.credit FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE d.status='posted' AND l.account_id IN (" + placeholders + ") AND d.date<?"
 	if bank != "" {
 		query = "SELECT d.date,d.source_type,m.debit,m.credit FROM bank_movements m JOIN documents d ON d.id=m.document_id WHERE d.status='posted' AND m.bank_id=? AND d.date<?"
-		args = []any{bank, end}
+		args = []any{bank, toExclusive}
 	}
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -445,7 +466,7 @@ func moneySummary(ctx context.Context, tx *sql.Tx, account, period, bank string)
 		if err = rows.Scan(&date, &source, &debit, &credit); err != nil {
 			return nil, err
 		}
-		if IsOpening(source) || date < start.Format("2006-01-02") {
+		if IsOpening(source) || date < rangeFrom {
 			opening.Add(opening, big.NewInt(debit))
 			opening.Sub(opening, big.NewInt(credit))
 		} else {
@@ -471,17 +492,21 @@ func bounds(page, size, total int) (int, int) {
 }
 func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 	report := Report{Rows: []Row{}}
+	rangeFrom, _, toExclusive, label, _, err := f.ResolveRange()
+	if err != nil {
+		return report, err
+	}
 	tx, err := s.Store.Read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return report, err
 	}
 	defer tx.Rollback()
 	report.Context, err = ReadContext(ctx, tx)
-	report.Period = f.Period
+	report.Period = label
 	if err != nil {
 		return report, err
 	}
-	if report.ConversionDate != "" && f.Period < report.ConversionDate[:7] {
+	if report.ConversionDate != "" && rangeFrom < report.ConversionDate {
 		return report, accounting.Fail("BEFORE_CONVERSION", "Kỳ báo cáo trước mốc chuyển đổi; chưa có dữ liệu lịch sử trong bộ dữ liệu này.")
 	}
 	if f.Revision != nil && *f.Revision != report.Revision {
@@ -508,7 +533,7 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 		return report, err
 	}
 	opening, closing, debits, credits := map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}, map[string]*big.Int{}
-	rows, err = tx.QueryContext(ctx, "SELECT d.id,d.reference,d.date,d.description,l.position,l.account_id,COALESCE(l.partner_id,''),l.partner_name,l.account_name,l.description,l.debit,l.credit,d.source_type FROM documents d JOIN document_lines l ON l.document_id=d.id WHERE d.status='posted' AND substr(d.date,1,7)<=? ORDER BY d.date,d.posted_order,l.position", f.Period)
+	rows, err = tx.QueryContext(ctx, "SELECT d.id,d.reference,d.date,d.description,l.position,l.account_id,COALESCE(l.partner_id,''),l.partner_name,l.account_name,l.description,l.debit,l.credit,d.source_type FROM documents d JOIN document_lines l ON l.document_id=d.id WHERE d.status='posted' AND d.date<? ORDER BY d.date,d.posted_order,l.position", toExclusive)
 	if err != nil {
 		return report, err
 	}
@@ -526,14 +551,14 @@ func (s *Service) Report(ctx context.Context, f Filter) (Report, error) {
 		}
 		add(closing, key, d)
 		add(closing, key, -c)
-		if IsOpening(source) || date < f.Period+"-01" {
+		if IsOpening(source) || date < rangeFrom {
 			add(opening, key, d)
 			add(opening, key, -c)
 		} else {
 			add(debits, account, d)
 			add(credits, account, c)
 		}
-		if IsOpening(source) || date[:7] != f.Period {
+		if IsOpening(source) || date < rangeFrom {
 			continue
 		}
 		if f.Kind == "journal" || f.Kind == "ledger" {

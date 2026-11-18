@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useWorkspace } from './WorkspaceProvider';
 import { filterDocuments, periodDocuments } from '../shared/accounting/ledger';
 import { formatDate } from '../shared/accounting/money';
+import { formatAccountingRange } from '../shared/accounting/period-range';
 import { api, apiScope, isDemo } from '../shared/api/client';
 import { workspaceKey } from '../shared/data/workspace';
 import type { DocumentList } from '../shared/data/reports';
@@ -17,7 +18,7 @@ import { preloadRoute } from './route-preload';
 import styles from './App.module.css';
 
 export function DocumentSearch({ shortcuts, pinnedIds }: { shortcuts: SidebarShortcut[]; pinnedIds: string[] }) {
-  const { data, period, openDocument, newDraft, setDraftOpen } = useWorkspace();
+  const { data, period, fromDate, toDate, openDocument, newDraft, setDraftOpen } = useWorkspace();
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -28,7 +29,7 @@ export function DocumentSearch({ shortcuts, pinnedIds }: { shortcuts: SidebarSho
   const location = useLocation();
   const delayed = useDebouncedValue(search.trim());
   const epoch = apiScope().epoch;
-  useEffect(() => { setSearch(''); setOpen(false); }, [period, epoch]);
+  useEffect(() => { setSearch(''); setOpen(false); }, [fromDate, toDate, epoch]);
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !event.isComposing && !event.altKey && !event.shiftKey && !event.defaultPrevented && !event.repeat) { event.preventDefault(); setOpen(value => !value); }
@@ -36,8 +37,8 @@ export function DocumentSearch({ shortcuts, pinnedIds }: { shortcuts: SidebarSho
     document.addEventListener('keydown', shortcut);
     return () => document.removeEventListener('keydown', shortcut);
   }, []);
-  const query = useQuery({ queryKey: [...workspaceKey(), 'quick-search', period, delayed, data?.revision], queryFn: ({ signal }) => api<DocumentList>(`/documents?${new URLSearchParams({ period, q: delayed, page: '1', pageSize: '6', type: 'all', status: 'all', account: 'all', sort: 'date', direction: 'desc' })}`, { signal }), enabled: !isDemo && Boolean(data) && (focused || open) && !composing && search.trim() === delayed && delayed.length >= 2, retry: false });
-  const local = data && search.trim() ? filterDocuments(periodDocuments(data.documents, period), search, data.partners).slice(0, 6) : [];
+  const query = useQuery({ queryKey: [...workspaceKey(), 'quick-search', fromDate, toDate, delayed, data?.revision], queryFn: ({ signal }) => api<DocumentList>(`/documents?${new URLSearchParams({ period, from: fromDate, to: toDate, q: delayed, page: '1', pageSize: '6', type: 'all', status: 'all', account: 'all', sort: 'date', direction: 'desc' })}`, { signal }), enabled: !isDemo && Boolean(data) && (focused || open) && !composing && search.trim() === delayed && delayed.length >= 2, retry: false });
+  const local = data && search.trim() ? filterDocuments(periodDocuments(data.documents, period, fromDate, toDate), search, data.partners).slice(0, 6) : [];
   const matches = search.trim() === delayed && delayed.length >= 2 && query.data ? query.data.documents : local;
   const actions = quickActions(shortcuts, pinnedIds, search, search.trim() ? 5 : 8);
   const options = [
@@ -60,7 +61,7 @@ export function DocumentSearch({ shortcuts, pinnedIds }: { shortcuts: SidebarSho
     {searchInput()}
     <Button type="text" className={styles.mobileSearch} icon={<Icon name="search" />} aria-label="Mở tìm kiếm chứng từ" onClick={() => setOpen(true)} />
     <Modal title="Tìm nhanh" open={open} onCancel={close} footer={null} width={640} destroyOnHidden afterOpenChange={visible => { if (visible) inputRef.current?.focus(); }}>
-      <p className={styles.muted}>Gõ tên chức năng hoặc chứng từ · Kỳ {period.split('-').reverse().join('/')} · ↑↓ chọn, Enter mở, Esc đóng.</p>
+      <p className={styles.muted}>Gõ tên chức năng hoặc chứng từ · {formatAccountingRange(fromDate, toDate)} · ↑↓ chọn, Enter mở, Esc đóng.</p>
       {searchInput(true)}
       <Button className={styles.searchAll} type="primary" block onClick={findAll}>Xem tất cả kết quả chứng từ <Icon name="arrow" size={16} /></Button>
     </Modal>

@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../app/WorkspaceProvider';
 import { nonZeroTrialRows, partnerBalances, trialBalance } from '../../shared/accounting/ledger';
 import { formatDate, formatMoney, normalizeSearch } from '../../shared/accounting/money';
+import { accountingRangeSlug, formatAccountingRange } from '../../shared/accounting/period-range';
 import { downloadCsv } from '../../shared/accounting/csv';
 import { DataBoundary, PageHeading, PageToolbar } from '../../shared/ui/Page';
 import { Icon } from '../../shared/ui/Icon';
@@ -33,7 +34,7 @@ export function Component() {
 }
 
 function BookReports() {
-  const { data, period, refresh, openDocument } = useWorkspace();
+  const { data, period, fromDate, toDate, refresh, openDocument } = useWorkspace();
   const { pathname } = useLocation();
   const [params, setParams] = useSearchParams();
   const module = accountingModule(pathname);
@@ -49,22 +50,24 @@ function BookReports() {
   const setPage = (value: number) => setFilter('page', String(value));
   const debtType = params.get('debt') === 'payable' ? 'payable' : 'receivable';
   const setDebtType = (value: string) => setFilter('debt', value);
-  const serverParams = new URLSearchParams({ period, kind: tab, account: isDebt ? debtType : account, q: search, page: String(page), pageSize: '10', revision: String(data?.revision ?? 0) });
+  const rangeLabel = formatAccountingRange(fromDate, toDate);
+  const rangeSlug = accountingRangeSlug(fromDate, toDate);
+  const serverParams = new URLSearchParams({ period, from: fromDate, to: toDate, kind: tab, account: isDebt ? debtType : account, q: search, page: String(page), pageSize: '10', revision: String(data?.revision ?? 0) });
   const queryKey = [...workspaceKey(), 'report', serverParams.toString()];
   const server = useQuery<ServerReport>({ queryKey, placeholderData: (previous, query) => samePaginationScope(queryKey, query?.queryKey) ? previous : undefined, queryFn: ({ signal }) => api<ServerReport>(`/reports?${serverParams}`, { signal }), enabled: !isDemo && Boolean(data), retry: false });
   if (!data) return <DataBoundary><></></DataBoundary>;
-  const posted = data.documents.filter(item => item.status === 'posted' && item.date.slice(0, 7) <= period);
-  const current = posted.filter(item => item.date.startsWith(`${period}-`));
-  const rows: ReportRow[] = tab === 'trial' ? nonZeroTrialRows(trialBalance(data, period)) : tab === 'debt' ? partnerBalances(data, period, debtType).map(item => ({ key: item.id, code: item.code, name: item.name, debit: item.balance > 0n ? item.balance : 0n, credit: item.balance < 0n ? -item.balance : 0n })).filter(item => item.debit || item.credit) : current.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)).flatMap(doc => doc.lines.map((line, index) => ({ key: `${doc.id}-${index}`, code: doc.reference, name: data.accounts.find(item => item.id === line.accountId)?.name ?? 'Tài khoản không tồn tại', account: line.accountId, date: doc.date, documentId: doc.id, description: line.description || doc.description, debit: BigInt(line.debit), credit: BigInt(line.credit) })));
+  const posted = data.documents.filter(item => item.status === 'posted' && item.date <= toDate);
+  const current = posted.filter(item => item.date >= fromDate);
+  const rows: ReportRow[] = tab === 'trial' ? nonZeroTrialRows(trialBalance(data, period, fromDate, toDate)) : tab === 'debt' ? partnerBalances(data, period, debtType, toDate).map(item => ({ key: item.id, code: item.code, name: item.name, debit: item.balance > 0n ? item.balance : 0n, credit: item.balance < 0n ? -item.balance : 0n })).filter(item => item.debit || item.credit) : current.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)).flatMap(doc => doc.lines.map((line, index) => ({ key: `${doc.id}-${index}`, code: doc.reference, name: data.accounts.find(item => item.id === line.accountId)?.name ?? 'Tài khoản không tồn tại', account: line.accountId, date: doc.date, documentId: doc.id, description: line.description || doc.description, debit: BigInt(line.debit), credit: BigInt(line.credit) })));
   const filtered = !isDemo ? server.data?.rows.map(exactRow) ?? [] : rows.filter(row => (tab !== 'ledger' || account === 'all' || row.account === account) && normalizeSearch(`${row.code} ${row.name} ${row.description ?? ''}`).includes(normalizeSearch(search)));
   const debit = !isDemo ? BigInt(server.data?.debit ?? '0') : filtered.reduce((sum, row) => sum + row.debit, 0n);
   const credit = !isDemo ? BigInt(server.data?.credit ?? '0') : filtered.reduce((sum, row) => sum + row.credit, 0n);
   const sumField = (field: keyof Pick<ReportRow, 'openingDebit' | 'openingCredit' | 'closingDebit' | 'closingCredit'>) => !isDemo ? BigInt(server.data?.[field] ?? '0') : filtered.reduce((sum, row) => sum + (row[field] ?? 0n), 0n);
   const amountColumn = (title: string, key: keyof ReportRow) => ({ title, dataIndex: key, align: 'right' as const, width: tab === 'trial' ? 185 : 145, render: (value: bigint) => <span className={styles.tableAmount}>{formatMoney(value)}</span> });
   const titles = { journal: 'Nhật ký chung', ledger: 'Sổ cái', trial: 'Cân đối phát sinh', debt: 'Chi tiết công nợ' };
-  const ledgerBalance = !isDemo ? server.data?.accountBalance ? exactRow(server.data.accountBalance) : null : tab === 'ledger' && account !== 'all' ? trialBalance(data, period).find(item => item.key === account) : null;
-  const exportReport = (format: ExportFormat) => { if (!isDemo) { const path = `/reports/export?${serverParams}&format=${format}`; if (format === 'print') { window.open(`/api/v1${path}`, '_blank', 'noopener,noreferrer'); return; } return downloadApi(path, `so-${tab}-${period}.${format}`); } downloadCsv(`so-mau-${tab}-${period}.csv`, [
-    ['DỮ LIỆU MẪU', titles[tab], `Kỳ ${period}`, `Phiên bản ${data.revision}`, `Tài khoản: ${tab === 'ledger' ? account : 'Tất cả'}`],
+  const ledgerBalance = !isDemo ? server.data?.accountBalance ? exactRow(server.data.accountBalance) : null : tab === 'ledger' && account !== 'all' ? trialBalance(data, period, fromDate, toDate).find(item => item.key === account) : null;
+  const exportReport = (format: ExportFormat) => { if (!isDemo) { const path = `/reports/export?${serverParams}&format=${format}`; if (format === 'print') { window.open(`/api/v1${path}`, '_blank', 'noopener,noreferrer'); return; } return downloadApi(path, `so-${tab}-${rangeSlug}.${format}`); } downloadCsv(`so-mau-${tab}-${rangeSlug}.csv`, [
+    ['DỮ LIỆU MẪU', titles[tab], rangeLabel, `Phiên bản ${data.revision}`, `Tài khoản: ${tab === 'ledger' ? account : 'Tất cả'}`],
     ...(tab === 'trial' ? [['Mã', 'Tên', 'Dư đầu Nợ', 'Dư đầu Có', 'Phát sinh Nợ', 'Phát sinh Có', 'Dư cuối Nợ', 'Dư cuối Có'], ...filtered.map(row => [row.code, row.name, ...[row.openingDebit, row.openingCredit, row.debit, row.credit, row.closingDebit, row.closingCredit].map(value => `${formatMoney(value ?? 0n)} VND`)])] : [['Mã chứng từ / đối tượng', 'Ngày', 'Diễn giải / tên', 'Tài khoản', 'Nợ', 'Có'], ...filtered.map(row => [row.code, row.date ?? '', row.description ?? row.name, row.account ?? '', `${formatMoney(row.debit)} VND`, `${formatMoney(row.credit)} VND`])]),
   ]); };
 
@@ -72,14 +75,14 @@ function BookReports() {
 
   return <DataBoundary>
     <PageHeading title={isDebt ? 'Công nợ' : 'Sổ sách & báo cáo'} description={isDebt ? 'Theo dõi số dư hai bên theo từng khách hàng và nhà cung cấp.' : 'Từ số tổng hợp đến từng dòng chứng từ, luôn có thể kiểm chứng.'} />
-    <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : 'book'} /></span><div><strong>{titles[tab]} · Kỳ {period.split('-').reverse().join('/')}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
+    <div className={styles.reportIntro}><span className={styles.metricIcon}><Icon name={isDebt ? 'users' : 'book'} /></span><div><strong>{titles[tab]} · {rangeLabel}</strong><p>{isDemo ? 'Dữ liệu mẫu đã ghi sổ' : 'Chứng từ đã ghi sổ'} · VND · Phiên bản {data.revision} · {isDebt ? 'Giữ riêng số dư Nợ và Có của từng đối tượng' : 'Bản nháp không tham gia số liệu'}</p></div><span className={styles.demoPill}>Bản xem trước</span></div>
     {server.error && <Alert type="error" title={server.error.message} action={<Button onClick={() => { refresh(); void server.refetch(); }}>Tải lại dữ liệu</Button>} />}
     <section className={styles.panel}>
       {(!isDebt || module) && <div className={styles.listTabs}><Tabs activeKey={tab} onChange={value => { setParams({ tab: value, ...(value === 'debt' ? { debt: module && 'tradeKind' in module && module.tradeKind === 'purchase' ? 'payable' : 'receivable' } : {}) }); }} items={[{ key: 'journal', label: 'Nhật ký chung' }, { key: 'ledger', label: 'Sổ cái' }, { key: 'trial', label: 'Cân đối phát sinh' }, ...(module && 'tradeKind' in module ? [{ key: 'debt', label: 'Công nợ theo đối tượng' }] : []), ...(!isDemo ? [{ key: 'financial', label: 'Báo cáo tài chính' }] : [])]} /></div>}
-      <PageToolbar label="Công cụ báo cáo" actions={pageActions} activeFilters={Number(Boolean(search.trim())) + Number(tab === 'ledger' && account !== 'all')} onResetFilters={() => { setSearch(''); if (tab === 'ledger') setAccount('all'); }}><DebouncedSearchInput scopeKey={`${period}-${pathname}-${tab}-${account}-${debtType}`} prefix={<Icon name="search" size={17} />} value={search} onSearch={setSearch} aria-label="Tìm trong báo cáo" placeholder="Tìm mã, tên hoặc diễn giải…" allowClear className={styles.filterSearch} />{tab === 'ledger' && <Select aria-label="Chọn tài khoản sổ cái" showSearch={searchOptions} value={account} onChange={value => { setAccount(value); }} style={{ minWidth: 240 }} options={[{ value: 'all', label: 'Tất cả tài khoản' }, ...data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{isDebt && <Select aria-label="Loại công nợ" value={debtType} onChange={value => { setDebtType(value); }} style={{ minWidth: 210 }} options={[{ value: 'receivable', label: 'Phải thu khách hàng · 131' }, { value: 'payable', label: 'Phải trả người bán · 331' }]} />}</PageToolbar>
+      <PageToolbar label="Công cụ báo cáo" actions={pageActions} activeFilters={Number(Boolean(search.trim())) + Number(tab === 'ledger' && account !== 'all')} onResetFilters={() => { setSearch(''); if (tab === 'ledger') setAccount('all'); }}><DebouncedSearchInput scopeKey={`${fromDate}-${toDate}-${pathname}-${tab}-${account}-${debtType}`} prefix={<Icon name="search" size={17} />} value={search} onSearch={setSearch} aria-label="Tìm trong báo cáo" placeholder="Tìm mã, tên hoặc diễn giải…" allowClear className={styles.filterSearch} />{tab === 'ledger' && <Select aria-label="Chọn tài khoản sổ cái" showSearch={searchOptions} value={account} onChange={value => { setAccount(value); }} style={{ minWidth: 240 }} options={[{ value: 'all', label: 'Tất cả tài khoản' }, ...data.accounts.map(item => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} />}{isDebt && <Select aria-label="Loại công nợ" value={debtType} onChange={value => { setDebtType(value); }} style={{ minWidth: 210 }} options={[{ value: 'receivable', label: 'Phải thu khách hàng · 131' }, { value: 'payable', label: 'Phải trả người bán · 331' }]} />}</PageToolbar>
       {ledgerBalance && <div className={styles.ledgerBalances}>{[['Dư đầu Nợ', ledgerBalance.openingDebit], ['Dư đầu Có', ledgerBalance.openingCredit], ['Dư cuối Nợ', ledgerBalance.closingDebit], ['Dư cuối Có', ledgerBalance.closingCredit]].map(([label, value]) => <span key={String(label)}>{label}<strong>{formatMoney(value as bigint)}<small>VND</small></strong></span>)}</div>}
       {server.isPlaceholderData && <div role="status" className={styles.searchHint}>Đang tải trang {page}… Nội dung đang cập nhật.</div>}
-      <Table<ReportRow> loading={{ spinning: !isDemo && server.isFetching, delay: 120 }} key={`${tab}-${period}-${account}`} rowKey="key" dataSource={filtered} scroll={{ x: tab === 'trial' ? 1300 : 850 }} pagination={{ current: page, onChange: setPage, total: isDemo ? filtered.length : server.data?.total ?? 0, pageSize: 10, hideOnSinglePage: true, showSizeChanger: false, showTotal: total => `${total} dòng` }} columns={tab === 'trial' ? [
+      <Table<ReportRow> loading={{ spinning: !isDemo && server.isFetching, delay: 120 }} key={`${tab}-${fromDate}-${toDate}-${account}`} rowKey="key" dataSource={filtered} scroll={{ x: tab === 'trial' ? 1300 : 850 }} pagination={{ current: page, onChange: setPage, total: isDemo ? filtered.length : server.data?.total ?? 0, pageSize: 10, hideOnSinglePage: true, showSizeChanger: false, showTotal: total => `${total} dòng` }} columns={tab === 'trial' ? [
         { title: 'TÀI KHOẢN', dataIndex: 'code', width: 110, fixed: 'left' }, { title: 'TÊN TÀI KHOẢN', dataIndex: 'name', width: 220 },
         { title: 'DƯ ĐẦU KỲ', children: [amountColumn('Nợ', 'openingDebit'), amountColumn('Có', 'openingCredit')] },
         { title: 'PHÁT SINH TRONG KỲ', children: [amountColumn('Nợ', 'debit'), amountColumn('Có', 'credit')] },
