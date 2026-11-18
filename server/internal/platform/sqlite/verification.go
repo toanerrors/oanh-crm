@@ -126,7 +126,6 @@ func verifySettlements(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	totals := map[string]*big.Int{}
 	limits := map[string]*big.Int{}
 	for _, p := range payments {
 		amount, err := accounting.Money(p.Amount)
@@ -225,19 +224,10 @@ func verifySettlements(ctx context.Context, db *sql.DB) error {
 					return fmt.Errorf("settlement source has no debt")
 				}
 				limits[a.DocumentID] = limit
-				totals[a.DocumentID] = new(big.Int)
-			}
-			if p.reversed == "" {
-				totals[a.DocumentID].Add(totals[a.DocumentID], big.NewInt(n))
 			}
 		}
 		if total.Cmp(big.NewInt(amount)) != 0 {
 			return fmt.Errorf("settlement allocations differ from payment")
-		}
-	}
-	for id, total := range totals {
-		if total.Cmp(limits[id]) > 0 {
-			return fmt.Errorf("settlements exceed source debt")
 		}
 	}
 	return nil

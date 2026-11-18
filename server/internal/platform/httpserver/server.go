@@ -594,7 +594,7 @@ func (s *Server) static(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/assets/") {
 			w.Header().Set("Cache-Control", "public,max-age=31536000,immutable")
 		} else {
-			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Cache-Control", "no-store, must-revalidate")
 		}
 		http.ServeFile(w, r, path)
 		return
@@ -603,7 +603,7 @@ func (s *Server) static(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Cache-Control", "no-store, must-revalidate")
 	http.ServeFile(w, r, filepath.Join(s.Assets, "index.html"))
 }
 func (s *Server) backup(w http.ResponseWriter, r *http.Request) {

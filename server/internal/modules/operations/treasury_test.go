@@ -121,9 +121,8 @@ func TestTreasuryRejectsInvalidAllocationsAndRollsBack(t *testing.T) {
 		name, code string
 		edit       func(*Input)
 	}{
-		{"overpay", "OVERPAYMENT", func(in *Input) { in.Amount = "1101"; in.Allocations[0].Amount = "1101" }},
 		{"mismatch", "ALLOCATION_MISMATCH", func(in *Input) { in.Amount = "501" }},
-		{"zero", "OVERPAYMENT", func(in *Input) { in.Allocations[0].Amount = "0" }},
+		{"zero", "VALIDATION", func(in *Input) { in.Allocations[0].Amount = "0" }},
 		{"duplicate", "VALIDATION", func(in *Input) { in.Allocations = append(in.Allocations, in.Allocations[0]) }},
 		{"wrong-partner", "INVALID_INVOICE", func(in *Input) { in.PartnerID = "supplier" }},
 		{"wrong-kind", "INVALID_INVOICE", func(in *Input) { in.Allocations[0].DocumentID = purchase.Document.ID }},
@@ -166,11 +165,11 @@ func TestTreasuryRejectsInvalidAllocationsAndRollsBack(t *testing.T) {
 	}
 }
 
-func TestTreasuryConcurrentPaymentsCannotOverpay(t *testing.T) {
+func TestTreasuryOverpaymentBackupAndConcurrentSettlements(t *testing.T) {
 	f := treasuryFixture(t)
 	ctx := context.Background()
 	sale := executeTreasury(t, f, "sale", tradeInput("sale", "sale", "1000"))
-	input := Input{Kind: "receipt", Date: "2026-10-10", Description: "Thu đồng thời", PartnerID: "customer", MoneyAccount: "111", Amount: "700", Allocations: []Allocation{{DocumentID: sale.Document.ID, Amount: "700"}}}
+	input := Input{Kind: "receipt", Date: "2026-10-10", Description: "Thu đồng thời vượt công nợ", PartnerID: "customer", MoneyAccount: "111", Amount: "700", Allocations: []Allocation{{DocumentID: sale.Document.ID, Amount: "700"}}}
 	var wg sync.WaitGroup
 	errors := make(chan error, 2)
 	for _, key := range []string{"first", "second"} {
@@ -185,22 +184,43 @@ func TestTreasuryConcurrentPaymentsCannotOverpay(t *testing.T) {
 	}
 	wg.Wait()
 	close(errors)
-	var successes, failures int
 	for err := range errors {
-		if err == nil {
-			successes++
-		} else if accounting.Code(err) == "OVERPAYMENT" {
-			failures++
-		} else {
+		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	if successes != 1 || failures != 1 {
-		t.Fatal(successes, failures)
-	}
 	list, err := f.ops.Invoices(ctx, "2026-10-10", "sale", "customer", 1, 10)
-	if err != nil || list.Paid != "700" || list.Remaining != "400" {
+	if err != nil || list.Amount != "1100" || list.Paid != "1400" || list.Remaining != "0" {
 		t.Fatal(list, err)
+	}
+	debt, err := f.ledger.Report(ctx, ledger.Filter{Period: "2026-10", Kind: "debt", Account: "receivable", Page: 1, PageSize: 10})
+	if err != nil || len(debt.Rows) != 1 || debt.Rows[0].Debit != "0" || debt.Rows[0].Credit != "300" {
+		t.Fatal(debt, err)
+	}
+	purchase := executeTreasury(t, f, "purchase", tradeInput("purchase", "purchase", "2000000"))
+	overpaySupplier := executeTreasury(t, f, "pay-over", Input{Kind: "payment", SourceID: "pay-over", Date: "2026-10-12", Description: "Trả vượt hóa đơn nhà cung cấp", PartnerID: "supplier", MoneyAccount: "1121", Amount: "2500000", Allocations: []Allocation{{DocumentID: purchase.Document.ID, Amount: "2500000"}}})
+	purchases, err := f.ops.Invoices(ctx, "2026-10-12", "purchase", "supplier", 1, 10)
+	if err != nil || purchases.Amount != "2200000" || purchases.Paid != "2500000" || purchases.Remaining != "0" {
+		t.Fatal(purchases, err)
+	}
+	payableDebt, err := f.ledger.Report(ctx, ledger.Filter{Period: "2026-10", Kind: "debt", Account: "payable", Page: 1, PageSize: 10})
+	if err != nil || len(payableDebt.Rows) != 1 || payableDebt.Rows[0].Debit != "300000" || payableDebt.Rows[0].Credit != "0" {
+		t.Fatal(payableDebt, err)
+	}
+	if err = sqlite.Check(ctx, f.store.Read); err != nil {
+		t.Fatal(err)
+	}
+	archive, _, err := f.store.Backup(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.store.Stage(ctx, archive); err != nil {
+		t.Fatal(err)
+	}
+	executeTreasury(t, f, "reverse-overpay", Input{Kind: "treasury_reversal", SourceID: "reverse-overpay", OriginalDocumentID: overpaySupplier.Document.ID, Date: "2026-10-15", Description: "Đảo phiếu trả vượt"})
+	restored, err := f.ops.Invoices(ctx, "2026-10-15", "purchase", "supplier", 1, 10)
+	if err != nil || restored.Paid != "0" || restored.Remaining != "2200000" {
+		t.Fatal(restored, err)
 	}
 }
 

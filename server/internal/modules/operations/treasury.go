@@ -128,9 +128,8 @@ func (s *Service) treasury(ctx context.Context, tx *sql.Tx, in Input, doc *ledge
 				if e != nil {
 					return e
 				}
-				remaining, _ := accounting.Money(invoice.Remaining)
-				if n == 0 || n > remaining {
-					return accounting.Fail("OVERPAYMENT", "Số phân bổ phải lớn hơn 0 và không vượt công nợ còn lại của chứng từ.")
+				if n == 0 {
+					return accounting.Fail("VALIDATION", "Số phân bổ phải lớn hơn 0.")
 				}
 				if total, e = accounting.Add(total, n); e != nil {
 					return e
@@ -244,13 +243,13 @@ func invoiceAt(ctx context.Context, tx *sql.Tx, id, asOf string) (TradeInvoice, 
 	if amount <= 0 {
 		return invoice, accounting.Fail("INVALID_INVOICE", "Chứng từ không có công nợ dương theo đối tượng chung.")
 	}
-	// Read every allocation, including future-dated payments, to prevent backdated overpayment.
+	// Read every allocation, including future-dated payments, to flag out-of-order settlements.
 	rows, err = tx.QueryContext(ctx, `SELECT o.date,o.payload FROM operations o JOIN documents d ON d.id=o.document_id WHERE o.kind=? AND d.partner_id=? AND d.status='posted'
 		AND NOT EXISTS(SELECT 1 FROM documents reversal WHERE reversal.reversal_of=d.id AND reversal.status='posted' AND reversal.date<=?)`, paymentKind, invoice.PartnerID, asOf)
 	if err != nil {
 		return invoice, err
 	}
-	var paid int64
+	paid := new(big.Int)
 	for rows.Next() {
 		var date, data string
 		if err = rows.Scan(&date, &data); err != nil {
@@ -275,10 +274,7 @@ func invoiceAt(ctx context.Context, tx *sql.Tx, id, asOf string) (TradeInvoice, 
 				rows.Close()
 				return invoice, e
 			}
-			if paid, err = accounting.Add(paid, n); err != nil {
-				rows.Close()
-				return invoice, err
-			}
+			paid.Add(paid, big.NewInt(n))
 		}
 	}
 	err = rows.Err()
@@ -298,10 +294,12 @@ func invoiceAt(ctx context.Context, tx *sql.Tx, id, asOf string) (TradeInvoice, 
 		return invoice, err
 	}
 	invoice.Unallocated = invoice.Unallocated || unallocated > 0
-	if paid > amount {
-		return invoice, accounting.Fail("ALLOCATION_MISMATCH", "Phân bổ vượt công nợ nguồn; cần đối soát dữ liệu.")
+	gross := big.NewInt(amount)
+	rem := new(big.Int).Sub(gross, paid)
+	if rem.Sign() < 0 {
+		rem.SetInt64(0)
 	}
-	invoice.Amount, invoice.Paid, invoice.Remaining = accounting.Text(amount), accounting.Text(paid), accounting.Text(amount-paid)
+	invoice.Amount, invoice.Paid, invoice.Remaining = gross.String(), paid.String(), rem.String()
 	return invoice, nil
 }
 

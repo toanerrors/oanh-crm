@@ -10,6 +10,12 @@ Cập nhật: 18/11/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
 
+## Cho phép thanh toán vượt công nợ chứng từ và tự điền ngay khi chọn đối tượng — 0.18.4
+
+- Đã làm: theo yêu cầu người dùng, bỏ chặn thanh toán vượt số tiền công nợ còn lại trên chứng từ nguồn trong `treasury.go` và `sqlite/verification.go`; vẫn giữ kiểm tra `n > 0`, không trùng chứng từ trong cùng phiếu, đúng đối tượng/loại/ngày và tổng phân bổ bằng đúng tổng tiền phiếu/bút toán `131`/`331`. Trên sổ cái và sổ công nợ đối tượng, phần thanh toán vượt tự ghi nhận thành dư Có `131` (người mua trả trước) hoặc dư Nợ `331` (trả trước cho người bán); trên bảng `Công nợ theo chứng từ` (`Settlements.tsx`), `Remaining = 0` và hiển thị nhãn `Đã thanh toán · Dư …` khi `Paid > Amount`.
+- Trên phiếu thu/chi công nợ (`VoucherForm.tsx`), khi chọn đối tượng chỉ có đúng 1 chứng từ công nợ còn phải thu/trả thì tự động chọn sẵn chứng từ đó và điền ngay số tiền còn lại vào dòng đầu tiên (ngoài việc tự điền khi người dùng chọn chứng từ trong `Select`). Đồng thời đặt `Cache-Control: no-store, must-revalidate` cho `index.html` trong `server.go` để trình duyệt/proxy không giữ trang HTML cũ sau mỗi đợt phát hành.
+- Đã kiểm tra: `gofmt`, `go vet`, `go test -race` cho `operations` (`TestTreasury*`, `TestEditPostedVoucher*`, `TestVoucher*`, `TestBackupRestore*`), `sqlite` và `httpserver` (gồm `TestTreasuryOverpaymentBackupAndConcurrentSettlements` kiểm tra thanh toán vượt đồng thời, dư Có `131` / dư Nợ `331`, `Backup`, `Stage` và đảo phiếu), `tsc --noEmit`, 76 unit test Node, `vite build` và kịch bản E2E live trong `purchase-accounts.spec.ts`.
+
 ## Tự điền số tiền còn lại và hiển thị số chứng từ khi phân bổ công nợ — 0.18.3
 
 - Đã làm: đổi ô chọn chứng từ công nợ nguồn trong `VoucherForm.tsx` từ `AutoComplete` (lộ ID nội bộ `documentId` sau khi chọn) sang `Select` dùng `allocationInvoiceOptions` và `invoiceAvailableAmount` (`web/src/shared/accounting/ledger.ts`), khởi tạo sẵn 1 dòng khi mở chế độ thu/trả công nợ theo chứng từ và loại trừ chứng từ đã chọn ở dòng khác trên cùng phiếu.
