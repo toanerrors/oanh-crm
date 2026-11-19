@@ -459,3 +459,80 @@ func TestExcelNumericIdentifiersAndFormulasAreRowErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestExcelPartnersAllowSpacesInCodeAndReportColumnSpecificErrors(t *testing.T) {
+	f := openFixture(t)
+	ctx := context.Background()
+	f.policy(t, testPolicy())
+	if _, err := f.ops.SaveItem(ctx, f.cmd("svc-space"), Item{ID: "svc-space", Code: "DV SPACE", Name: "Dịch vụ mẫu", Unit: "lần", Active: true}); err != nil {
+		t.Fatal(err)
+	}
+	headers := []string{"code", "name", "role", "taxCode", "address", "email", "phone", "active"}
+	rows := [][]string{
+		{"CHYANG SHENG", "CÔNG TY TNHH CHYANG SHENG VIỆT NAM", "Customer", "3700255418", "Số 150/3 Khu phố 2, Phường An Phú", "", "", ""},
+		{"GEN BRIGHT", "CÔNG TY TNHH BÓNG ĐÈN GEN BRIGHT", "Customer", "1101909682", "Lô B2, Đường số 4, KCN Tân Đô", "", "", ""},
+		{"TTI CUCHI", "CÔNG TY TNHH GREEN PLANET DISTRIBUTION CENTRE", "Customer", "0317077996", "Lô A3.1, Khu A3, Xã Củ Chi", "", "", ""},
+		{"TTI DAUGIAY", "CÔNG TY TNHH TECHTRONIC PRODUCTS (VIỆT NAM)", "Customer", "3603826338", "Lô M1-M5, KCN Dầu Giây", "", "", ""},
+		{"TTI Q9", "CÔNG TY TNHH TECHTRONIC TOOLS (VIỆT NAM)", "Customer", "0316071695", "Lô I-14.5, Khu Công Nghệ Cao", "", "", ""},
+	}
+	b, c := stageExcelTest(t, f, "partners-spaces", "partners", headers, rows)
+	p := excelPreviewTest(t, f, b, c)
+	if p.ErrorCount != 0 || p.Valid != len(rows) {
+		t.Fatalf("expected valid spaced partner codes, got %+v", p)
+	}
+	excelCommitTest(t, f, b, c, p, "partners-spaces-commit")
+	if excelCount(t, f, "SELECT count(*) FROM partners WHERE code IN ('CHYANG SHENG','GEN BRIGHT','TTI CUCHI','TTI DAUGIAY','TTI Q9')") != 5 {
+		t.Fatal("missing imported spaced partners")
+	}
+
+	// Verify subsequent sales voucher Excel import resolves spaced partner and item codes cleanly.
+	sb, sc := stageExcelTest(t, f, "sale-spaced", "sale", []string{"sourceId", "date", "description", "partnerCode", "tradeMode", "priceMode", "itemCode", "quantity", "unitPrice", "vatRate"}, [][]string{{"BH-SPACE-1", "22/10/2026", "Bán cho TTI Q9", "TTI Q9", "service", "exclusive", "DV SPACE", "1", "1000", "10"}})
+	sp := excelPreviewTest(t, f, sb, sc)
+	if sp.ErrorCount != 0 || sp.Debit != "1100" {
+		t.Fatalf("spaced reference lookup failed: %+v", sp)
+	}
+	excelCommitTest(t, f, sb, sc, sp, "sale-spaced-commit")
+
+	// Verify reopen preserves spaced partner codes and passes integrity checks.
+	root := f.root
+	f.store.Close()
+	reopened, err := sqlite.Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	f.store = reopened
+	f.ledger.Store = reopened
+	if err = sqlite.Check(ctx, reopened.Read); err != nil {
+		t.Fatal(err)
+	}
+	if excelCount(t, f, "SELECT count(*) FROM partners WHERE code='TTI Q9'") != 1 {
+		t.Fatal("partner lost after reopen")
+	}
+
+	// Verify invalid codes, field lengths and duplicate codes report exact Column and actionable reason.
+	badRows := [][]string{
+		{"KHÁCH 1", "Khách có dấu", "Customer", "", "", "", "", ""},
+		{"TTI  Q9", "Khách hai khoảng trắng", "Customer", "", "", "", "", ""},
+		{"KH@1", "Khách ký tự đặc biệt", "Customer", "", "", "", "", ""},
+		{"PHONE-LONG", "Khách số dài", "Customer", "", "", "", "01234567890123456789012345678901234567890", ""},
+		{"TTI Q9", "Khách trùng mã đã có", "Customer", "", "", "", "", ""},
+	}
+	eb, ec := stageExcelTest(t, f, "partners-bad", "partners", headers, badRows)
+	ep := excelPreviewTest(t, f, eb, ec)
+	if ep.ErrorCount != 5 || len(ep.Issues) != 5 {
+		t.Fatalf("expected 5 issues, got %+v", ep)
+	}
+	wantCols := []string{"Mã", "Mã", "Mã", "Điện thoại", "Mã"}
+	for i, issue := range ep.Issues {
+		if issue.Column != wantCols[i] {
+			t.Fatalf("issue %d: want column %q, got %+v", i, wantCols[i], issue)
+		}
+		if issue.Message == "Thông tin đối tượng không hợp lệ." || issue.Message == "" {
+			t.Fatalf("issue %d: expected specific message, got %+v", i, issue)
+		}
+	}
+	if ep.Issues[4].Code != "DUPLICATE_CODE" {
+		t.Fatalf("expected DUPLICATE_CODE on row 6, got %+v", ep.Issues[4])
+	}
+}

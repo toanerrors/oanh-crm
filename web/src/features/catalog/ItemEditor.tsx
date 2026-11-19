@@ -1,6 +1,7 @@
 import { App, AutoComplete, Button, Form, Input, Modal, Radio, Switch } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { command } from '../../shared/api/client';
+import { CATALOG_CODE_MESSAGE, isValidCatalogCode } from '../../shared/data/partner-catalog';
 import type { Item } from '../../shared/data/operations';
 import { workspaceKey } from '../../shared/data/workspace';
 import { searchOptions, suggestionOptions } from '../../shared/ui/search';
@@ -20,7 +21,7 @@ export function ItemEditor({ item, items, onClose, onSaved }: { item: Item; item
     <Form<Item> form={form} layout="vertical" onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 's' || event.key === 'Enter')) { event.preventDefault(); event.stopPropagation(); if (!mutation.isPending) form.submit(); } }} initialValues={item} disabled={mutation.isPending} onFinish={values => mutation.mutate({ ...item, ...values })}>
       <Form.Item name="tracked" label="Loại danh mục" rules={[{ required: true, message: 'Chọn hàng hóa hoặc dịch vụ' }]} extra="Hàng hóa có quản lý kho. Dịch vụ không cần kho. Mỗi mã dùng chung cho cả mua và bán."><Radio.Group disabled={mutation.isPending} optionType="button" buttonStyle="solid" options={[{ value: true, label: 'Hàng hóa' }, { value: false, label: 'Dịch vụ' }]} /></Form.Item>
       <div className={styles.formGrid}>
-        <Form.Item name="code" label="Mã" rules={[{ required: true, whitespace: true }, { pattern: /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/, message: 'Dùng mã không dấu, tối đa 100 ký tự' }]}><Input disabled={mutation.isPending} maxLength={100} /></Form.Item>
+        <Form.Item name="code" label="Mã" rules={[{ required: true, whitespace: true }, { validator: (_, value: string | undefined) => !value?.trim() || isValidCatalogCode(value) ? Promise.resolve() : Promise.reject(new Error(CATALOG_CODE_MESSAGE)) }]}><Input disabled={mutation.isPending} maxLength={100} /></Form.Item>
         <Form.Item name="unit" label="Đơn vị" rules={[{ required: true, whitespace: true }]}><AutoComplete disabled={mutation.isPending} options={suggestionOptions(items.map(row => row.unit))} showSearch={searchOptions} defaultActiveFirstOption={false}><Input placeholder="Nhập hoặc chọn đơn vị đã dùng" maxLength={100} /></AutoComplete></Form.Item>
       </div>
       <Form.Item name="name" label="Tên" rules={[{ required: true, whitespace: true }]}><Input maxLength={200} /></Form.Item>

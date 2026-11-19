@@ -61,6 +61,22 @@ func (s *Service) excelCatalogIDTx(ctx context.Context, tx *sql.Tx, kind, value 
 	}
 	return id, err
 }
+
+type excelColumnError struct {
+	column string
+	err    error
+}
+
+func (e *excelColumnError) Error() string { return e.err.Error() }
+func (e *excelColumnError) Unwrap() error { return e.err }
+
+func excelColError(column string, err error) error {
+	if err == nil || column == "" {
+		return err
+	}
+	return &excelColumnError{column: column, err: err}
+}
+
 func excelID(batchID, kind, key string) string {
 	return "imp-" + sqlite.Hash([]byte(batchID + ":" + kind + ":" + key))[:32]
 }
@@ -69,11 +85,13 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 	schema, _ := excelSchema(config.Kind)
 	if schema.Group == "Danh mục" {
 		code := values["code"]
+		codeCol := "Mã"
 		if config.Kind == "banks" {
 			code = values["number"]
+			codeCol = "Số tài khoản ngân hàng"
 		}
 		if seen[strings.ToUpper(code)] {
-			return nil, accounting.Fail("DUPLICATE_CODE", "Mã bị lặp trong cùng tệp nhập.")
+			return nil, excelColError(codeCol, accounting.Fail("DUPLICATE_CODE", "Mã bị lặp trong cùng tệp nhập."))
 		}
 		seen[strings.ToUpper(code)] = true
 		id, err := s.excelCatalogIDTx(ctx, tx, config.Kind, code)
@@ -81,10 +99,10 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 			return nil, err
 		}
 		if id != "" && config.Mode == "add" {
-			return nil, accounting.Fail("DUPLICATE_CODE", "Mã đã tồn tại. Chọn chế độ cập nhật nếu muốn sửa bản ghi có sẵn.")
+			return nil, excelColError(codeCol, accounting.Fail("DUPLICATE_CODE", "Mã đã tồn tại. Chọn chế độ cập nhật nếu muốn sửa bản ghi có sẵn."))
 		}
 		if id == "" && config.Mode == "update" {
-			return nil, accounting.Fail("NOT_FOUND", "Chế độ cập nhật yêu cầu mã đã tồn tại trong danh mục.")
+			return nil, excelColError(codeCol, accounting.Fail("NOT_FOUND", "Chế độ cập nhật yêu cầu mã đã tồn tại trong danh mục."))
 		}
 		if id != "" && config.Mode == "update" {
 			prior := map[string]string{}
@@ -119,7 +137,7 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 			if _, mapped := config.Mapping["parentCode"]; mapped {
 				parent, e := s.excelReferenceTx(ctx, tx, "account", values["parentCode"])
 				if e != nil {
-					return nil, e
+					return nil, excelColError("Mã tài khoản cha", e)
 				}
 				_, revision, e := s.Ledger.AccountParentTx(ctx, tx, id)
 				if e != nil {
@@ -136,15 +154,18 @@ func (s *Service) applyExcelRecord(ctx context.Context, tx *sql.Tx, batch ExcelB
 		case "banks":
 			account, e := s.excelReferenceTx(ctx, tx, "account", values["accountCode"])
 			if e != nil {
-				return nil, e
+				return nil, excelColError("Tài khoản kế toán", e)
 			}
 			_, err = s.saveBankTx(ctx, tx, BankAccount{ID: id, Number: code, BankName: values["bankName"], AccountID: account, Active: active})
 		case "employees":
 			dependents, e := strconv.Atoi(values["dependents"])
 			if e != nil {
-				return nil, accounting.Fail("VALIDATION", "Số người phụ thuộc không hợp lệ.")
+				return nil, excelColError("Số người phụ thuộc", accounting.Fail("VALIDATION", "Số người phụ thuộc không hợp lệ."))
 			}
 			_, err = s.saveEmployeeTx(ctx, tx, Employee{ID: id, Code: code, Name: values["name"], BaseSalary: values["baseSalary"], InsuranceBase: values["insuranceBase"], Dependents: dependents, Active: active})
+		}
+		if accounting.Code(err) == "DUPLICATE_CODE" {
+			return nil, excelColError(codeCol, err)
 		}
 		return nil, err
 	}

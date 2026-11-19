@@ -180,8 +180,29 @@ func (s *Service) SavePartnersTx(ctx context.Context, tx *sql.Tx, partners []Par
 		p.Email = strings.TrimSpace(p.Email)
 		p.Phone = strings.TrimSpace(p.Phone)
 		partners[index] = p
-		if !accounting.ID(p.ID) || !accounting.ID(p.Code) || p.Name == "" || len(p.Name) > 300 || len(p.TaxCode) > 100 || len(p.Address) > 500 || len(p.Email) > 254 || len(p.Phone) > 40 || !strings.Contains("|customer|supplier|both|", "|"+p.Role+"|") {
-			return nil, accounting.Fail("VALIDATION", "Thông tin đối tượng không hợp lệ.")
+		if !accounting.ID(p.ID) {
+			return nil, accounting.Fail("VALIDATION", "ID đối tượng không hợp lệ.")
+		}
+		if !accounting.CatalogCode(p.Code) {
+			return nil, accounting.Fail("VALIDATION", "Mã đối tượng chỉ dùng chữ không dấu, chữ số, khoảng trắng đơn và ký tự _ . : / - (bắt đầu bằng chữ/số, tối đa 100 ký tự).")
+		}
+		if p.Name == "" || len(p.Name) > 300 {
+			return nil, accounting.Fail("VALIDATION", "Tên đối tượng không được để trống và tối đa 300 byte.")
+		}
+		if !strings.Contains("|customer|supplier|both|", "|"+p.Role+"|") {
+			return nil, accounting.Fail("VALIDATION", "Vai trò đối tượng chỉ nhận customer, supplier hoặc both.")
+		}
+		if len(p.TaxCode) > 100 {
+			return nil, accounting.Fail("VALIDATION", "Mã số thuế tối đa 100 ký tự.")
+		}
+		if len(p.Address) > 500 {
+			return nil, accounting.Fail("VALIDATION", "Địa chỉ đối tượng tối đa 500 byte.")
+		}
+		if len(p.Email) > 254 {
+			return nil, accounting.Fail("VALIDATION", "Email đối tượng tối đa 254 ký tự.")
+		}
+		if len(p.Phone) > 40 {
+			return nil, accounting.Fail("VALIDATION", "Số điện thoại đối tượng tối đa 40 ký tự.")
 		}
 		partners[index].HasReferences = false
 		var old Partner
@@ -223,8 +244,17 @@ func (s *Service) SaveProjectsTx(ctx context.Context, tx *sql.Tx, projects []Pro
 		p.Name = strings.TrimSpace(p.Name)
 		p.Description = strings.TrimSpace(p.Description)
 		projects[index] = p
-		if !accounting.ID(p.ID) || !accounting.ID(p.Code) || p.Name == "" || len(p.Name) > 300 || len(p.Description) > 500 {
-			return nil, accounting.Fail("VALIDATION", "Thông tin công trình không hợp lệ.")
+		if !accounting.ID(p.ID) {
+			return nil, accounting.Fail("VALIDATION", "ID công trình không hợp lệ.")
+		}
+		if !accounting.CatalogCode(p.Code) {
+			return nil, accounting.Fail("VALIDATION", "Mã công trình chỉ dùng chữ không dấu, chữ số, khoảng trắng đơn và ký tự _ . : / - (bắt đầu bằng chữ/số, tối đa 100 ký tự).")
+		}
+		if p.Name == "" || len(p.Name) > 300 {
+			return nil, accounting.Fail("VALIDATION", "Tên công trình không được để trống và tối đa 300 byte.")
+		}
+		if len(p.Description) > 500 {
+			return nil, accounting.Fail("VALIDATION", "Mô tả công trình tối đa 500 byte.")
 		}
 		projects[index].HasReferences = false
 		var existingCode string

@@ -1,6 +1,6 @@
 # Trạng thái dự án
 
-Cập nhật: 18/11/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
+Cập nhật: 19/11/2026. Tài liệu ghi chức năng có mã nguồn và bằng chứng kiểm tra, không thay cho nghiệm thu kế toán.
 
 ## Phạm vi đã chốt
 
@@ -9,6 +9,12 @@ Cập nhật: 18/11/2026. Tài liệu ghi chức năng có mã nguồn và bằn
 - Go + SQLite; React + TypeScript strict + Vite SPA, Ant Design Form/Table, React Router, TanStack Query; pnpm. Frontend và driver Go `modernc.org/sqlite` đã được chấp thuận cài đặt.
 - UI ưu tiên mật độ thông tin: chữ chính 13px, chữ phụ 12px, input/button cao 32px; margin/padding nhỏ và đồng đều.
 - Một pháp nhân, một máy chủ ghi trên ổ cục bộ, VND theo đơn vị đồng. Tiền và decimal qua API là chuỗi; int64 và math/big ở backend, chuỗi/BigInt ở frontend.
+
+## Cho phép khoảng trắng đơn trong mã danh mục và báo lỗi nhập Excel theo từng cột — 0.18.10
+
+- Đã làm: bổ sung `accounting.CatalogCode` (`server/internal/accounting/amount.go`) cho phép khoảng trắng đơn bên trong mã danh mục (ví dụ `CHYANG SHENG`, `GEN BRIGHT`, `TTI CUCHI`, `TTI DAUGIAY`, `TTI Q9`), vẫn giữ chặt `accounting.ID` cho ID nội bộ, khóa idempotency, tên đăng nhập, `sourceId` và mã tài khoản kế toán; áp dụng đồng bộ cho đối tượng (`SavePartnersTx`), công trình (`SaveProjectsTx`), hàng hóa/dịch vụ (`saveItemTx`), kho (`saveWarehouseTx`), nhân viên (`saveEmployeeTx`), tài sản/CCDC (`saveAssetTx`, `registerAsset`, `opening.go`) và các form UI tương ứng (`PartnerEditor`, `ProjectEditor`, `ItemEditor`, `Warehouses`, dùng chung `isValidCatalogCode` trong `web/src/shared/data/partner-catalog.ts`).
+- Nâng cấp kiểm tra và báo lỗi nhập Excel (`excel_import.go`, `excel_records.go`, `repository.go`): kiểm tra định dạng mã và giới hạn độ dài từng trường ngay tại `excelValue`, đồng thời gắn tên cột (`excelColumnError`) cho lỗi trùng mã/không tìm thấy/tham chiếu danh mục và tách thông báo lỗi chi tiết theo từng trường thay cho thông báo chung `"Thông tin đối tượng không hợp lệ."` có cột trống; bổ sung chú thích định dạng mã vào sheet hướng dẫn mẫu Excel. Không thay đổi schema SQLite hay dữ liệu đã ghi sổ.
+- Đã kiểm tra: `gofmt`, `go vet ./...`, `go test -race` cho `accounting`, `ledger`, `operations` (`TestExcel|TestCatalog|TestPartner|TestProject`, gồm `TestExcelPartnersAllowSpacesInCodeAndReportColumnSpecificErrors` kiểm tra nhập khách hàng có khoảng trắng, đối chiếu chứng từ bán hàng tham chiếu mã có khoảng trắng, reopen SQLite và báo đúng cột/lý do cho từng lỗi) và `httpserver`; 83 unit test Node (`web/tests/*.test.ts`), `tsc --noEmit`, `tsc -b` và `vite build`.
 
 ## Đặt lại dữ liệu ban đầu giữ người dùng và sửa chính sách chưa phát sinh — 0.18.9
 

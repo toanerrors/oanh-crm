@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterCatalogPartners, filterCatalogProjects } from '../src/shared/data/partner-catalog.ts';
+import { filterCatalogPartners, filterCatalogProjects, isValidCatalogCode } from '../src/shared/data/partner-catalog.ts';
 import { saveDemoPartners, saveDemoProjects } from '../src/shared/data/workspace.ts';
 import type { Partner } from '../src/shared/data/types.ts';
 
@@ -57,4 +57,13 @@ test('lọc và lưu danh mục công trình không dấu, chặn trùng mã', a
   assert.equal(saved.description, 'Hợp đồng quý 4');
   await assert.rejects(() => saveDemoProjects([{ id: 'dup-ct', code: 'ct-ld01', name: 'Trùng', description: '', active: true }]), /Mã công trình CT-LD01 bị trùng/);
   assert.deepEqual(filterCatalogProjects([saved, { id: 'old', code: 'CT-OLD', name: 'Đã xong', description: '', active: false }], 'nha may a', true).map(p => p.id), ['demo-ct-ld']);
+});
+
+test('kiểm tra mã danh mục cho phép khoảng trắng đơn và chặn ký tự không hợp lệ', () => {
+  for (const valid of ['A', 'OLAM-TN', 'CHYANG SHENG', 'GEN BRIGHT', 'TTI CUCHI', 'TTI DAUGIAY', 'TTI Q9', ' TTI Q9 ', `A${'B'.repeat(99)}`]) {
+    assert.equal(isValidCatalogCode(valid), true, `expected valid: ${valid}`);
+  }
+  for (const invalid of ['', '   ', 'TTI  Q9', 'TTI\tQ9', '-KH1', 'KHÁCH 1', 'KH@1', `A${'B'.repeat(100)}`]) {
+    assert.equal(isValidCatalogCode(invalid), false, `expected invalid: ${invalid}`);
+  }
 });

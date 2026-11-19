@@ -3,6 +3,15 @@ import type { Partner, Project } from './types.ts';
 
 export type PartnerRoleFilter = 'customer' | 'supplier' | 'all';
 
+const CATALOG_CODE_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9 _.:/-]{0,98}[A-Za-z0-9_.:/-])?$/;
+
+export const CATALOG_CODE_MESSAGE = 'Dùng chữ không dấu, chữ số, khoảng trắng đơn và ký tự _ . : / - (bắt đầu bằng chữ/số, tối đa 100 ký tự)';
+
+export function isValidCatalogCode(value: string): boolean {
+  const trimmed = value.trim();
+  return CATALOG_CODE_PATTERN.test(trimmed) && !trimmed.includes('  ');
+}
+
 export const partnerRoles: Record<Partner['role'], string> = {
   customer: 'Khách hàng',
   supplier: 'Nhà cung cấp',

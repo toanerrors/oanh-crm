@@ -168,7 +168,14 @@ func (s *Service) SaveItem(ctx context.Context, cmd ledger.Command, item Item) (
 	})
 }
 func (s *Service) saveItemTx(ctx context.Context, tx *sql.Tx, item Item) (any, error) {
-	if !accounting.ID(item.ID) || !accounting.ID(item.Code) || strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.Unit) == "" {
+	item.Code = strings.TrimSpace(item.Code)
+	if !accounting.ID(item.ID) {
+		return nil, accounting.Fail("VALIDATION", "ID hàng hóa/dịch vụ không hợp lệ.")
+	}
+	if !accounting.CatalogCode(item.Code) {
+		return nil, accounting.Fail("VALIDATION", "Mã hàng hóa/dịch vụ chỉ dùng chữ không dấu, chữ số, khoảng trắng đơn và ký tự _ . : / - (bắt đầu bằng chữ/số, tối đa 100 ký tự).")
+	}
+	if strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.Unit) == "" {
 		return nil, accounting.Fail("VALIDATION", "Nhập mã, tên và đơn vị hàng hóa/dịch vụ.")
 	}
 	var code, unit string
@@ -214,7 +221,14 @@ func (s *Service) saveEmployeeTx(ctx context.Context, tx *sql.Tx, e Employee) (a
 	if err != nil {
 		return nil, err
 	}
-	if !accounting.ID(e.ID) || !accounting.ID(e.Code) || strings.TrimSpace(e.Name) == "" || e.Dependents < 0 || e.Dependents > 100 {
+	e.Code = strings.TrimSpace(e.Code)
+	if !accounting.ID(e.ID) {
+		return nil, accounting.Fail("VALIDATION", "ID nhân viên không hợp lệ.")
+	}
+	if !accounting.CatalogCode(e.Code) {
+		return nil, accounting.Fail("VALIDATION", "Mã nhân viên chỉ dùng chữ không dấu, chữ số, khoảng trắng đơn và ký tự _ . : / - (bắt đầu bằng chữ/số, tối đa 100 ký tự).")
+	}
+	if strings.TrimSpace(e.Name) == "" || e.Dependents < 0 || e.Dependents > 100 {
 		return nil, accounting.Fail("VALIDATION", "Thông tin nhân viên không hợp lệ.")
 	}
 	var code string

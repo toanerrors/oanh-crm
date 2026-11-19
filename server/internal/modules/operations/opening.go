@@ -179,7 +179,8 @@ func (s *Service) openingDocumentPolicy(ctx context.Context, tx *sql.Tx, in Open
 		if err != nil {
 			return doc, policy, err
 		}
-		if !accounting.ID(a.ID) || !accounting.ID(a.Code) || strings.TrimSpace(a.Name) == "" || len(a.Name) > 200 || seen[a.ID] || codes[strings.ToLower(a.Code)] || a.Kind != "fixed" && a.Kind != "prepaid" || cost == 0 || residual >= cost || allocated > cost-residual || a.Months < 1 || a.Months > 1200 || !accounting.Period(a.StartPeriod) || a.StartPeriod > in.Cutoff[:7] {
+		a.Code = strings.TrimSpace(a.Code)
+		if !accounting.ID(a.ID) || !accounting.CatalogCode(a.Code) || strings.TrimSpace(a.Name) == "" || len(a.Name) > 200 || seen[a.ID] || codes[strings.ToLower(a.Code)] || a.Kind != "fixed" && a.Kind != "prepaid" || cost == 0 || residual >= cost || allocated > cost-residual || a.Months < 1 || a.Months > 1200 || !accounting.Period(a.StartPeriod) || a.StartPeriod > in.Cutoff[:7] {
 			return doc, policy, accounting.Fail("VALIDATION", "Kiểm tra mã, loại, nguyên giá, giá trị thu hồi, lũy kế và thời gian khấu hao/phân bổ.")
 		}
 		seen[a.ID] = true

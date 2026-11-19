@@ -29,7 +29,7 @@ func (s *Service) saveAssetTx(ctx context.Context, tx *sql.Tx, a Asset) (any, er
 	if err != nil {
 		return nil, err
 	}
-	if !accounting.ID(a.ID) || !accounting.ID(a.Code) || a.Name == "" || a.Kind != "fixed" && a.Kind != "prepaid" || cost == 0 || residual >= cost || a.Months < 1 || a.Months > 1200 || !accounting.Period(a.StartPeriod) {
+	if !accounting.ID(a.ID) || !accounting.CatalogCode(a.Code) || a.Name == "" || a.Kind != "fixed" && a.Kind != "prepaid" || cost == 0 || residual >= cost || a.Months < 1 || a.Months > 1200 || !accounting.Period(a.StartPeriod) {
 		return nil, accounting.Fail("VALIDATION", "Thông tin tài sản/khoản phân bổ không hợp lệ.")
 	}
 	if cost-residual < int64(a.Months) {
@@ -138,7 +138,8 @@ func (s *Service) registerAsset(_ context.Context, _ *sql.Tx, in Input, doc *led
 	if err != nil {
 		return err
 	}
-	if !accounting.ID(a.ID) || !accounting.ID(a.Code) || strings.TrimSpace(a.Name) == "" || a.Kind != "fixed" && a.Kind != "prepaid" || cost == 0 || residual >= cost || a.Months < 1 || a.Months > 1200 || !accounting.Period(a.StartPeriod) || a.StartPeriod < in.Date[:7] {
+	a.Code = strings.TrimSpace(a.Code)
+	if !accounting.ID(a.ID) || !accounting.CatalogCode(a.Code) || strings.TrimSpace(a.Name) == "" || a.Kind != "fixed" && a.Kind != "prepaid" || cost == 0 || residual >= cost || a.Months < 1 || a.Months > 1200 || !accounting.Period(a.StartPeriod) || a.StartPeriod < in.Date[:7] {
 		return accounting.Fail("VALIDATION", "Thông tin tài sản/khoản phân bổ không hợp lệ; kỳ bắt đầu không được trước kỳ ghi tăng.")
 	}
 	if cost-residual < int64(a.Months) {

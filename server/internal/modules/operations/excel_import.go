@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"path/filepath"
@@ -583,7 +584,12 @@ func (s *Service) checkExcelTx(ctx context.Context, tx *sql.Tx, batch ExcelBatch
 			if accounting.Code(e) == "INTERNAL_ERROR" {
 				return p, ids, e
 			}
-			p.issue(p.Rows[record.Rows[0]].Row, "", e)
+			column := ""
+			var colErr *excelColumnError
+			if errors.As(e, &colErr) {
+				column = colErr.column
+			}
+			p.issue(p.Rows[record.Rows[0]].Row, column, e)
 			p.Invalid += len(record.Rows)
 			for _, i := range record.Rows {
 				p.Rows[i].Status = "invalid"
@@ -611,6 +617,61 @@ func (s *Service) checkExcelTx(ctx context.Context, tx *sql.Tx, batch ExcelBatch
 	}
 	p.Debit, p.Credit = debit.String(), credit.String()
 	return p, ids, nil
+}
+
+func excelStrictIDField(kind, key string) bool {
+	if key == "sourceId" {
+		return true
+	}
+	if kind == "accounts" && (key == "code" || key == "parentCode") {
+		return true
+	}
+	switch key {
+	case "accountCode", "debitAccount", "creditAccount", "moneyAccount", "counterAccount", "destinationAccount", "paymentAccount":
+		return true
+	}
+	return false
+}
+
+func excelFieldMaxBytes(kind, key string) int {
+	switch kind {
+	case "partners":
+		switch key {
+		case "name":
+			return 300
+		case "taxCode":
+			return 100
+		case "address":
+			return 500
+		case "email":
+			return 254
+		case "phone":
+			return 40
+		}
+	case "projects":
+		switch key {
+		case "name":
+			return 300
+		case "description":
+			return 500
+		}
+	case "warehouses":
+		if key == "name" {
+			return 200
+		}
+	case "banks":
+		switch key {
+		case "number":
+			return 100
+		case "bankName":
+			return 200
+		}
+	case "opening":
+		if key == "name" {
+			return 200
+		}
+	}
+	return 1000
 }
 
 func excelValue(field ExcelField, cell spreadsheet.Cell, config ExcelConfiguration, date1904 bool) (string, error) {
@@ -642,6 +703,16 @@ func excelValue(field ExcelField, cell spreadsheet.Cell, config ExcelConfigurati
 			_, e = accounting.Decimal(n)
 		}
 		return n, e
+	case "code":
+		if excelStrictIDField(config.Kind, field.Key) {
+			if !accounting.ID(value) {
+				return value, accounting.Fail("VALIDATION", "Mã chỉ dùng chữ không dấu, chữ số và ký tự _ . : / - (không khoảng trắng, bắt đầu bằng chữ/số, tối đa 100 ký tự).")
+			}
+		} else if field.Key != "invoiceSourceId" && field.Key != "costSourceId" {
+			if !accounting.CatalogCode(value) {
+				return value, accounting.Fail("VALIDATION", "Mã chỉ dùng chữ không dấu, chữ số, khoảng trắng đơn và ký tự _ . : / - (bắt đầu bằng chữ/số, tối đa 100 ký tự).")
+			}
+		}
 	case "identifier":
 		if cell.Kind == "number" {
 			return value, accounting.Fail("TEXT_REQUIRED", "Mã số, số tài khoản, số hóa đơn và điện thoại phải lưu dạng Text để giữ số 0 đầu.")
@@ -667,8 +738,9 @@ func excelValue(field ExcelField, cell spreadsheet.Cell, config ExcelConfigurati
 			return value, accounting.Fail("VALIDATION", "Kỳ phải có định dạng YYYY-MM.")
 		}
 	}
-	if len(value) > 1000 {
-		return value, accounting.Fail("VALIDATION", "Nội dung tối đa 1.000 byte.")
+	maxBytes := excelFieldMaxBytes(config.Kind, field.Key)
+	if len(value) > maxBytes {
+		return value, accounting.Fail("VALIDATION", fmt.Sprintf("%s vượt quá giới hạn %d byte.", field.Label, maxBytes))
 	}
 	return value, nil
 }
@@ -693,6 +765,13 @@ func (s *Service) ExcelTemplate(kind string, advanced bool) ([]byte, error) {
 		}
 		if field.Default != "" {
 			info += " · Để trống: " + field.Default
+		}
+		if field.Type == "code" {
+			if excelStrictIDField(kind, field.Key) {
+				info += " · Chữ không dấu, số, _ . : / - (không khoảng trắng, tối đa 100 ký tự)"
+			} else if field.Key != "invoiceSourceId" && field.Key != "costSourceId" {
+				info += " · Chữ không dấu, số, khoảng trắng đơn, _ . : / - (tối đa 100 ký tự)"
+			}
 		}
 		notes = append(notes, info)
 	}

@@ -1,7 +1,7 @@
 import { App, Button, Form, Input, Modal, Select, Switch } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isDemo } from '../../shared/api/client';
-import { partnerRoles } from '../../shared/data/partner-catalog';
+import { CATALOG_CODE_MESSAGE, isValidCatalogCode, partnerRoles } from '../../shared/data/partner-catalog';
 import type { PartnerRoleFilter } from '../../shared/data/partner-catalog';
 import type { Partner, Workspace } from '../../shared/data/types';
 import { saveDemoPartners, workspaceKey } from '../../shared/data/workspace';
@@ -29,7 +29,7 @@ export function PartnerEditor({ partner, existing = false, allowedRole = 'all', 
     <p className={styles.muted}>{isDemo ? 'Thay đổi chỉ tồn tại trong phiên mẫu.' : 'Thay đổi được lưu vào cơ sở dữ liệu của doanh nghiệp.'} Bạn có thể sửa mã, tên, mã số thuế, địa chỉ, vai trò, thông tin liên hệ và trạng thái sử dụng.</p>
     <Form<Partner> name="partnerEditor" form={form} layout="vertical" onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 's' || event.key === 'Enter')) { event.preventDefault(); event.stopPropagation(); if (!mutation.isPending) form.submit(); } }} initialValues={{ taxCode: '', address: '', ...partner }} disabled={mutation.isPending} onFinish={values => mutation.mutate({ ...partner, ...values })}>
       <div className={styles.formGrid}>
-        <Form.Item name="code" label="Mã đối tượng" rules={[{ required: true, whitespace: true, message: 'Nhập mã đối tượng' }, { pattern: /^[A-Za-z0-9_-]+$/, message: 'Dùng chữ không dấu, chữ số, dấu gạch ngang hoặc gạch dưới' }]}><Input maxLength={40} disabled={mutation.isPending} placeholder={partner.role === 'supplier' ? 'VD: NCC005' : 'VD: KH005'} /></Form.Item>
+        <Form.Item name="code" label="Mã đối tượng" rules={[{ required: true, whitespace: true, message: 'Nhập mã đối tượng' }, { validator: (_, value: string | undefined) => !value?.trim() || isValidCatalogCode(value) ? Promise.resolve() : Promise.reject(new Error(CATALOG_CODE_MESSAGE)) }]}><Input maxLength={100} disabled={mutation.isPending} placeholder={partner.role === 'supplier' ? 'VD: NCC005' : 'VD: KH005'} /></Form.Item>
         <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}><Select options={Object.entries(partnerRoles).map(([value, label]) => ({ value, label, disabled: allowedRole !== 'all' && value !== 'both' && value !== allowedRole }))} disabled={mutation.isPending} /></Form.Item>
       </div>
       <Form.Item name="name" label="Tên đối tượng" rules={[{ required: true, whitespace: true, message: 'Nhập tên đối tượng' }]}><Input maxLength={200} disabled={mutation.isPending} /></Form.Item>

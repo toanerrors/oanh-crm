@@ -35,8 +35,15 @@ func (s *Service) SaveWarehouse(ctx context.Context, cmd ledger.Command, w Wareh
 	})
 }
 func (s *Service) saveWarehouseTx(ctx context.Context, tx *sql.Tx, w Warehouse) (any, error) {
-	if !accounting.ID(w.ID) || !accounting.ID(w.Code) || strings.TrimSpace(w.Name) == "" || len(w.Name) > 200 {
-		return nil, accounting.Fail("VALIDATION", "Nhập mã và tên kho hợp lệ.")
+	w.Code = strings.TrimSpace(w.Code)
+	if !accounting.ID(w.ID) {
+		return nil, accounting.Fail("VALIDATION", "ID kho không hợp lệ.")
+	}
+	if !accounting.CatalogCode(w.Code) {
+		return nil, accounting.Fail("VALIDATION", "Mã kho chỉ dùng chữ không dấu, chữ số, khoảng trắng đơn và ký tự _ . : / - (bắt đầu bằng chữ/số, tối đa 100 ký tự).")
+	}
+	if strings.TrimSpace(w.Name) == "" || len(w.Name) > 200 {
+		return nil, accounting.Fail("VALIDATION", "Nhập tên kho hợp lệ (tối đa 200 byte).")
 	}
 	var old Warehouse
 	e := tx.QueryRowContext(ctx, "SELECT code,name FROM warehouses WHERE id=?", w.ID).Scan(&old.Code, &old.Name)

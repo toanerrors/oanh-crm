@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 )
 
@@ -32,5 +33,18 @@ func TestExactAmounts(t *testing.T) {
 	}
 	if _, e := Quantity("1.234", 2); e == nil {
 		t.Fatal("scale accepted")
+	}
+}
+
+func TestCatalogCode(t *testing.T) {
+	for _, valid := range []string{"A", "KH1", "OLAM-TN", "CHYANG SHENG", "GEN BRIGHT", "TTI CUCHI", "TTI DAUGIAY", "TTI Q9", "KH.01/A:B_C", "A" + strings.Repeat("B", 99)} {
+		if !CatalogCode(valid) {
+			t.Fatalf("rejected valid catalog code %q", valid)
+		}
+	}
+	for _, invalid := range []string{"", " ", " TTI", "TTI ", "TTI  Q9", "TTI\tQ9", "TTI\nQ9", "-KH1", "KHÁCH 1", "KH@1", "A" + strings.Repeat("B", 100)} {
+		if CatalogCode(invalid) {
+			t.Fatalf("accepted invalid catalog code %q", invalid)
+		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,7 @@ func Code(err error) string {
 var integer = regexp.MustCompile(`^(0|[1-9][0-9]{0,18})$`)
 var decimal = regexp.MustCompile(`^(0|[1-9][0-9]{0,14})(\.[0-9]{1,6})?$`)
 var identifier = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$`)
+var catalogCode = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9 _.:/-]{0,98}[A-Za-z0-9_.:/-])?$`)
 
 func Money(value string) (int64, error) {
 	if !integer.MatchString(value) {
@@ -87,6 +89,9 @@ func Period(value string) bool {
 	return e == nil && t.Format("2006-01") == value
 }
 func ID(value string) bool { return identifier.MatchString(value) }
+func CatalogCode(value string) bool {
+	return catalogCode.MatchString(value) && !strings.Contains(value, "  ")
+}
 func Text(n int64) string  { return strconv.FormatInt(n, 10) }
 func Rat(n int64) *big.Rat { return new(big.Rat).SetInt64(n) }
 
